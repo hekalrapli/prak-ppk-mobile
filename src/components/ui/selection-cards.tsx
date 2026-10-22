@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
-import { Colors, Radius, Spacing } from '../../constants/theme';
+import { Radius, Spacing } from '../../constants/theme';
+import { useTheme } from '../../hooks/use-theme';
 import { DemoUser } from '../../types/attendance';
 
 // --- ROLE CARD ---
@@ -11,7 +12,7 @@ interface RoleCardProps {
 }
 
 export const RoleCard: React.FC<RoleCardProps> = ({ role, selected, onSelect }) => {
-  const theme = Colors.light;
+  const theme = useTheme();
   const title = role === 'praktikan' ? 'Praktikan' : 'Asisten';
   const desc = role === 'praktikan' ? 'Catat kehadiran Anda' : 'Kelola sesi praktikum';
 
@@ -23,6 +24,8 @@ export const RoleCard: React.FC<RoleCardProps> = ({ role, selected, onSelect }) 
       ]}
       onPress={onSelect}
       activeOpacity={0.7}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
     >
       <Text style={[styles.roleTitle, { color: selected ? theme.primary : theme.textPrimary }]}>{title}</Text>
       <Text style={[styles.roleDesc, { color: theme.textSecondary }]}>{desc}</Text>
@@ -38,7 +41,7 @@ interface IdentityRowProps {
 }
 
 export const IdentityRow: React.FC<IdentityRowProps> = ({ user, selected, onSelect }) => {
-  const theme = Colors.light;
+  const theme = useTheme();
 
   return (
     <TouchableOpacity
@@ -48,6 +51,8 @@ export const IdentityRow: React.FC<IdentityRowProps> = ({ user, selected, onSele
       ]}
       onPress={onSelect}
       activeOpacity={0.7}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
     >
       <View style={[styles.radio, { borderColor: selected ? theme.primary : theme.border }]}>
         {selected && <View style={[styles.radioInner, { backgroundColor: theme.primary }]} />}

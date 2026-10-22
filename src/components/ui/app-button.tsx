@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { Colors, Radius, Spacing } from '../../constants/theme';
+import { Radius, Spacing } from '../../constants/theme';
+import { useTheme } from '../../hooks/use-theme';
 
 interface AppButtonProps {
   label: string;
@@ -17,8 +18,7 @@ export const AppButton: React.FC<AppButtonProps> = ({
   disabled = false,
   loading = false,
 }) => {
-  // Untuk prototipe ini kita gunakan tema light sebagai default
-  const theme = Colors.light;
+  const theme = useTheme();
 
   const getContainerStyle = () => {
     if (disabled) return [styles.container, { backgroundColor: theme.disabledBg }];
@@ -39,6 +39,8 @@ export const AppButton: React.FC<AppButtonProps> = ({
       disabled={disabled || loading}
       style={getContainerStyle()}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
     >
       {loading ? (
         <ActivityIndicator color={variant === 'secondary' ? theme.primary : theme.onPrimary} />

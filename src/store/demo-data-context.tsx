@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { DemoState, UserRole, DemoUser } from '../types/attendance';
+import { DemoState, UserRole } from '../types/attendance';
 import { DUMMY_USERS } from '../data/dummy-data';
 
 // Initial state (Nanti kita tambahkan data sesi dan kehadiran di tahap selanjutnya)

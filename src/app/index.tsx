@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Colors, Spacing } from '../constants/theme';
+import { Spacing } from '../constants/theme';
+import { useTheme } from '../hooks/use-theme';
 import { UserRole } from '../types/attendance';
 import { useDemoData } from '../store/demo-data-context';
 import { AppButton } from '../components/ui/app-button';
@@ -10,10 +12,10 @@ import { RoleCard, IdentityRow } from '../components/ui/selection-cards';
 export default function RoleSelectionScreen() {
   const router = useRouter();
   const { state, dispatch } = useDemoData();
-  const theme = Colors.light;
+  const theme = useTheme();
 
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(state.activeRole);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(state.activeUserId);
 
   const availableUsers = state.users.filter(u => u.role === selectedRole);
 
@@ -37,7 +39,7 @@ export default function RoleSelectionScreen() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex1}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.textPrimary }]}>PrakPresensi</Text>
@@ -48,7 +50,6 @@ export default function RoleSelectionScreen() {
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Pilih peran</Text>
             <View style={styles.roleContainer}>
               <RoleCard role="praktikan" selected={selectedRole === 'praktikan'} onSelect={() => handleRoleSelect('praktikan')} />
-              <View style={{ width: Spacing.three }} />
               <RoleCard role="asisten" selected={selectedRole === 'asisten'} onSelect={() => handleRoleSelect('asisten')} />
             </View>
           </View>
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 16 },
   section: { marginBottom: Spacing.four },
   sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: Spacing.three },
-  roleContainer: { flexDirection: 'row', justifyContent: 'space-between' },
+  roleContainer: { flexDirection: 'row', gap: Spacing.three },
   helperText: { fontSize: 12, marginTop: Spacing.two },
   footer: { padding: Spacing.three, borderTopWidth: 1, paddingBottom: Spacing.five },
 });
