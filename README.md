@@ -2,7 +2,7 @@
 
 A small Expo/React Native prototype for managing practicum attendance at a university. The app demonstrates two roles — **Praktikan** and **Asisten** — through a complete, frontend-only attendance flow.
 
-> **Implementation status:** this repository currently contains the Expo starter template. The product, requirements, and design in [`PRD.md`](./PRD.md) and [`DESIGN.md`](./DESIGN.md) describe the target implementation. Screens and attendance logic are **not implemented yet**. This README documents how the project is set up today and how the planned app will be developed and demonstrated.
+> **Implementation status:** role and identity selection is implemented, along with a shared in-memory demo context and guarded role-home placeholders for both roles. Schedule, session management, attendance, recap, and history remain **target features** described in [`PRD.md`](./PRD.md) and [`DESIGN.md`](./DESIGN.md). The starter `explore` route is still present but is not part of the product flow.
 
 ## Objectives
 
@@ -12,6 +12,8 @@ A small Expo/React Native prototype for managing practicum attendance at a unive
 - Produce a consistent, responsive UI that looks like a polished university utility rather than an admin dashboard.
 
 ## Key Features
+
+The table describes the **target feature set**. Only role/identity selection and guarded role-home placeholders are implemented in the current build.
 
 | Feature | Praktikan | Asisten |
 | --- | --- | --- |
@@ -30,12 +32,14 @@ Supported session statuses are **Belum dibuka** (`upcoming`), **Dibuka** (`open`
 
 ## Supported Roles
 
+The role definitions are final; the capability descriptions below are the target behavior.
+
 | Role | Capabilities |
 | --- | --- |
 | **Praktikan** | Select a dummy student identity, view schedules, open session details, record attendance when a session is open, see the recorded time, view personal attendance history. Attendance cannot be recorded twice for the same session. |
 | **Asisten** | Select a dummy assistant identity, view schedules and session details, open and close sessions with confirmation, view the attendance recap for a session, and see status changes immediately. |
 
-Role switching is available at any time from the app header. No restart is required.
+Role switching is available from the role-home screen. No restart is required; the selected identity is stored in the shared demo context.
 
 ## Technology Stack
 
@@ -52,10 +56,14 @@ Versions below come from the current `package.json` and `package-lock.json`.
 | Icons | `expo-symbols` | `~57.0.3` |
 | Images | `expo-image` | `~57.0.5` |
 | Animation | `react-native-reanimated` | `4.5.1` |
+| Development build | `expo-dev-client` | `~57.0.20` |
+| Linting | ESLint + `eslint-config-expo` | `^9.0.0` / `~57.0.2` |
 | Web support | `react-native-web` | `~0.21.0` |
 | Package manager | npm (`package-lock.json`) | — |
 
-The project does **not** currently include a UI kit, state-management library, backend client, database, or test framework. The planned implementation requires none of them. Use React Context/`useReducer`, React Native core components, and the already-installed modules.
+The project does **not** include a UI kit, state-management library, backend client, database, or test framework. The planned implementation requires none of them. Use React Context/`useReducer`, React Native core components, and the already-installed modules.
+
+The app uses `expo-dev-client` for development builds. ESLint is configured with `eslint-config-expo` (flat config in `eslint.config.js`).
 
 > `package-lock.json` is present and no Bun/pnpm/Yarn lockfile exists. Use **npm** and `npx`, not `bun`/`bunx`.
 
@@ -67,36 +75,49 @@ The project does **not** currently include a UI kit, state-management library, b
 .
 ├── app.json
 ├── assets/
-│   └── images/                 # Expo starter icons and images
+│   └── images/                 # App icons and Expo starter images
 ├── scripts/
 │   └── reset-project.js        # Expo starter reset script (do not run)
 ├── src/
 │   ├── app/                    # Expo Router routes
-│   │   ├── _layout.tsx         # Starter tab layout
-│   │   ├── index.tsx           # Starter home screen
-│   │   └── explore.tsx         # Starter explore screen
-│   ├── components/             # Starter components
+│   │   ├── _layout.tsx         # Root Stack + theme + demo provider
+│   │   ├── index.tsx           # Role and identity selection (implemented)
+│   │   ├── praktikan/
+│   │   │   └── index.tsx       # Praktikan role home (placeholder)
+│   │   ├── asisten/
+│   │   │   └── index.tsx       # Asisten role home (placeholder)
+│   │   └── explore.tsx         # Expo starter route (not part of product)
+│   ├── components/
 │   │   ├── ui/
-│   │   ├── app-tabs.tsx
-│   │   ├── themed-text.tsx
-│   │   └── themed-view.tsx
+│   │   │   ├── app-button.tsx
+│   │   │   ├── role-home-screen.tsx
+│   │   │   └── selection-cards.tsx
+│   │   └── ...                 # Remaining Expo starter components
 │   ├── constants/
-│   │   └── theme.ts            # Existing colors, spacing, fonts
+│   │   └── theme.ts            # Design tokens
+│   ├── data/
+│   │   └── dummy-data.tsx      # Dummy identities
 │   ├── hooks/
 │   │   ├── use-color-scheme.ts
 │   │   └── use-theme.ts
+│   ├── store/
+│   │   └── demo-data-context.tsx
+│   ├── types/
+│   │   ├── attendance.tsx
+│   │   └── styles.d.ts
 │   └── global.css
 ├── AGENTS.md
 ├── DESIGN.md
 ├── LICENSE
 ├── PRD.md
+├── eslint.config.js
 ├── package.json
 └── tsconfig.json
 ```
 
 ### Planned implementation structure
 
-This is the recommended target layout described in `DESIGN.md` §7.10. It is **not present in the repository yet**; the starter screens and native tab layout will be replaced during implementation.
+This is the recommended target layout described in `DESIGN.md` §7.10. The role routes and shared provider already exist; session, recap, and history routes are **not present yet**.
 
 ```
 src/
@@ -132,12 +153,13 @@ The `@/*` path alias maps to `src/*` (configured in `tsconfig.json`).
 - npm (bundled with Node.js).
 - One of:
   - a physical device with **Expo Go**, or
+  - a development build on a device/emulator (recommended because `expo-dev-client` is installed), or
   - an Android emulator via Android Studio, or
   - an iOS simulator via Xcode on macOS, or
   - a modern browser for the web target.
 - Internet access for the initial dependency install and Expo tooling.
 
-The planned feature set uses only modules already listed in `package.json`. If a development build is needed for any existing native module, run it locally or with EAS. The repository does not include `ios/` or `android/` directories; they are generated when needed.
+The project uses `expo-dev-client`. `npm start` can still target Expo Go for the current screens, but `npm run android` and `npm run ios` compile a local development build and require the corresponding native toolchain. The repository does not include `ios/` or `android/` directories; they are generated when needed.
 
 ## Installation and Setup
 
@@ -149,19 +171,14 @@ npm install
 npx expo start
 ```
 
-From the Expo terminal UI:
+From the Expo terminal UI, press `a` (Android), `i` (iOS, macOS only), or `w` (web), or scan the QR code with a compatible client.
 
-- press `a` to open Android
-- press `i` to open iOS (macOS only)
-- press `w` to open the web build
-- scan the QR code with Expo Go on a physical device
-
-You can also launch a platform directly:
+You can also build and launch a native development build:
 
 ```bash
-npm run android
-npm run ios      # macOS only
-npm run web
+npm run android   # expo run:android; requires Android Studio/SDK
+npm run ios       # expo run:ios; macOS only
+npm run web       # web target
 ```
 
 ## Commands
@@ -169,8 +186,8 @@ npm run web
 | Command | Purpose |
 | --- | --- |
 | `npm start` | Start the Expo dev server (same as `npx expo start`). |
-| `npm run android` | Start Expo and open the Android target. |
-| `npm run ios` | Start Expo and open the iOS simulator (macOS only). |
+| `npm run android` | Build/run the Android development build (`expo run:android`). |
+| `npm run ios` | Build/run the iOS development build (`expo run:ios`, macOS only). |
 | `npm run web` | Start Expo and open the web target. |
 | `npm run lint` | Run `expo lint`. |
 | `npx tsc --noEmit` | Type-check the project with the installed TypeScript compiler. |
@@ -180,15 +197,15 @@ npm run web
 Notes:
 
 - There is **no test script** and no test framework configured yet. Verification is currently manual, following the definition of done in `PRD.md`.
-- `npm run lint` runs `expo lint`; the repository has no committed ESLint configuration or direct ESLint dependency yet. Expo may offer to create that setup on first use.
-- At the time of writing, `npx tsc --noEmit` reports two pre-existing starter errors: missing type declarations for `src/components/animated-icon.module.css` and the `@/global.css` side-effect import. These are unrelated to the attendance feature and should disappear when the starter UI is replaced or CSS module declarations are added.
+- `npm run lint` is configured with `eslint.config.js` and `eslint-config-expo`; it passes for the current source.
+- `npx tsc --noEmit` passes for the current source. CSS module declarations live in `src/types/styles.d.ts`.
 - `npm run reset-project` exists in `package.json` but deletes/moves starter code. **Do not run it** on this repository.
 
 ## Dummy Data and Local State
 
 The prototype uses local, in-memory data only.
 
-- Seed data lives in `src/data/dummy-data.ts` (planned) and is loaded into a React Context provider at app start.
+- Dummy identities live in `src/data/dummy-data.tsx` and are loaded into the `DemoProvider` at app start. Session and attendance seed data are still planned.
 - Role, selected identity, session statuses, and attendance records are held in React state. No network request, database, or cloud service is involved.
 - The two role views read the **same in-memory demo store during a single app run**, so the main demonstration can be performed without restarting. This is local UI state sharing, not backend or cross-device synchronization.
 - All state resets to the seed data when the app is reloaded. There is no persistence.
@@ -226,6 +243,8 @@ All dummy praktikans are treated as enrolled in all listed sessions. There is no
 
 ## Demonstrating the Main Flow
 
+> **Target scenario:** the schedule, session, attendance, and recap screens are not implemented yet. The current build supports only the role/identity entry and the role-home placeholders. The steps below define the demo to run once those features exist.
+
 Start the app, then follow these steps. This script matches `PRD.md` §6.5 and `DESIGN.md` §7.8.
 
 1. **Select Asisten.** On the role screen, choose **Asisten**, select **Raka Pratama**, then tap **Masuk**.
@@ -252,7 +271,7 @@ Reloading the app resets all sessions and attendance to the seed data, which mak
 - No enrollment management; all dummy praktikans see all dummy sessions.
 - No profile editing, password flows, or admin screens.
 - No automated tests yet; no test framework is installed.
-- The repository still contains Expo starter screens and a starter native tab layout; the app described by the docs is not implemented.
+- Only role selection and role-home placeholders are implemented. Schedules, sessions, attendance, recap, history, and the confirmation/toast components are still to be built. The unused Expo starter `explore` route and starter components remain in the source.
 
 ## Documentation
 
@@ -265,7 +284,7 @@ Reloading the app resets all sessions and attendance to the seed data, which mak
 These are stated explicitly because the repository does not pin them:
 
 - Node.js 20+ and npm are assumed to be compatible with Expo SDK 57.
-- Expo Go is assumed to support all modules used by the planned feature set. If a native module requires a development build, use `npx expo run:android` / `npx expo run:ios` or an EAS development build.
+- Expo Go is assumed to work for the current screens. Because `expo-dev-client` is installed, a local development build (`npm run android` / `npm run ios`) or an EAS development build is the recommended path.
 - UI copy is in Indonesian; developer documentation is in English.
 - Dates use WIB (UTC+7) display labels. The prototype does not perform timezone conversion.
 - Attendance is a single status, **Hadir**. There is no permission/sick/absent workflow.
