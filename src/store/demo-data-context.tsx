@@ -1,14 +1,14 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 import { DemoState, UserRole } from '../types/attendance';
-import { DUMMY_USERS } from '../data/dummy-data';
+import { DUMMY_PRACTICUMS, DUMMY_SESSIONS, DUMMY_USERS } from '../data/dummy-data';
 
 // Initial state (Nanti kita tambahkan data sesi dan kehadiran di tahap selanjutnya)
 const initialState: DemoState = {
   activeRole: null,
   activeUserId: null,
   users: DUMMY_USERS,
-  practicums: [],
-  sessions: [],
+  practicums: DUMMY_PRACTICUMS,
+  sessions: DUMMY_SESSIONS,
   attendanceRecords: [],
 };
 

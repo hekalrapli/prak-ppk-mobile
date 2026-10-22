@@ -2,7 +2,7 @@
 
 A small Expo/React Native prototype for managing practicum attendance at a university. The app demonstrates two roles — **Praktikan** and **Asisten** — through a complete, frontend-only attendance flow.
 
-> **Implementation status:** role and identity selection is implemented, along with a shared in-memory demo context and guarded role-home placeholders for both roles. Schedule, session management, attendance, recap, and history remain **target features** described in [`PRD.md`](./PRD.md) and [`DESIGN.md`](./DESIGN.md). The starter `explore` route is still present but is not part of the product flow.
+> **Implementation status:** role/identity selection and the practicum schedule list are implemented for both roles. Session detail and personal history routes are read-only placeholders; session management, attendance, and recap remain **target features** described in [`PRD.md`](./PRD.md) and [`DESIGN.md`](./DESIGN.md). The starter `explore` route is still present but is not part of the product flow.
 
 ## Objectives
 
@@ -13,7 +13,7 @@ A small Expo/React Native prototype for managing practicum attendance at a unive
 
 ## Key Features
 
-The table describes the **target feature set**. Only role/identity selection and guarded role-home placeholders are implemented in the current build.
+The table describes the **target feature set**. Role/identity selection and the schedule list are functional; session detail and history are placeholders; management, attendance, and recap are not implemented yet.
 
 | Feature | Praktikan | Asisten |
 | --- | --- | --- |
@@ -39,7 +39,7 @@ The role definitions are final; the capability descriptions below are the target
 | **Praktikan** | Select a dummy student identity, view schedules, open session details, record attendance when a session is open, see the recorded time, view personal attendance history. Attendance cannot be recorded twice for the same session. |
 | **Asisten** | Select a dummy assistant identity, view schedules and session details, open and close sessions with confirmation, view the attendance recap for a session, and see status changes immediately. |
 
-Role switching is available from the role-home screen. No restart is required; the selected identity is stored in the shared demo context.
+Role switching is available from the **Ganti peran** action in the role stack header. No restart is required; the selected identity is stored in the shared demo context.
 
 ## Technology Stack
 
@@ -81,22 +81,31 @@ The app uses `expo-dev-client` for development builds. ESLint is configured with
 ├── src/
 │   ├── app/                    # Expo Router routes
 │   │   ├── _layout.tsx         # Root Stack + theme + demo provider
-│   │   ├── index.tsx           # Role and identity selection (implemented)
+│   │   ├── index.tsx           # Role and identity selection
 │   │   ├── praktikan/
-│   │   │   └── index.tsx       # Praktikan role home (placeholder)
+│   │   │   ├── _layout.tsx     # Praktikan stack header
+│   │   │   ├── index.tsx       # Schedule list (implemented)
+│   │   │   ├── history.tsx     # Personal history placeholder
+│   │   │   └── session/[sessionId].tsx
 │   │   ├── asisten/
-│   │   │   └── index.tsx       # Asisten role home (placeholder)
+│   │   │   ├── _layout.tsx     # Asisten stack header
+│   │   │   ├── index.tsx       # Schedule list (implemented)
+│   │   │   └── session/[sessionId].tsx
 │   │   └── explore.tsx         # Expo starter route (not part of product)
 │   ├── components/
+│   │   ├── attendance/
+│   │   │   ├── schedule-list-item.tsx
+│   │   │   └── session-preview.tsx
 │   │   ├── ui/
 │   │   │   ├── app-button.tsx
-│   │   │   ├── role-home-screen.tsx
-│   │   │   └── selection-cards.tsx
+│   │   │   ├── header-role-switch.tsx
+│   │   │   ├── selection-cards.tsx
+│   │   │   └── status-badge.tsx
 │   │   └── ...                 # Remaining Expo starter components
 │   ├── constants/
 │   │   └── theme.ts            # Design tokens
 │   ├── data/
-│   │   └── dummy-data.tsx      # Dummy identities
+│   │   └── dummy-data.tsx      # Dummy identities, practicums, sessions
 │   ├── hooks/
 │   │   ├── use-color-scheme.ts
 │   │   └── use-theme.ts
@@ -117,7 +126,7 @@ The app uses `expo-dev-client` for development builds. ESLint is configured with
 
 ### Planned implementation structure
 
-This is the recommended target layout described in `DESIGN.md` §7.10. The role routes and shared provider already exist; session, recap, and history routes are **not present yet**.
+This is the recommended target layout described in `DESIGN.md` §7.10. The role layouts, schedule lists, and read-only session/history placeholders exist; recap, attendance actions, and session management are **not present yet**.
 
 ```
 src/
@@ -243,7 +252,7 @@ All dummy praktikans are treated as enrolled in all listed sessions. There is no
 
 ## Demonstrating the Main Flow
 
-> **Target scenario:** the schedule, session, attendance, and recap screens are not implemented yet. The current build supports only the role/identity entry and the role-home placeholders. The steps below define the demo to run once those features exist.
+> **Target scenario:** the current build supports role/identity entry, schedule browsing, and read-only session previews. Session management, attendance, recap, and real personal history are not implemented yet. The steps below define the demo to run once those features exist.
 
 Start the app, then follow these steps. This script matches `PRD.md` §6.5 and `DESIGN.md` §7.8.
 
@@ -271,7 +280,7 @@ Reloading the app resets all sessions and attendance to the seed data, which mak
 - No enrollment management; all dummy praktikans see all dummy sessions.
 - No profile editing, password flows, or admin screens.
 - No automated tests yet; no test framework is installed.
-- Only role selection and role-home placeholders are implemented. Schedules, sessions, attendance, recap, history, and the confirmation/toast components are still to be built. The unused Expo starter `explore` route and starter components remain in the source.
+- Role selection, schedule lists, and read-only session/history placeholders are implemented. Session management, attendance, recap, the confirmation/toast components, and real history data are still to be built. The unused Expo starter `explore` route and starter components remain in the source.
 
 ## Documentation
 
