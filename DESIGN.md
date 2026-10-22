@@ -67,6 +67,7 @@ Tokens are semantic. Use the token name, not the color description, in component
 | `primaryPressed` | `#1D4ED8` | `#5F91F2` | Pressed primary button. |
 | `primarySoft` | `#EAF1FF` | `#182744` | Selected control background, soft info panels. |
 | `onPrimary` | `#FFFFFF` | `#08111F` | Text/icons on primary fill. |
+| `secondary` | `#475569` | `#CBD5E1` | Neutral secondary emphasis such as a date block label or supporting icon. This is not a second brand accent and never replaces `primary` for actions. |
 | `success` | `#15803D` | `#6DDB95` | Open status text, successful attendance text, success icon. |
 | `successSoft` | `#E8F6EC` | `#122C1D` | Success badge/panel background. |
 | `warning` | `#9A4A08` | `#F0B36A` | Non-blocking caution text (used sparingly). |
@@ -979,6 +980,7 @@ export const Colors = {
     primaryPressed: '#1D4ED8',
     primarySoft: '#EAF1FF',
     onPrimary: '#FFFFFF',
+    secondary: '#475569',
     success: '#15803D',
     successSoft: '#E8F6EC',
     warning: '#9A4A08',
@@ -1003,6 +1005,7 @@ export const Colors = {
     primaryPressed: '#5F91F2',
     primarySoft: '#182744',
     onPrimary: '#08111F',
+    secondary: '#CBD5E1',
     success: '#6DDB95',
     successSoft: '#122C1D',
     warning: '#F0B36A',
