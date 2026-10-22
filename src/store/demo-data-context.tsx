@@ -2,7 +2,7 @@ import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 import { DemoState, UserRole } from '../types/attendance';
 import { DUMMY_PRACTICUMS, DUMMY_SESSIONS, DUMMY_USERS } from '../data/dummy-data';
 
-// Initial state (Nanti kita tambahkan data sesi dan kehadiran di tahap selanjutnya)
+// In-memory demo state. Attendance data will be added in a later stage.
 const initialState: DemoState = {
   activeRole: null,
   activeUserId: null,
@@ -12,8 +12,10 @@ const initialState: DemoState = {
   attendanceRecords: [],
 };
 
-type Action = 
-  | { type: 'SELECT_IDENTITY'; payload: { role: UserRole; userId: string } };
+type Action =
+  | { type: 'SELECT_IDENTITY'; payload: { role: UserRole; userId: string } }
+  | { type: 'OPEN_SESSION'; payload: { sessionId: string; at: string } }
+  | { type: 'CLOSE_SESSION'; payload: { sessionId: string; at: string } };
 
 const DemoReducer = (state: DemoState, action: Action): DemoState => {
   switch (action.type) {
@@ -23,6 +25,38 @@ const DemoReducer = (state: DemoState, action: Action): DemoState => {
         activeRole: action.payload.role,
         activeUserId: action.payload.userId,
       };
+    case 'OPEN_SESSION': {
+      const session = state.sessions.find((item) => item.id === action.payload.sessionId);
+
+      if (!session || session.status !== 'upcoming' || state.activeRole !== 'asisten') {
+        return state;
+      }
+
+      return {
+        ...state,
+        sessions: state.sessions.map((item) =>
+          item.id === action.payload.sessionId
+            ? { ...item, status: 'open', openedAt: action.payload.at }
+            : item
+        ),
+      };
+    }
+    case 'CLOSE_SESSION': {
+      const session = state.sessions.find((item) => item.id === action.payload.sessionId);
+
+      if (!session || session.status !== 'open' || state.activeRole !== 'asisten') {
+        return state;
+      }
+
+      return {
+        ...state,
+        sessions: state.sessions.map((item) =>
+          item.id === action.payload.sessionId
+            ? { ...item, status: 'closed', closedAt: action.payload.at }
+            : item
+        ),
+      };
+    }
     default:
       return state;
   }

@@ -1,6 +1,6 @@
 import { Redirect, useLocalSearchParams } from 'expo-router';
 
-import { SessionPreview } from '@/components/attendance/session-preview';
+import { SessionDetail } from '@/components/attendance/session-detail';
 import { useDemoData } from '@/store/demo-data-context';
 
 export default function PraktikanSessionScreen() {
@@ -16,5 +16,5 @@ export default function PraktikanSessionScreen() {
     return <Redirect href={state.activeRole === 'asisten' ? '/asisten' : '/'} />;
   }
 
-  return <SessionPreview role="praktikan" sessionId={sessionId} />;
+  return <SessionDetail role="praktikan" sessionId={sessionId} />;
 }
