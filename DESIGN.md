@@ -760,11 +760,11 @@ ScrollView
 │   ├── Dibuka: "Presensi sedang berlangsung. Tutup sesi untuk menghentikan presensi."
 │   └── Ditutup: "Sesi telah ditutup. Rekap tetap dapat dilihat."
 └── Footer
-    ├── Primary: "Buka sesi" / "Tutup sesi" (depending on status)
+    ├── Primary: "Buka sesi" / "Tutup sesi" (assigned assistant only)
     └── Secondary: "Lihat rekap kehadiran" (always)
 ```
 
-When the session is closed, the recap action becomes the primary footer action and no open/close action is shown.
+When the session is closed, the recap action becomes the primary footer action and no open/close action is shown. Only the assistant assigned to the practicum may open or close its sessions; other assistants see an informational panel and the recap action.
 
 **Main information:** Session metadata, status, consequence of the current state.
 
@@ -779,6 +779,7 @@ When the session is closed, the recap action becomes the primary footer action a
 | `upcoming` | Primary **Buka sesi**; secondary **Lihat rekap kehadiran**. |
 | `open` | Primary **Tutup sesi**; secondary **Lihat rekap kehadiran**. |
 | `closed` | Primary **Lihat rekap kehadiran**; no management action. |
+| Asisten non-pengampu | Informational panel only; no open/close action. **Lihat rekap kehadiran** remains available. |
 | Confirm modal open | Footer remains visible but non-interactive behind the modal; modal is the focus. |
 | Pending | Confirm disabled with loading; prevent double submission. |
 | Success | Badge updates immediately; toast shows; footer swaps to the new state. |
@@ -841,7 +842,7 @@ ScrollView / FlatList
 
 ### Assistant opens a session
 
-1. On an `upcoming` session, the footer primary is **Buka sesi**.
+1. On an `upcoming` session assigned to the active assistant, the footer primary is **Buka sesi**. An unassigned assistant sees the informational panel instead.
 2. Tap opens a centered confirmation modal: **Buka sesi?**, session name/date, "Praktikan dapat mencatat kehadiran setelah sesi dibuka."
 3. **Batal** or backdrop dismiss leaves the screen unchanged and returns focus to the trigger.
 4. Confirm sets the button to loading, rejects a double tap, and dispatches `openSession`.
@@ -850,7 +851,7 @@ ScrollView / FlatList
 
 ### Assistant closes a session
 
-1. On an `open` session, the footer primary is **Tutup sesi**; the trigger itself is not filled red.
+1. On an `open` session assigned to the active assistant, the footer primary is **Tutup sesi**; the trigger itself is not filled red. An unassigned assistant sees the informational panel instead.
 2. Tap opens **Tutup sesi?** with the session name and "Presensi tidak akan diterima lagi setelah sesi ditutup."
 3. Cancel leaves it open.
 4. Confirm uses the destructive button, sets pending state, and dispatches `closeSession`.
@@ -1051,8 +1052,8 @@ export const Colors = {
 - Keep `activeRole`/`activeUserId` in the same provider so role switching re-renders both list/detail selectors consistently.
 - Do not use AsyncStorage, a database, or a state library. State resets on reload by design.
 - Enforce guards in the reducer:
-  - `open` only from `upcoming`.
-  - `close` only from `open`.
+  - `open` only from `upcoming`, by the assistant assigned to the practicum.
+  - `close` only from `open`, by the assistant assigned to the practicum.
   - attendance only when `open` and no `(sessionId, praktikanId)` exists.
 - Use `useMemo` for derived lists (session + practicum + assistant display models) and `useCallback` for handlers where it keeps the code clear. Do not prematurely optimize.
 

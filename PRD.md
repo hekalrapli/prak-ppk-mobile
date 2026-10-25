@@ -105,8 +105,8 @@ The required attendance workflow takes priority over optional polish. If time is
 | ID | User story |
 | --- | --- |
 | US-10 | As an asisten, I want to view upcoming and ongoing sessions so that I can manage the right session. |
-| US-11 | As an asisten, I want to open a session after confirming so that attendance becomes available at the intended time. |
-| US-12 | As an asisten, I want to close a session after confirming so that attendance is no longer accepted. |
+| US-11 | As an asisten assigned to a practicum, I want to open its session after confirming so that attendance becomes available at the intended time. |
+| US-12 | As an asisten assigned to a practicum, I want to close its session after confirming so that attendance is no longer accepted. |
 | US-13 | As an asisten, I want to see the current status immediately after an action so that I can trust the interface. |
 | US-14 | As an asisten, I want to view the attendance recap for a session so that I can inspect who attended and when. |
 | US-15 | As an asisten, I want a clear empty recap state so that I can distinguish "no records" from a loading or broken screen. |
@@ -206,10 +206,11 @@ All requirements below are **Must Have** because they constitute the required de
 | Role | Asisten |
 | Priority | Must Have |
 
-**Description.** An assistant can open an upcoming session so attendance becomes available.
+**Description.** The assistant assigned to a practicum can open an upcoming session so attendance becomes available.
 
 **Expected behavior**
 
+- The **Buka sesi** action is available only when the active assistant is the assigned assistant for the session's practicum.
 - The **Buka sesi** action opens a confirmation modal.
 - The modal names the practicum and date and explains that attendance will become available.
 - Confirming updates the session status from `upcoming` to `open`.
@@ -217,9 +218,11 @@ All requirements below are **Must Have** because they constitute the required de
 - After confirmation, the detail screen badge and action update immediately, and a success toast is shown.
 - Opening a session records an `openedAt` display timestamp.
 - The action is unavailable for an already-open or closed session, and the reducer rejects invalid transitions.
+- An assistant who is not assigned to the practicum can still view the session and its recap but sees no **Buka sesi** action.
 
 **Acceptance criteria**
 
+- [ ] An unassigned assistant cannot open the session through the UI or reducer.
 - [ ] Tapping **Buka sesi** does not change state until the user confirms.
 - [ ] Canceling or dismissing the modal leaves the session as **Belum dibuka**.
 - [ ] Confirming changes the badge to **Dibuka**, replaces the action with **Tutup sesi**, and shows a success message.
@@ -234,10 +237,11 @@ All requirements below are **Must Have** because they constitute the required de
 | Role | Asisten |
 | Priority | Must Have |
 
-**Description.** An assistant can close an open session so attendance is no longer accepted.
+**Description.** The assistant assigned to a practicum can close an open session so attendance is no longer accepted.
 
 **Expected behavior**
 
+- The **Tutup sesi** action is available only when the active assistant is the assigned assistant for the session's practicum.
 - The **Tutup sesi** action opens a confirmation modal.
 - The modal names the session and warns that attendance will no longer be accepted.
 - Confirming updates the status from `open` to `closed`, stores `closedAt`, and shows a success toast.
@@ -245,9 +249,11 @@ All requirements below are **Must Have** because they constitute the required de
 - Existing attendance records remain intact and the recap remains accessible.
 - After closure, the praktikan's attendance action becomes unavailable and the screen explains why.
 - If the underlying status is no longer `open` when the confirmation is accepted, the action is rejected with an inline or toast error and the UI refreshes to the current status.
+- An assistant who is not assigned to the practicum can still view the session and its recap but sees no **Tutup sesi** action.
 
 **Acceptance criteria**
 
+- [ ] An unassigned assistant cannot close the session through the UI or reducer.
 - [ ] Tapping **Tutup sesi** does not change state until confirmation.
 - [ ] Canceling or dismissing leaves the badge as **Dibuka**.
 - [ ] Confirming changes the badge to **Ditutup**, removes the close action, and shows a success message.
@@ -487,8 +493,8 @@ All role changes happen in the same running app. The shared session/attendance d
 | 2 | **Praktikan schedule** (`/praktikan`) | Browse practicum sessions. | Praktikan | User greeting, count, session list with status, room/time, status legend. | Open a session. | **Riwayat**; **Ganti peran**. |
 | 3 | **Praktikan session detail** (`/praktikan/session/[sessionId]`) | Understand a session and record attendance. | Praktikan | Session title, status, date/time, room, assistant, guidance, attendance state. | **Catat kehadiran** (only when open and not recorded). | Read guidance; see recorded time; go back. |
 | 4 | **Praktikan attendance history** (`/praktikan/history`) | View own attendance records. | Praktikan | Count, record list, empty state. | Open a related session detail. | Go back to schedule. |
-| 5 | **Asisten schedule** (`/asisten`) | Browse sessions to manage. | Asisten | User greeting, session list with status, room/time, status legend. | Open a session. | **Ganti peran**. |
-| 6 | **Asisten session detail** (`/asisten/session/[sessionId]`) | Manage session status and access recap. | Asisten | Session title, status, metadata, status explanation, management actions. | **Buka sesi** or **Tutup sesi** depending on status. | **Lihat rekap kehadiran**; back. |
+| 5 | **Asisten schedule** (`/asisten`) | Browse sessions; manage assigned ones. | Asisten | User greeting, session list with status, room/time, status legend. | Open a session. | **Ganti peran**. |
+| 6 | **Asisten session detail** (`/asisten/session/[sessionId]`) | Manage assigned session status and access recap. | Asisten | Session title, status, metadata, status explanation, management actions or assignment notice. | **Buka sesi** or **Tutup sesi** when assigned. | **Lihat rekap kehadiran**; back. |
 | 7 | **Attendance recap** (`/asisten/session/[sessionId]/recap`) | Inspect attendance for one session. | Asisten | Session identity, attendee count, record list, empty state. | Back to session detail. | View individual attendance times. |
 | 8 | **Confirmation modal** (overlay) | Confirm opening or closing. | Asisten | Title, session name, consequence text, **Batal** / confirm. | Confirm. | Cancel, backdrop dismiss, back dismiss. |
 | 9 | **Success toast / banner** (overlay) | Confirm the result of an action. | Both | Short message; auto-dismiss. | Dismiss (optional). | Accessibility announcement. |
@@ -624,8 +630,8 @@ No other transitions are allowed. `closed` cannot return to `open`. Statuses are
 | --- | --- | --- |
 | `selectIdentity(role, userId)` | User exists, role matches | Set active role and user; navigate to role home. |
 | `switchRole(role, userId)` | Same as above | Replace active identity; do not reset data. |
-| `openSession(sessionId, at)` | Active role is asisten; session exists; status is `upcoming` | Status becomes `open`, set `openedAt`. |
-| `closeSession(sessionId, at)` | Active role is asisten; session exists; status is `open` | Status becomes `closed`, set `closedAt`; keep records. |
+| `openSession(sessionId, at)` | Active role is asisten; active user is the assigned assistant; session exists; status is `upcoming` | Status becomes `open`, set `openedAt`. |
+| `closeSession(sessionId, at)` | Active role is asisten; active user is the assigned assistant; session exists; status is `open` | Status becomes `closed`, set `closedAt`; keep records. |
 | `recordAttendance(sessionId, praktikanId, at)` | Active user is that praktikan; session exists; status is `open`; no existing `(sessionId, praktikanId)` | Append one record with status `present`. |
 | `getAttendanceForSession(sessionId)` | Read-only | Records for that session, ordered by recorded time. |
 | `getAttendanceForPraktikan(praktikanId)` | Read-only | That praktikan's records, newest first. |
@@ -651,9 +657,10 @@ sessionId + praktikanId
 | Scenario | Expected behavior |
 | --- | --- |
 | No schedules exist | Show **Belum ada jadwal** with supporting text. Do not show an empty white screen or a loading spinner forever. |
-| Session not opened (`upcoming`) | Show **Belum dibuka** and guidance that the asisten has not opened attendance. Praktikan action is disabled. Asisten sees **Buka sesi**. |
-| Session already open | Show **Dibuka**. Asisten sees **Tutup sesi**, not another open action. Praktikan may attend if not yet recorded. |
-| Session closed | Show **Ditutup** and state that attendance is unavailable. Praktikan action disabled. Asisten sees no open/close action but can view the recap. |
+| Session not opened (`upcoming`) | Show **Belum dibuka** and guidance that the asisten has not opened attendance. Praktikan action is disabled. Asisten pengampu sees **Buka sesi**. |
+| Session already open | Show **Dibuka**. Asisten pengampu sees **Tutup sesi**, not another open action. Praktikan may attend if not yet recorded. |
+| Session closed | Show **Ditutup** and state that attendance is unavailable. Praktikan action disabled. Asisten pengampu sees no open/close action; all asisten can view the recap. |
+| Asisten bukan pengampu | Show the session and recap read-only. Hide **Buka sesi** and **Tutup sesi**; explain which assistant is assigned. The reducer also rejects management actions. |
 | Attendance already recorded | Replace the action with **Kehadiran sudah dicatat** and the recorded time. The button is disabled. A second write is rejected. |
 | Session closes while praktikan has the detail open | On action, the reducer rejects the write; show an error toast/banner and refresh the status. Because this is a single-user local prototype, this is an unlikely but defined behavior. |
 | Attendance recap is empty | Show **Belum ada kehadiran** with text such as "Kehadiran yang dicatat akan muncul di sini." Keep the session header visible. |
@@ -732,7 +739,7 @@ The application is ready to demonstrate when all items below are true.
 - [ ] **History:** Nabila sees only her records; new attendance appears at the top; another praktikan sees different records.
 - [ ] **Close flow:** **Tutup sesi** requires confirmation; cancel changes nothing; confirm changes the status to **Ditutup**, preserves records, and makes praktikan attendance unavailable.
 - [ ] **Feedback:** open, close, attendance, and errors each produce visible feedback; no duplicate dispatch from double taps.
-- [ ] **Role boundaries:** asisten cannot record attendance; praktikan cannot open/close or access recap; no other student's history is visible.
+- [ ] **Role boundaries:** asisten cannot record attendance; praktikan cannot open/close or access recap; only the assigned assistant can open or close a session; no other student's history is visible.
 - [ ] **Empty/edge states:** invalid selection, unknown session, empty recap, empty history, and long content all behave as specified in §6.8.
 
 ### Technical checks

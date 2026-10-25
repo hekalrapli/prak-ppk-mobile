@@ -5,7 +5,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
-import { findAttendanceRecord, useDemoData } from '../../store/demo-data-context';
+import {
+  canManageSession,
+  findAttendanceRecord,
+  useDemoData,
+} from '../../store/demo-data-context';
 import { UserRole } from '../../types/attendance';
 import { AppButton } from '../ui/app-button';
 import { ConfirmModal } from '../ui/confirm-modal';
@@ -86,6 +90,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
   }
 
   const isAsisten = role === 'asisten';
+  const canManage = isAsisten && canManageSession(state, sessionId);
 
   const handleConfirm = () => {
     if (!pendingAction) {
@@ -94,6 +99,16 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
 
     const at = currentClockTime();
     const action = pendingAction;
+
+    if (!canManage) {
+      setPendingAction(null);
+      setToast({
+        tone: 'error',
+        message: 'Tidak dapat mengelola sesi',
+        detail: 'Hanya asisten pengampu sesi ini yang dapat mengubah status sesi.',
+      });
+      return;
+    }
 
     if (
       (action === 'open' && session.status !== 'upcoming') ||
@@ -217,6 +232,8 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
           openedAt={session.openedAt}
           closedAt={session.closedAt}
           hasAttended={Boolean(attendanceRecord)}
+          canManage={canManage}
+          assistantName={assistant?.name}
         />
       </ScrollView>
 
@@ -236,10 +253,13 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
         <View style={styles.footerContent}>
           {isAsisten ? (
             <View style={styles.actionStack}>
-              {session.status === 'upcoming' ? (
+              {!canManage ? (
+                <UnassignedSessionPanel assistantName={assistant?.name} />
+              ) : null}
+              {canManage && session.status === 'upcoming' ? (
                 <AppButton label="Buka sesi" onPress={() => setPendingAction('open')} />
               ) : null}
-              {session.status === 'open' ? (
+              {canManage && session.status === 'open' ? (
                 <AppButton
                   label="Tutup sesi"
                   onPress={() => setPendingAction('close')}
@@ -312,6 +332,8 @@ function StatusGuidance({
   openedAt,
   closedAt,
   hasAttended,
+  canManage,
+  assistantName,
 }: {
   role: UserRole;
   status: 'upcoming' | 'open' | 'closed';
@@ -319,6 +341,8 @@ function StatusGuidance({
   openedAt?: string;
   closedAt?: string;
   hasAttended: boolean;
+  canManage: boolean;
+  assistantName?: string;
 }) {
   const theme = useTheme();
 
@@ -338,7 +362,9 @@ function StatusGuidance({
         </Text>
         {role === 'asisten' ? (
           <Text style={[styles.body, { color: theme.textSecondary }]}>
-            Tutup sesi setelah periode presensi selesai.
+            {canManage
+              ? 'Tutup sesi setelah periode presensi selesai.'
+              : `Sesi ini diampu oleh ${assistantName ?? 'asisten lain'}. Hanya asisten pengampu yang dapat menutup sesi.`}
           </Text>
         ) : null}
       </View>
@@ -384,13 +410,35 @@ function StatusGuidance({
       </Text>
       {role === 'asisten' ? (
         <Text style={[styles.body, { color: theme.textSecondary }]}>
-          Buka sesi agar status berubah menjadi Dibuka.
+          {canManage
+            ? 'Buka sesi agar status berubah menjadi Dibuka.'
+            : `Sesi ini diampu oleh ${assistantName ?? 'asisten lain'}. Hanya asisten pengampu yang dapat membuka sesi.`}
         </Text>
       ) : (
         <Text style={[styles.body, { color: theme.textSecondary }]}>
           Presensi akan tersedia setelah asisten membuka sesi.
         </Text>
       )}
+    </View>
+  );
+}
+
+function UnassignedSessionPanel({ assistantName }: { assistantName?: string }) {
+  const theme = useTheme();
+
+  return (
+    <View
+      style={[
+        styles.unassigned,
+        { backgroundColor: theme.surfaceSubtle, borderColor: theme.border },
+      ]}>
+      <Text style={[styles.unassignedTitle, { color: theme.textPrimary }]}>
+        Anda bukan asisten pengampu
+      </Text>
+      <Text style={[styles.unassignedBody, { color: theme.textSecondary }]}>
+        Sesi ini diampu oleh {assistantName ?? 'asisten lain'}. Anda tetap dapat melihat
+        rekap kehadiran.
+      </Text>
     </View>
   );
 }
@@ -432,5 +480,13 @@ const styles = StyleSheet.create({
   },
   footerContent: { width: '100%', maxWidth: 560 },
   actionStack: { gap: Spacing.two },
+  unassigned: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    padding: Spacing.three,
+    gap: Spacing.one,
+  },
+  unassignedTitle: { fontSize: 16, fontWeight: '600', lineHeight: 22 },
+  unassignedBody: { fontSize: 14, lineHeight: 20 },
   notFound: { flex: 1, justifyContent: 'center', padding: Spacing.four, gap: Spacing.two },
 });
