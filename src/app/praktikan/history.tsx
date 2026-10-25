@@ -1,12 +1,22 @@
-import { Redirect } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Redirect, useRouter } from 'expo-router';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AttendanceRecordItem } from '@/components/attendance/attendance-record-item';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useDemoData } from '@/store/demo-data-context';
+import { AttendanceRecord, Practicum, Session } from '@/types/attendance';
+
+interface HistoryEntry {
+  record: AttendanceRecord;
+  session: Session;
+  practicum: Practicum;
+}
 
 export default function PraktikanHistoryScreen() {
+  const router = useRouter();
   const theme = useTheme();
   const { state } = useDemoData();
   const user = state.users.find((candidate) => candidate.id === state.activeUserId);
@@ -19,25 +29,73 @@ export default function PraktikanHistoryScreen() {
     return <Redirect href={state.activeRole === 'asisten' ? '/asisten' : '/'} />;
   }
 
+  const entries: HistoryEntry[] = state.attendanceRecords
+    .filter((record) => record.praktikanId === user.id)
+    .map((record) => {
+      const session = state.sessions.find((candidate) => candidate.id === record.sessionId);
+      const practicum = session
+        ? state.practicums.find((candidate) => candidate.id === session.practicumId)
+        : undefined;
+
+      return { record, session, practicum };
+    })
+    .filter((entry): entry is HistoryEntry => Boolean(entry.session && entry.practicum))
+    .reverse();
+
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <Text style={[styles.count, { color: theme.textPrimary }]}>
+        {entries.length} kehadiran
+      </Text>
+      <Text style={[styles.caption, { color: theme.textSecondary }]}>
+        Hanya menampilkan data Anda.
+      </Text>
+    </View>
+  );
+
   return (
     <SafeAreaView
       edges={['bottom']}
       style={[styles.container, { backgroundColor: theme.background }]}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View
-          style={[
-            styles.empty,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}>
-          <Text style={[styles.title, { color: theme.textPrimary }]}>
-            Belum ada riwayat kehadiran
-          </Text>
-          <Text style={[styles.body, { color: theme.textSecondary }]}>
-            Riwayat kehadiran Anda akan muncul di sini setelah fitur presensi
-            diimplementasikan pada tahap berikutnya.
-          </Text>
-        </View>
-      </ScrollView>
+      <FlatList
+        data={entries}
+        keyExtractor={(item) => item.record.id}
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={
+          <EmptyState
+            title="Belum ada riwayat kehadiran"
+            description="Catat kehadiran pada sesi yang dibuka untuk melihat riwayat."
+          />
+        }
+        renderItem={({ item, index }) => {
+          const isFirst = index === 0;
+          const isLast = index === entries.length - 1;
+
+          return (
+            <View
+              style={[
+                styles.groupItem,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+                isFirst && styles.groupFirst,
+                isLast && styles.groupLast,
+                !isLast && styles.groupDivider,
+              ]}>
+              <AttendanceRecordItem
+                name={item.practicum.name}
+                meta={item.session.date}
+                recordedAt={item.record.recordedAt}
+                onPress={() =>
+                  router.push({
+                    pathname: '/praktikan/session/[sessionId]',
+                    params: { sessionId: item.session.id },
+                  })
+                }
+              />
+            </View>
+          );
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -51,13 +109,19 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
   },
-  empty: {
-    borderWidth: 1,
-    borderRadius: Radius.lg,
-    padding: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.two,
+  header: { gap: Spacing.one, marginBottom: Spacing.three },
+  count: { fontSize: 18, fontWeight: '600', lineHeight: 26 },
+  caption: { fontSize: 14, lineHeight: 20 },
+  groupItem: { borderLeftWidth: 1, borderRightWidth: 1 },
+  groupFirst: {
+    borderTopWidth: 1,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
   },
-  title: { fontSize: 18, fontWeight: '600', textAlign: 'center' },
-  body: { fontSize: 16, lineHeight: 24, textAlign: 'center' },
+  groupLast: {
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: Radius.lg,
+    borderBottomRightRadius: Radius.lg,
+  },
+  groupDivider: { borderBottomWidth: 1 },
 });
