@@ -17,7 +17,8 @@ export default function AsistenLayout() {
         headerRight: () => <HeaderRoleSwitch />,
       }}>
       <Stack.Screen name="index" options={{ title: 'Jadwal' }} />
-      <Stack.Screen name="session/[sessionId]" options={{ title: 'Detail Sesi' }} />
+      <Stack.Screen name="session/[sessionId]/index" options={{ title: 'Kelola Sesi' }} />
+      <Stack.Screen name="session/[sessionId]/recap" options={{ title: 'Rekap Kehadiran' }} />
     </Stack>
   );
 }
