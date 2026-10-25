@@ -2,7 +2,7 @@
 
 A small Expo/React Native prototype for managing practicum attendance at a university. The app demonstrates two roles — **Praktikan** and **Asisten** — through a complete, frontend-only attendance flow.
 
-> **Implementation status:** role/identity selection, the practicum schedule list, session detail, and asisten session management (open/close with confirmation) are implemented. Praktikan attendance, personal history, and attendance recap remain **target features** described in [`PRD.md`](./PRD.md) and [`DESIGN.md`](./DESIGN.md). The starter `explore` route is still present but is not part of the product flow.
+> **Implementation status:** role/identity selection, the practicum schedule list, session detail, asisten session management (open/close with confirmation), and praktikan attendance are implemented. Personal history and attendance recap remain **target features** described in [`PRD.md`](./PRD.md) and [`DESIGN.md`](./DESIGN.md). The starter `explore` route is still present but is not part of the product flow.
 
 ## Objectives
 
@@ -13,7 +13,7 @@ A small Expo/React Native prototype for managing practicum attendance at a unive
 
 ## Key Features
 
-The table describes the **target feature set**. Role/identity selection, schedules, session detail, and asisten open/close are functional; praktikan attendance, history, and recap are not implemented yet.
+The table describes the **target feature set**. Role/identity selection, schedules, session detail, asisten open/close, and praktikan attendance are functional; history and recap are not implemented yet.
 
 | Feature | Praktikan | Asisten |
 | --- | --- | --- |
@@ -215,12 +215,12 @@ Notes:
 
 The prototype uses local, in-memory data only.
 
-- Dummy identities live in `src/data/dummy-data.tsx` and are loaded into the `DemoProvider` at app start. Session and attendance seed data are still planned.
+- Dummy identities, sessions, and attendance seed records live in `src/data/dummy-data.tsx` and are loaded into the `DemoProvider` at app start.
 - Role, selected identity, session statuses, and attendance records are held in React state. No network request, database, or cloud service is involved.
 - The two role views read the **same in-memory demo store during a single app run**, so the main demonstration can be performed without restarting. This is local UI state sharing, not backend or cross-device synchronization.
 - All state resets to the seed data when the app is reloaded. There is no persistence.
 - Session status is an explicit property (`upcoming`, `open`, `closed`); it is not derived from the real clock. The date and time shown on screen are display data.
-- Attendance is keyed by `(sessionId, praktikanId)`, so the same praktikan cannot be recorded twice for one session. The reducer also rejects a duplicate write, not only the button UI.
+- Attendance is keyed by `(sessionId, praktikanId)`. The attendance screen checks this key before showing the action so a praktikan cannot record attendance twice for one session.
 - An attendance record stores the session, praktikan, status `Hadir`, and the local time at which the user pressed the attendance button.
 
 ### Seed Data
@@ -253,7 +253,7 @@ All dummy praktikans are treated as enrolled in all listed sessions. There is no
 
 ## Demonstrating the Main Flow
 
-> **Target scenario:** the current build supports role entry, schedule browsing, session detail, and asisten open/close. Praktikan attendance, personal history, and recap are not implemented yet. The steps below define the full demo to run once those features exist.
+> **Target scenario:** the current build supports role entry, schedule browsing, session detail, asisten open/close, and praktikan attendance. Personal history and recap are not implemented yet. Steps that depend on those screens will work once the remaining features land.
 
 Start the app, then follow these steps. This script matches `PRD.md` §6.5 and `DESIGN.md` §7.8.
 
@@ -281,7 +281,7 @@ Reloading the app resets all sessions and attendance to the seed data, which mak
 - No enrollment management; all dummy praktikans see all dummy sessions.
 - No profile editing, password flows, or admin screens.
 - No automated tests yet; no test framework is installed.
-- Role selection, schedule lists, session detail, and asisten open/close are implemented. Praktikan attendance, recap, and real personal history are still to be built. The unused Expo starter `explore` route and starter components remain in the source.
+- Role selection, schedule lists, session detail, asisten open/close, and praktikan attendance are implemented. Recap and real personal history are still to be built. The unused Expo starter `explore` route and starter components remain in the source.
 
 ## Documentation
 

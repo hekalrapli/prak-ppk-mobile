@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,6 +10,8 @@ import { UserRole } from '../../types/attendance';
 import { AppButton } from '../ui/app-button';
 import { ConfirmModal } from '../ui/confirm-modal';
 import { StatusBadge } from '../ui/status-badge';
+import { Toast } from '../ui/toast';
+import { AttendanceSuccessPanel } from './attendance-success-panel';
 
 interface SessionDetailProps {
   role: UserRole;
@@ -24,11 +27,21 @@ function currentClockTime() {
   return `${hours}:${minutes}`;
 }
 
+interface ToastMessage {
+  message: string;
+  detail?: string;
+  tone: 'success' | 'error';
+}
+
 export function SessionDetail({ role, sessionId }: SessionDetailProps) {
+  const router = useRouter();
   const theme = useTheme();
   const { state, dispatch } = useDemoData();
   const [pendingAction, setPendingAction] = useState<SessionAction | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const session = state.sessions.find((candidate) => candidate.id === sessionId);
   const practicum = session
@@ -37,6 +50,24 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
   const assistant = practicum
     ? state.users.find((candidate) => candidate.id === practicum.assistantId)
     : undefined;
+  const activeUser = state.users.find((candidate) => candidate.id === state.activeUserId);
+  const attendanceRecord =
+    role === 'praktikan' && activeUser
+      ? state.attendanceRecords.find(
+          (record) =>
+            record.sessionId === sessionId && record.praktikanId === activeUser.id
+        )
+      : undefined;
+
+  const dismissToast = useCallback(() => setToast(null), []);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, []);
 
   if (!session || !practicum) {
     return (
@@ -48,6 +79,10 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
           <Text style={[styles.body, { color: theme.textSecondary }]}>
             Sesi yang Anda cari tidak tersedia. Kembali ke jadwal untuk memilih sesi lain.
           </Text>
+          <AppButton
+            label="Kembali ke jadwal"
+            onPress={() => router.replace(role === 'asisten' ? '/asisten' : '/praktikan')}
+          />
         </View>
       </SafeAreaView>
     );
@@ -63,17 +98,76 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
     const at = currentClockTime();
     const action = pendingAction;
 
+    if (
+      (action === 'open' && session.status !== 'upcoming') ||
+      (action === 'close' && session.status !== 'open')
+    ) {
+      setPendingAction(null);
+      setToast({
+        tone: 'error',
+        message: 'Status sesi sudah berubah',
+        detail: 'Periksa kembali status sesi sebelum melanjutkan.',
+      });
+      return;
+    }
+
     dispatch({
       type: action === 'open' ? 'OPEN_SESSION' : 'CLOSE_SESSION',
       payload: { sessionId, at },
     });
 
-    setFeedback(
-      action === 'open'
-        ? `Sesi berhasil dibuka pukul ${at}.`
-        : `Sesi berhasil ditutup pukul ${at}.`
-    );
+    setToast({
+      tone: 'success',
+      message: action === 'open' ? 'Sesi dibuka' : 'Sesi ditutup',
+      detail:
+        action === 'open'
+          ? `Praktikan dapat mencatat kehadiran mulai pukul ${at}.`
+          : `Presensi tidak lagi tersedia sejak pukul ${at}.`,
+    });
     setPendingAction(null);
+  };
+
+  const handleRecordAttendance = () => {
+    if (!activeUser || savingRef.current) {
+      return;
+    }
+
+    if (session.status !== 'open') {
+      setToast({
+        tone: 'error',
+        message: 'Presensi tidak tersedia',
+        detail: 'Sesi sudah ditutup. Kehadiran tidak dapat dicatat.',
+      });
+      return;
+    }
+
+    if (attendanceRecord) {
+      setToast({
+        tone: 'error',
+        message: 'Kehadiran sudah dicatat',
+        detail: `Tercatat pukul ${attendanceRecord.recordedAt}.`,
+      });
+      return;
+    }
+
+    const at = currentClockTime();
+    savingRef.current = true;
+    setIsSaving(true);
+
+    saveTimerRef.current = setTimeout(() => {
+      dispatch({
+        type: 'RECORD_ATTENDANCE',
+        payload: { sessionId, praktikanId: activeUser.id, at },
+      });
+
+      savingRef.current = false;
+      setIsSaving(false);
+      setToast({
+        tone: 'success',
+        message: 'Kehadiran berhasil dicatat',
+        detail: `Pukul ${at}.`,
+      });
+    }, 250);
   };
 
   const confirmationCopy = pendingAction === 'open'
@@ -92,7 +186,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
     <SafeAreaView
       edges={['bottom']}
       style={[styles.container, { backgroundColor: theme.background }]}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <View
           style={[
             styles.card,
@@ -119,26 +213,23 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
           {session.closedAt ? <DetailRow label="Ditutup pukul" value={session.closedAt} /> : null}
         </View>
 
-        {feedback ? (
-          <View
-            accessibilityLiveRegion="polite"
-            style={[
-              styles.feedback,
-              { backgroundColor: theme.successSoft, borderColor: theme.success },
-            ]}>
-            <Text style={[styles.feedbackLabel, { color: theme.success }]}>Berhasil</Text>
-            <Text style={[styles.feedbackText, { color: theme.textPrimary }]}>{feedback}</Text>
-          </View>
-        ) : null}
-
         <StatusGuidance
           role={role}
           status={session.status}
           sessionName={practicum.name}
           openedAt={session.openedAt}
           closedAt={session.closedAt}
+          hasAttended={Boolean(attendanceRecord)}
         />
       </ScrollView>
+
+      <Toast
+        visible={toast !== null}
+        message={toast?.message ?? ''}
+        detail={toast?.detail}
+        tone={toast?.tone}
+        onDismiss={dismissToast}
+      />
 
       <View
         style={[
@@ -146,44 +237,43 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
           { backgroundColor: theme.background, borderTopColor: theme.border },
         ]}>
         <View style={styles.footerContent}>
-        {isAsisten && session.status === 'upcoming' ? (
-          <AppButton label="Buka sesi" onPress={() => setPendingAction('open')} />
-        ) : null}
-        {isAsisten && session.status === 'open' ? (
-          <AppButton
-            label="Tutup sesi"
-            onPress={() => setPendingAction('close')}
-            variant="secondary"
-          />
-        ) : null}
-        {isAsisten && session.status === 'closed' ? (
-          <AvailabilityPanel
-            title="Sesi telah ditutup"
-            body="Presensi tidak lagi tersedia untuk sesi ini."
-            tone="neutral"
-          />
-        ) : null}
-        {!isAsisten && session.status === 'upcoming' ? (
-          <AvailabilityPanel
-            title="Presensi belum tersedia"
-            body="Asisten belum membuka sesi ini."
-            tone="neutral"
-          />
-        ) : null}
-        {!isAsisten && session.status === 'open' ? (
-          <AvailabilityPanel
-            title="Presensi dibuka"
-            body="Pencatatan kehadiran akan tersedia pada tahap berikutnya."
-            tone="success"
-          />
-        ) : null}
-        {!isAsisten && session.status === 'closed' ? (
-          <AvailabilityPanel
-            title="Sesi telah ditutup"
-            body="Presensi tidak lagi tersedia untuk sesi ini."
-            tone="neutral"
-          />
-        ) : null}
+          {isAsisten && session.status === 'upcoming' ? (
+            <AppButton label="Buka sesi" onPress={() => setPendingAction('open')} />
+          ) : null}
+          {isAsisten && session.status === 'open' ? (
+            <AppButton
+              label="Tutup sesi"
+              onPress={() => setPendingAction('close')}
+              variant="secondary"
+            />
+          ) : null}
+          {isAsisten && session.status === 'closed' ? (
+            <AvailabilityPanel
+              title="Sesi telah ditutup"
+              body="Presensi tidak lagi tersedia untuk sesi ini."
+              tone="neutral"
+            />
+          ) : null}
+          {!isAsisten && attendanceRecord ? (
+            <AttendanceSuccessPanel recordedAt={attendanceRecord.recordedAt} />
+          ) : null}
+          {!isAsisten && !attendanceRecord && session.status === 'open' ? (
+            <AppButton
+              label="Catat kehadiran"
+              onPress={handleRecordAttendance}
+              loading={isSaving}
+            />
+          ) : null}
+          {!isAsisten && !attendanceRecord && session.status === 'upcoming' ? (
+            <AppButton
+              label="Presensi belum tersedia"
+              onPress={() => undefined}
+              disabled
+            />
+          ) : null}
+          {!isAsisten && !attendanceRecord && session.status === 'closed' ? (
+            <AppButton label="Sesi telah ditutup" onPress={() => undefined} disabled />
+          ) : null}
         </View>
       </View>
 
@@ -217,12 +307,14 @@ function StatusGuidance({
   sessionName,
   openedAt,
   closedAt,
+  hasAttended,
 }: {
   role: UserRole;
   status: 'upcoming' | 'open' | 'closed';
   sessionName: string;
   openedAt?: string;
   closedAt?: string;
+  hasAttended: boolean;
 }) {
   const theme = useTheme();
 
@@ -235,7 +327,9 @@ function StatusGuidance({
         ]}>
         <Text style={[styles.guidanceTitle, { color: theme.success }]}>Sesi sedang dibuka</Text>
         <Text style={[styles.body, { color: theme.textSecondary }]}>
-          Presensi {sessionName} tersedia sampai asisten menutup sesi.
+          {role === 'praktikan' && hasAttended
+            ? `Kehadiran Anda pada ${sessionName} sudah tercatat.`
+            : `Presensi ${sessionName} tersedia sampai asisten menutup sesi.`}
           {openedAt ? ` Dibuka pukul ${openedAt}.` : ''}
         </Text>
         {role === 'asisten' ? (
@@ -258,7 +352,9 @@ function StatusGuidance({
           Sesi telah ditutup
         </Text>
         <Text style={[styles.body, { color: theme.textSecondary }]}>
-          Presensi {sessionName} tidak lagi diterima.
+          {role === 'praktikan' && hasAttended
+            ? `Kehadiran Anda pada ${sessionName} tetap tercatat meskipun sesi telah ditutup.`
+            : `Presensi ${sessionName} tidak lagi diterima.`}
           {closedAt ? ` Ditutup pukul ${closedAt}.` : ''}
         </Text>
         {role === 'asisten' ? (
@@ -319,6 +415,7 @@ function AvailabilityPanel({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  scroll: { flex: 1 },
   content: {
     padding: Spacing.three,
     paddingBottom: Spacing.four,
@@ -342,9 +439,6 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },
   detailLabel: { fontSize: 14 },
   detailValue: { flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'right' },
-  feedback: { borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.three, gap: Spacing.one },
-  feedbackLabel: { fontSize: 12, fontWeight: '700' },
-  feedbackText: { fontSize: 16, lineHeight: 24 },
   guidance: { borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.three, gap: Spacing.two },
   guidanceTitle: { fontSize: 18, fontWeight: '600', lineHeight: 26 },
   body: { fontSize: 16, lineHeight: 24 },
