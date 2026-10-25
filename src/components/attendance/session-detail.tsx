@@ -234,22 +234,29 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
           { backgroundColor: theme.background, borderTopColor: theme.border },
         ]}>
         <View style={styles.footerContent}>
-          {isAsisten && session.status === 'upcoming' ? (
-            <AppButton label="Buka sesi" onPress={() => setPendingAction('open')} />
-          ) : null}
-          {isAsisten && session.status === 'open' ? (
-            <AppButton
-              label="Tutup sesi"
-              onPress={() => setPendingAction('close')}
-              variant="secondary"
-            />
-          ) : null}
-          {isAsisten && session.status === 'closed' ? (
-            <AvailabilityPanel
-              title="Sesi telah ditutup"
-              body="Presensi tidak lagi tersedia untuk sesi ini."
-              tone="neutral"
-            />
+          {isAsisten ? (
+            <View style={styles.actionStack}>
+              {session.status === 'upcoming' ? (
+                <AppButton label="Buka sesi" onPress={() => setPendingAction('open')} />
+              ) : null}
+              {session.status === 'open' ? (
+                <AppButton
+                  label="Tutup sesi"
+                  onPress={() => setPendingAction('close')}
+                  variant="secondary"
+                />
+              ) : null}
+              <AppButton
+                label="Lihat rekap kehadiran"
+                onPress={() =>
+                  router.push({
+                    pathname: '/asisten/session/[sessionId]/recap',
+                    params: { sessionId },
+                  })
+                }
+                variant={session.status === 'closed' ? 'primary' : 'secondary'}
+              />
+            </View>
           ) : null}
           {!isAsisten && attendanceRecord ? (
             <AttendanceSuccessPanel recordedAt={attendanceRecord.recordedAt} />
@@ -388,28 +395,6 @@ function StatusGuidance({
   );
 }
 
-function AvailabilityPanel({
-  title,
-  body,
-  tone,
-}: {
-  title: string;
-  body: string;
-  tone: 'success' | 'neutral';
-}) {
-  const theme = useTheme();
-  const backgroundColor = tone === 'success' ? theme.successSoft : theme.surfaceSubtle;
-  const borderColor = tone === 'success' ? theme.success : theme.border;
-  const titleColor = tone === 'success' ? theme.success : theme.textPrimary;
-
-  return (
-    <View style={[styles.availability, { backgroundColor, borderColor }]}>
-      <Text style={[styles.availabilityTitle, { color: titleColor }]}>{title}</Text>
-      <Text style={[styles.availabilityBody, { color: theme.textSecondary }]}>{body}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { flex: 1 },
@@ -446,16 +431,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerContent: { width: '100%', maxWidth: 560 },
-  availability: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    padding: Spacing.three,
-    gap: Spacing.one,
-    width: '100%',
-    maxWidth: 560,
-    alignSelf: 'center',
-  },
-  availabilityTitle: { fontSize: 16, fontWeight: '600' },
-  availabilityBody: { fontSize: 14, lineHeight: 20 },
+  actionStack: { gap: Spacing.two },
   notFound: { flex: 1, justifyContent: 'center', padding: Spacing.four, gap: Spacing.two },
 });

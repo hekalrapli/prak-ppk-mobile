@@ -2,7 +2,7 @@
 
 A small Expo/React Native prototype for managing practicum attendance at a university. The app demonstrates two roles — **Praktikan** and **Asisten** — through a complete, frontend-only attendance flow.
 
-> **Implementation status:** role/identity selection, the practicum schedule list, session detail, asisten session management (open/close with confirmation), and praktikan attendance are implemented. Personal history and attendance recap remain **target features** described in [`PRD.md`](./PRD.md) and [`DESIGN.md`](./DESIGN.md). The starter `explore` route is still present but is not part of the product flow.
+> **Implementation status:** role/identity selection, the practicum schedule list, session detail, asisten session management (open/close with confirmation), praktikan attendance, and the per-session attendance recap are implemented. Personal attendance history remains a **target feature** described in [`PRD.md`](./PRD.md) and [`DESIGN.md`](./DESIGN.md). The starter `explore` route is still present but is not part of the product flow.
 
 ## Objectives
 
@@ -13,7 +13,7 @@ A small Expo/React Native prototype for managing practicum attendance at a unive
 
 ## Key Features
 
-The table describes the **target feature set**. Role/identity selection, schedules, session detail, asisten open/close, and praktikan attendance are functional; history and recap are not implemented yet.
+The table describes the **target feature set**. Role/identity selection, schedules, session detail, asisten open/close, praktikan attendance, and the attendance recap are functional; personal history is not implemented yet.
 
 | Feature | Praktikan | Asisten |
 | --- | --- | --- |
@@ -90,23 +90,30 @@ The app uses `expo-dev-client` for development builds. ESLint is configured with
 │   │   ├── asisten/
 │   │   │   ├── _layout.tsx     # Asisten stack header
 │   │   │   ├── index.tsx       # Schedule list (implemented)
-│   │   │   └── session/[sessionId].tsx
+│   │   │   └── session/[sessionId]/
+│   │   │       ├── index.tsx   # Asisten session detail (implemented)
+│   │   │       └── recap.tsx   # Attendance recap (implemented)
 │   │   └── explore.tsx         # Expo starter route (not part of product)
 │   ├── components/
 │   │   ├── attendance/
+│   │   │   ├── attendance-recap.tsx
+│   │   │   ├── attendance-record-item.tsx
+│   │   │   ├── attendance-success-panel.tsx
 │   │   │   ├── schedule-list-item.tsx
 │   │   │   └── session-detail.tsx
 │   │   ├── ui/
 │   │   │   ├── app-button.tsx
 │   │   │   ├── confirm-modal.tsx
+│   │   │   ├── empty-state.tsx
 │   │   │   ├── header-role-switch.tsx
 │   │   │   ├── selection-cards.tsx
-│   │   │   └── status-badge.tsx
+│   │   │   ├── status-badge.tsx
+│   │   │   └── toast.tsx
 │   │   └── ...                 # Remaining Expo starter components
 │   ├── constants/
 │   │   └── theme.ts            # Design tokens
 │   ├── data/
-│   │   └── dummy-data.tsx      # Dummy identities, practicums, sessions
+│   │   └── dummy-data.tsx      # Dummy identities, practicums, sessions, attendance
 │   ├── hooks/
 │   │   ├── use-color-scheme.ts
 │   │   └── use-theme.ts
@@ -127,7 +134,7 @@ The app uses `expo-dev-client` for development builds. ESLint is configured with
 
 ### Planned implementation structure
 
-This is the recommended target layout described in `DESIGN.md` §7.10. The role layouts, schedule lists, and read-only session/history placeholders exist; recap, attendance actions, and session management are **not present yet**.
+This is the recommended target layout described in `DESIGN.md` §7.10. Role layouts, schedules, session detail, session management, praktikan attendance, and the asisten recap now follow this structure. The personal history screen is still a placeholder.
 
 ```
 src/
@@ -253,7 +260,7 @@ All dummy praktikans are treated as enrolled in all listed sessions. There is no
 
 ## Demonstrating the Main Flow
 
-> **Target scenario:** the current build supports role entry, schedule browsing, session detail, asisten open/close, and praktikan attendance. Personal history and recap are not implemented yet. Steps that depend on those screens will work once the remaining features land.
+> **Target scenario:** the current build supports role entry, schedule browsing, session detail, asisten open/close, praktikan attendance, and the attendance recap. Personal history is not implemented yet. Step 7 will work once that screen lands.
 
 Start the app, then follow these steps. This script matches `PRD.md` §6.5 and `DESIGN.md` §7.8.
 
@@ -281,7 +288,7 @@ Reloading the app resets all sessions and attendance to the seed data, which mak
 - No enrollment management; all dummy praktikans see all dummy sessions.
 - No profile editing, password flows, or admin screens.
 - No automated tests yet; no test framework is installed.
-- Role selection, schedule lists, session detail, asisten open/close, and praktikan attendance are implemented. Recap and real personal history are still to be built. The unused Expo starter `explore` route and starter components remain in the source.
+- Role selection, schedule lists, session detail, asisten open/close, praktikan attendance, and the attendance recap are implemented. Real personal history is still to be built. The unused Expo starter `explore` route and starter components remain in the source.
 
 ## Documentation
 
