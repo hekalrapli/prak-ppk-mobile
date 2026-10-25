@@ -1,4 +1,4 @@
-import { DemoUser, Practicum, Session } from '../types/attendance';
+import { AttendanceRecord, DemoUser, Practicum, Session } from '../types/attendance';
 
 export const DUMMY_USERS: DemoUser[] = [
   { id: 'P-01', role: 'praktikan', name: 'Nabila Putri', identifier: '2211102034', className: 'IF-3A' },
@@ -20,4 +20,12 @@ export const DUMMY_SESSIONS: Session[] = [
   { id: 'S-02', practicumId: 'PRK-2', date: 'Selasa, 27 Okt 2026', startTime: '10:00', endTime: '11:40', room: 'Lab Basis Data 1', status: 'open' },
   { id: 'S-03', practicumId: 'PRK-3', date: 'Senin, 19 Okt 2026', startTime: '13:00', endTime: '14:40', room: 'Lab Jaringan', status: 'closed' },
   { id: 'S-04', practicumId: 'PRK-4', date: 'Rabu, 28 Okt 2026', startTime: '15:00', endTime: '16:40', room: 'Lab Komputer 3', status: 'upcoming' },
+];
+
+export const DUMMY_ATTENDANCE_RECORDS: AttendanceRecord[] = [
+  { id: 'ATT-S03-P02', sessionId: 'S-03', praktikanId: 'P-02', status: 'present', recordedAt: '13:02' },
+  { id: 'ATT-S03-P01', sessionId: 'S-03', praktikanId: 'P-01', status: 'present', recordedAt: '13:04' },
+  { id: 'ATT-S03-P03', sessionId: 'S-03', praktikanId: 'P-03', status: 'present', recordedAt: '13:09' },
+  { id: 'ATT-S02-P02', sessionId: 'S-02', praktikanId: 'P-02', status: 'present', recordedAt: '10:06' },
+  { id: 'ATT-S02-P03', sessionId: 'S-02', praktikanId: 'P-03', status: 'present', recordedAt: '10:11' },
 ];
