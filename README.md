@@ -2,7 +2,7 @@
 
 A small Expo/React Native prototype for managing practicum attendance at a university. The app demonstrates two roles — **Praktikan** and **Asisten** — through a complete, frontend-only attendance flow.
 
-> **Implementation status:** role/identity selection, the practicum schedule list, session detail, asisten session management (open/close with confirmation), praktikan attendance, and the per-session attendance recap are implemented. Personal attendance history remains a **target feature** described in [`PRD.md`](./PRD.md) and [`DESIGN.md`](./DESIGN.md). The starter `explore` route is still present but is not part of the product flow.
+> **Implementation status:** all features described in [`PRD.md`](./PRD.md) and [`DESIGN.md`](./DESIGN.md) are implemented: role/identity selection, schedules, session detail, asisten session management (open/close with confirmation), praktikan attendance, personal attendance history, and the per-session attendance recap. The starter `explore` route is still present but is not part of the product flow.
 
 ## Objectives
 
@@ -13,7 +13,7 @@ A small Expo/React Native prototype for managing practicum attendance at a unive
 
 ## Key Features
 
-The table describes the **target feature set**. Role/identity selection, schedules, session detail, asisten open/close, praktikan attendance, and the attendance recap are functional; personal history is not implemented yet.
+The table describes the implemented feature set. Every row is functional for the corresponding role.
 
 | Feature | Praktikan | Asisten |
 | --- | --- | --- |
@@ -85,7 +85,7 @@ The app uses `expo-dev-client` for development builds. ESLint is configured with
 │   │   ├── praktikan/
 │   │   │   ├── _layout.tsx     # Praktikan stack header
 │   │   │   ├── index.tsx       # Schedule list (implemented)
-│   │   │   ├── history.tsx     # Personal history placeholder
+│   │   │   ├── history.tsx     # Personal attendance history (implemented)
 │   │   │   └── session/[sessionId].tsx
 │   │   ├── asisten/
 │   │   │   ├── _layout.tsx     # Asisten stack header
@@ -134,7 +134,7 @@ The app uses `expo-dev-client` for development builds. ESLint is configured with
 
 ### Planned implementation structure
 
-This is the recommended target layout described in `DESIGN.md` §7.10. Role layouts, schedules, session detail, session management, praktikan attendance, and the asisten recap now follow this structure. The personal history screen is still a placeholder.
+This is the target layout described in `DESIGN.md` §7.10. Role layouts, schedules, session detail, session management, praktikan attendance, personal history, and the asisten recap follow this structure.
 
 ```
 src/
@@ -260,7 +260,7 @@ All dummy praktikans are treated as enrolled in all listed sessions. There is no
 
 ## Demonstrating the Main Flow
 
-> **Target scenario:** the current build supports role entry, schedule browsing, session detail, asisten open/close, praktikan attendance, and the attendance recap. Personal history is not implemented yet. Step 7 will work once that screen lands.
+> **Demo scenario:** the current build supports every step below, including personal history and the attendance recap.
 
 Start the app, then follow these steps. This script matches `PRD.md` §6.5 and `DESIGN.md` §7.8.
 
@@ -288,7 +288,7 @@ Reloading the app resets all sessions and attendance to the seed data, which mak
 - No enrollment management; all dummy praktikans see all dummy sessions.
 - No profile editing, password flows, or admin screens.
 - No automated tests yet; no test framework is installed.
-- Role selection, schedule lists, session detail, asisten open/close, praktikan attendance, and the attendance recap are implemented. Real personal history is still to be built. The unused Expo starter `explore` route and starter components remain in the source.
+- Role selection, schedule lists, session detail, asisten open/close, praktikan attendance, personal history, and the attendance recap are implemented. The unused Expo starter `explore` route and starter components remain in the source.
 
 ## Documentation
 
