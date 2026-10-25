@@ -47,17 +47,17 @@ Versions below come from the current `package.json` and `package-lock.json`.
 
 | Layer | Technology | Version |
 | --- | --- | --- |
-| Runtime/framework | Expo | `~57.0.31` |
-| UI runtime | React Native | `0.86.3` |
-| UI library | React | `19.2.3` |
-| Navigation | Expo Router | `~57.0.29` |
+| Runtime/framework | Expo | `^58.0.19` |
+| UI runtime | React Native | `0.88.0` |
+| UI library | React | `19.3.0` |
+| Navigation | Expo Router | `~58.0.26` |
 | Language | TypeScript (strict) | `~6.0.3` |
-| Safe areas | `react-native-safe-area-context` | `~5.7.0` |
-| Icons | `expo-symbols` | `~57.0.3` |
-| Images | `expo-image` | `~57.0.5` |
-| Animation | `react-native-reanimated` | `4.5.1` |
-| Development build | `expo-dev-client` | `~57.0.20` |
-| Linting | ESLint + `eslint-config-expo` | `^9.0.0` / `~57.0.2` |
+| Safe areas | `react-native-safe-area-context` | `~5.10.1` |
+| Icons | `expo-symbols` | `~58.0.4` |
+| Images | `expo-image` | `~58.0.17` |
+| Animation | `react-native-reanimated` | `4.7.1` |
+| Development build | `expo-dev-client` | `~58.0.15` |
+| Linting | ESLint + `eslint-config-expo` | `^9.0.0` / `~58.0.4` |
 | Web support | `react-native-web` | `~0.21.0` |
 | Package manager | npm (`package-lock.json`) | — |
 
@@ -166,7 +166,7 @@ The `@/*` path alias maps to `src/*` (configured in `tsconfig.json`).
 
 ## Prerequisites
 
-- Node.js 20 LTS or newer (the repository does not pin a version; this is an assumption based on the Expo SDK).
+- Node.js 22.13 or newer (the minimum for Expo SDK 58).
 - npm (bundled with Node.js).
 - One of:
   - a physical device with **Expo Go**, or
@@ -176,7 +176,7 @@ The `@/*` path alias maps to `src/*` (configured in `tsconfig.json`).
   - a modern browser for the web target.
 - Internet access for the initial dependency install and Expo tooling.
 
-The project uses `expo-dev-client`. `npm start` can still target Expo Go for the current screens, but `npm run android` and `npm run ios` compile a local development build and require the corresponding native toolchain. The repository does not include `ios/` or `android/` directories; they are generated when needed.
+The project targets **Expo SDK 58**, so use the current **Expo Go** release from the App Store or Google Play. The project also includes `expo-dev-client`. `npm run android` and `npm run ios` compile a local development build and require the corresponding native toolchain; `npm run ios` requires macOS and Xcode. The repository does not include `ios/` or `android/` directories; they are generated when needed.
 
 ## Installation and Setup
 
@@ -300,8 +300,8 @@ Reloading the app resets all sessions and attendance to the seed data, which mak
 
 These are stated explicitly because the repository does not pin them:
 
-- Node.js 20+ and npm are assumed to be compatible with Expo SDK 57.
-- Expo Go is assumed to work for the current screens. Because `expo-dev-client` is installed, a local development build (`npm run android` / `npm run ios`) or an EAS development build is the recommended path.
+- Node.js 22.13+ and npm are assumed to be compatible with Expo SDK 58.
+- Expo Go must be the current release (SDK 58). Because `expo-dev-client` is installed, a local development build (`npm run android` / `npm run ios`) or an EAS development build remains the recommended path for production-like testing.
 - UI copy is in Indonesian; developer documentation is in English.
 - Dates use WIB (UTC+7) display labels. The prototype does not perform timezone conversion.
 - Attendance is a single status, **Hadir**. There is no permission/sick/absent workflow.
