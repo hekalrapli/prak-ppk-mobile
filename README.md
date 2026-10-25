@@ -20,8 +20,8 @@ The table describes the implemented feature set. Every row is functional for the
 | Role and dummy identity selection | Yes | Yes |
 | Practicum schedule and session status | Yes | Yes |
 | Session detail | Yes | Yes |
-| Open a session | — | Yes |
-| Close a session | — | Yes |
+| Open a session | — | Yes (asisten pengampu) |
+| Close a session | — | Yes (asisten pengampu) |
 | Record attendance during an open session | Yes | — |
 | Duplicate attendance prevention | Yes | — |
 | Personal attendance history | Yes | — |
@@ -37,7 +37,7 @@ The role definitions are final; the capability descriptions below are the target
 | Role | Capabilities |
 | --- | --- |
 | **Praktikan** | Select a dummy student identity, view schedules, open session details, record attendance when a session is open, see the recorded time, view personal attendance history. Attendance cannot be recorded twice for the same session. |
-| **Asisten** | Select a dummy assistant identity, view schedules and session details, open and close sessions with confirmation, view the attendance recap for a session, and see status changes immediately. |
+| **Asisten** | Select a dummy assistant identity, view schedules and session details, open and close sessions assigned to them with confirmation, view the attendance recap for a session, and see status changes immediately. Assistants can view but not manage sessions assigned to another assistant. |
 
 Role switching is available from the **Ganti peran** action in the role stack header. No restart is required; the selected identity is stored in the shared demo context.
 
@@ -227,6 +227,7 @@ The prototype uses local, in-memory data only.
 - The two role views read the **same in-memory demo store during a single app run**, so the main demonstration can be performed without restarting. This is local UI state sharing, not backend or cross-device synchronization.
 - All state resets to the seed data when the app is reloaded. There is no persistence.
 - Session status is an explicit property (`upcoming`, `open`, `closed`); it is not derived from the real clock. The date and time shown on screen are display data.
+- Session management is restricted to the assistant assigned through `Practicum.assistantId`. Other assistants can view the session and recap but cannot open or close it; the reducer enforces the same rule.
 - Attendance is keyed by `(sessionId, praktikanId)`. The attendance screen checks this key before showing the action, and the reducer independently rejects a duplicate write, so a praktikan cannot record attendance twice for one session.
 - An attendance record stores the session, praktikan, status `Hadir`, and the local time at which the user pressed the attendance button.
 
@@ -271,9 +272,11 @@ Start the app, then follow these steps. This script matches `PRD.md` §6.5 and `
 5. **View the same session.** Open **Praktikum Pemrograman Mobile**. Attendance is available because `S-01` is now open in the shared local demo state.
 6. **Record attendance.** Tap **Catat kehadiran**. The button becomes a completed state showing the recorded time, and a success toast appears.
 7. **Check history.** Open **Riwayat** from the praktikan header. The new record appears with the session name, date, status **Hadir**, and attendance time.
-8. **View the recap.** Tap **Ganti peran**, return as **Asisten**, open `S-01`, and tap **Lihat rekap kehadiran**. The recap lists Nabila Putri with status **Hadir** and the recorded time.
+8. **View the recap.** Tap **Ganti peran**, return as **Asisten Raka Pratama**, open `S-01`, and tap **Lihat rekap kehadiran**. The recap lists Nabila Putri with status **Hadir** and the recorded time.
 9. **Close the session.** Go back to the session detail, tap **Tutup sesi**, and confirm. The badge changes to **Ditutup**.
 10. **Verify attendance is unavailable.** Switch back to **Praktikan** and open `S-01`. The attendance action is disabled and the screen states that the session has been closed. The existing record remains visible in history.
+
+Only **Raka Pratama** (`A-01`) is assigned to `S-01`. If you enter as **Dinda Maharani** (`A-02`), `S-01` remains visible but the screen states that Raka is the assigned assistant and shows no **Buka sesi** / **Tutup sesi** action. The recap remains accessible.
 
 Reloading the app resets all sessions and attendance to the seed data, which makes the scenario repeatable.
 

@@ -27,6 +27,19 @@ export function findAttendanceRecord(
   );
 }
 
+export function canManageSession(state: DemoState, sessionId: string) {
+  if (state.activeRole !== 'asisten' || !state.activeUserId) {
+    return false;
+  }
+
+  const session = state.sessions.find((item) => item.id === sessionId);
+  const practicum = session
+    ? state.practicums.find((item) => item.id === session.practicumId)
+    : undefined;
+
+  return practicum?.assistantId === state.activeUserId;
+}
+
 type Action =
   | { type: 'SELECT_IDENTITY'; payload: { role: UserRole; userId: string } }
   | { type: 'OPEN_SESSION'; payload: { sessionId: string; at: string } }
@@ -47,7 +60,11 @@ const DemoReducer = (state: DemoState, action: Action): DemoState => {
     case 'OPEN_SESSION': {
       const session = state.sessions.find((item) => item.id === action.payload.sessionId);
 
-      if (!session || session.status !== 'upcoming' || state.activeRole !== 'asisten') {
+      if (
+        !session ||
+        session.status !== 'upcoming' ||
+        !canManageSession(state, action.payload.sessionId)
+      ) {
         return state;
       }
 
@@ -63,7 +80,11 @@ const DemoReducer = (state: DemoState, action: Action): DemoState => {
     case 'CLOSE_SESSION': {
       const session = state.sessions.find((item) => item.id === action.payload.sessionId);
 
-      if (!session || session.status !== 'open' || state.activeRole !== 'asisten') {
+      if (
+        !session ||
+        session.status !== 'open' ||
+        !canManageSession(state, action.payload.sessionId)
+      ) {
         return state;
       }
 
