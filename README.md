@@ -220,7 +220,7 @@ The prototype uses local, in-memory data only.
 - The two role views read the **same in-memory demo store during a single app run**, so the main demonstration can be performed without restarting. This is local UI state sharing, not backend or cross-device synchronization.
 - All state resets to the seed data when the app is reloaded. There is no persistence.
 - Session status is an explicit property (`upcoming`, `open`, `closed`); it is not derived from the real clock. The date and time shown on screen are display data.
-- Attendance is keyed by `(sessionId, praktikanId)`. The attendance screen checks this key before showing the action so a praktikan cannot record attendance twice for one session.
+- Attendance is keyed by `(sessionId, praktikanId)`. The attendance screen checks this key before showing the action, and the reducer independently rejects a duplicate write, so a praktikan cannot record attendance twice for one session.
 - An attendance record stores the session, praktikan, status `Hadir`, and the local time at which the user pressed the attendance button.
 
 ### Seed Data

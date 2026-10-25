@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
-import { useDemoData } from '../../store/demo-data-context';
+import { findAttendanceRecord, useDemoData } from '../../store/demo-data-context';
 import { UserRole } from '../../types/attendance';
 import { AppButton } from '../ui/app-button';
 import { ConfirmModal } from '../ui/confirm-modal';
@@ -53,10 +53,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
   const activeUser = state.users.find((candidate) => candidate.id === state.activeUserId);
   const attendanceRecord =
     role === 'praktikan' && activeUser
-      ? state.attendanceRecords.find(
-          (record) =>
-            record.sessionId === sessionId && record.praktikanId === activeUser.id
-        )
+      ? findAttendanceRecord(state.attendanceRecords, sessionId, activeUser.id)
       : undefined;
 
   const dismissToast = useCallback(() => setToast(null), []);

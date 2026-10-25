@@ -17,6 +17,16 @@ const initialState: DemoState = {
   attendanceRecords: DUMMY_ATTENDANCE_RECORDS,
 };
 
+export function findAttendanceRecord(
+  records: AttendanceRecord[],
+  sessionId: string,
+  praktikanId: string
+) {
+  return records.find(
+    (record) => record.sessionId === sessionId && record.praktikanId === praktikanId
+  );
+}
+
 type Action =
   | { type: 'SELECT_IDENTITY'; payload: { role: UserRole; userId: string } }
   | { type: 'OPEN_SESSION'; payload: { sessionId: string; at: string } }
@@ -74,7 +84,8 @@ const DemoReducer = (state: DemoState, action: Action): DemoState => {
         !session ||
         session.status !== 'open' ||
         state.activeRole !== 'praktikan' ||
-        state.activeUserId !== praktikanId
+        state.activeUserId !== praktikanId ||
+        findAttendanceRecord(state.attendanceRecords, sessionId, praktikanId)
       ) {
         return state;
       }
