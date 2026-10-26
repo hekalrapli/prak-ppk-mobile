@@ -1,9 +1,10 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { ToastProvider } from '@/components/ui/toast-provider';
 import { Colors } from '@/constants/theme';
 import { DemoProvider } from '@/store/demo-data-context';
 
@@ -17,14 +18,16 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
       <DemoProvider>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-        <AnimatedSplashOverlay />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: theme.background },
-          }}
-        />
+        <ToastProvider>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <AnimatedSplashOverlay />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: theme.background },
+            }}
+          />
+        </ToastProvider>
       </DemoProvider>
     </ThemeProvider>
   );

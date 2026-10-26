@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,7 +14,7 @@ import { UserRole } from '../../types/attendance';
 import { AppButton } from '../ui/app-button';
 import { ConfirmModal } from '../ui/confirm-modal';
 import { StatusBadge } from '../ui/status-badge';
-import { Toast } from '../ui/toast';
+import { useToast } from '../ui/toast-provider';
 import { AttendanceSuccessPanel } from './attendance-success-panel';
 
 interface SessionDetailProps {
@@ -31,18 +31,13 @@ function currentClockTime() {
   return `${hours}:${minutes}`;
 }
 
-interface ToastMessage {
-  message: string;
-  detail?: string;
-  tone: 'success' | 'error';
-}
-
 export function SessionDetail({ role, sessionId }: SessionDetailProps) {
   const router = useRouter();
   const theme = useTheme();
   const { state, dispatch } = useDemoData();
+  const { showToast } = useToast(); 
+
   const [pendingAction, setPendingAction] = useState<SessionAction | null>(null);
-  const [toast, setToast] = useState<ToastMessage | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const savingRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,8 +54,6 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
     role === 'praktikan' && activeUser
       ? findAttendanceRecord(state.attendanceRecords, sessionId, activeUser.id)
       : undefined;
-
-  const dismissToast = useCallback(() => setToast(null), []);
 
   useEffect(() => {
     return () => {
@@ -102,11 +95,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
 
     if (!canManage) {
       setPendingAction(null);
-      setToast({
-        tone: 'error',
-        message: 'Tidak dapat mengelola sesi',
-        detail: 'Hanya asisten pengampu sesi ini yang dapat mengubah status sesi.',
-      });
+      showToast('Tidak dapat mengelola sesi. Hanya asisten pengampu yang diizinkan.', 'error');
       return;
     }
 
@@ -115,11 +104,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
       (action === 'close' && session.status !== 'open')
     ) {
       setPendingAction(null);
-      setToast({
-        tone: 'error',
-        message: 'Status sesi sudah berubah',
-        detail: 'Periksa kembali status sesi sebelum melanjutkan.',
-      });
+      showToast('Status sesi sudah berubah, periksa kembali.', 'error');
       return;
     }
 
@@ -128,14 +113,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
       payload: { sessionId, at },
     });
 
-    setToast({
-      tone: 'success',
-      message: action === 'open' ? 'Sesi dibuka' : 'Sesi ditutup',
-      detail:
-        action === 'open'
-          ? `Praktikan dapat mencatat kehadiran mulai pukul ${at}.`
-          : `Presensi tidak lagi tersedia sejak pukul ${at}.`,
-    });
+    showToast(action === 'open' ? 'Sesi berhasil dibuka' : 'Sesi berhasil ditutup', 'success');
     setPendingAction(null);
   };
 
@@ -145,20 +123,12 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
     }
 
     if (session.status !== 'open') {
-      setToast({
-        tone: 'error',
-        message: 'Presensi tidak tersedia',
-        detail: 'Sesi sudah ditutup. Kehadiran tidak dapat dicatat.',
-      });
+      showToast('Sesi sudah ditutup. Kehadiran tidak dapat dicatat.', 'error');
       return;
     }
 
     if (attendanceRecord) {
-      setToast({
-        tone: 'error',
-        message: 'Kehadiran sudah dicatat',
-        detail: `Tercatat pukul ${attendanceRecord.recordedAt}.`,
-      });
+      showToast('Kehadiran sudah dicatat sebelumnya.', 'error');
       return;
     }
 
@@ -174,11 +144,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
 
       savingRef.current = false;
       setIsSaving(false);
-      setToast({
-        tone: 'success',
-        message: 'Kehadiran berhasil dicatat',
-        detail: `Pukul ${at}.`,
-      });
+      showToast(`Kehadiran berhasil dicatat pada pukul ${at}`, 'success');
     }, 250);
   };
 
@@ -236,14 +202,6 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
           assistantName={assistant?.name}
         />
       </ScrollView>
-
-      <Toast
-        visible={toast !== null}
-        message={toast?.message ?? ''}
-        detail={toast?.detail}
-        tone={toast?.tone}
-        onDismiss={dismissToast}
-      />
 
       <View
         style={[
