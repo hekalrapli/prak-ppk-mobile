@@ -34,7 +34,7 @@ export const DUMMY_SESSIONS: Session[] = [
   { id: 'S-06', practicumId: 'PRK-6', date: 'Kamis, 29 Okt 2026', startTime: '10:00', endTime: '11:40', room: 'Lab Kecerdasan Buatan', status: 'open' },
   { id: 'S-07', practicumId: 'PRK-7', date: 'Jumat, 30 Okt 2026', startTime: '13:00', endTime: '14:40', room: 'Lab RPL', status: 'upcoming' },
   { id: 'S-08', practicumId: 'PRK-8', date: 'Jumat, 30 Okt 2026', startTime: '15:00', endTime: '16:40', room: 'Lab Keamanan', status: 'closed' },
-  { id: 'S-09', practicumId: 'PRK-9', date: 'Selasa, 20 Okt 2026', startTime: '08:00', endTime: '09:40', room: 'Lab Web', status: 'closed' },
+  { id: 'S-09', practicumId: 'PRK-9', date: 'Selasa, 20 Okt 2026', startTime: '08:00', endTime: '09:40', room: 'Lab Web', status: 'open' },
   { id: 'S-10', practicumId: 'PRK-10', date: 'Selasa, 20 Okt 2026', startTime: '10:00', endTime: '11:40', room: 'Lab APSI', status: 'open' },
 ];
 

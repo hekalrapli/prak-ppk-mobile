@@ -420,6 +420,7 @@ Uses `AppButton variant="destructive"`. Only for the final **Tutup sesi** confir
 │ Senin, 26 Okt 2026          [Dibuka]  │
 │ Praktikum Pemrograman Mobile           │
 │ IF-3A · Lab Mobile 2                   │
+│ Asisten: Raka Pratama      [Sesi Anda] │
 │ 08:00–09:40                            │
 └────────────────────────────────────────┘
 ```
@@ -428,9 +429,10 @@ Uses `AppButton variant="destructive"`. Only for the final **Tutup sesi** confir
 - Row 1: date caption (`textSecondary`) on the left, `StatusBadge` on the right, `alignItems: 'flex-start'`; allow the date to wrap only if necessary.
 - Row 2: practicum title `bodyStrong`, up to two lines, `flexShrink: 1`.
 - Row 3: class and room in `caption`/`label` with `textSecondary`, wrapping as needed.
-- Row 4: time `bodyStrong` or `time`, with an optional clock icon; keep it separate from metadata for scanning.
+- Row 4: assigned assistant in `caption`/`label` with `textSecondary`. On the asisten schedule, sessions assigned to the active assistant also show a **Sesi Anda** chip in `primarySoft`/`primary`. Keep the assistant name readable and let it shrink before the chip.
+- Row 5: time `bodyStrong` or `time`, with an optional clock icon; keep it separate from metadata for scanning.
 - Gap between rows: 8.
-- Pressed: `surfacePressed`; entire card pressable with `accessibilityRole="button"` and a label combining practicum, date, status, and "Buka detail sesi".
+- Pressed: `surfacePressed`; entire card pressable with `accessibilityRole="button"` and a label combining practicum, date, assistant, status, and "Buka detail sesi".
 - Do not place action buttons inside a list card. Navigation only.
 
 **Session card (detail header)**
@@ -607,12 +609,12 @@ Scrollable / FlatList content
 │   └── "2211102034 · IF-3A" (caption)
 ├── Section row: "Jadwal Praktikum"   "10 sesi"   [Riwayat]
 ├── Session list (gap 8)
-│   └── ScheduleListItem × 4
+│   └── ScheduleListItem × 10
 ├── Status legend
 └── Bottom padding
 ```
 
-**Main information:** Session name, date, time, room, class, status.
+**Main information:** Session name, date, time, room, class, assistant, status.
 
 **Primary action:** Open a session card.
 
@@ -724,11 +726,11 @@ Scrollable / FlatList content
 │   └── "Asisten · 2211101008" (caption)
 ├── Section row: "Sesi Praktikum"   "10 sesi"
 ├── Session list (gap 8)
-│   └── ScheduleListItem × 4
+│   └── ScheduleListItem × 10
 └── Status legend
 ```
 
-**Main information:** Session name, class, date, time, room, status.
+**Main information:** Session name, class, date, time, room, assistant, status. Sessions assigned to the active assistant are marked **Sesi Anda**.
 
 **Primary action:** Open a session card.
 

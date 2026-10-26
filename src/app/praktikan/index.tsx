@@ -73,10 +73,15 @@ export default function PraktikanScheduleScreen() {
             return null;
           }
 
+          const assistant = state.users.find(
+            (candidate) => candidate.id === practicum.assistantId
+          );
+
           return (
             <ScheduleListItem
               session={item}
               practicum={practicum}
+              assistantName={assistant?.name}
               onPress={() =>
                 router.push({
                   pathname: '/praktikan/session/[sessionId]',

@@ -155,7 +155,8 @@ All requirements below are **Must Have** because they constitute the required de
 
 **Expected behavior**
 
-- Each list item shows practicum name, class, date, start and end time, room, and a labeled status badge.
+- Each list item shows practicum name, class, date, start and end time, room, assistant name, and a labeled status badge.
+- On the asisten schedule, sessions assigned to the active assistant are marked **Sesi Anda** so the assistant can identify their practicums without opening each item.
 - List items are ordered by session date/time, earliest upcoming first; past/closed sessions appear after upcoming/open sessions. A simple fixed order is acceptable.
 - Tapping anywhere on an item opens its role-specific session detail.
 - The screen shows the active user's name and role, plus an action to switch role.
@@ -165,6 +166,8 @@ All requirements below are **Must Have** because they constitute the required de
 
 - [ ] The initial list contains the ten seeded sessions from §6.7 with the specified statuses.
 - [ ] Every item displays a status text label, not only a color.
+- [ ] Every item displays the assigned assistant name.
+- [ ] Asisten sessions assigned to the active assistant display the **Sesi Anda** marker.
 - [ ] Tapping **Praktikum Pemrograman Mobile** opens `S-01`; each item opens its matching session.
 - [ ] Long practicum names wrap or truncate gracefully without overlapping the status badge or time.
 - [ ] If the dataset is empty, an empty state with the title **Belum ada jadwal** is shown.
@@ -490,10 +493,10 @@ All role changes happen in the same running app. The shared session/attendance d
 | # | Screen / component | Purpose | Role | Main content | Primary action | Secondary interactions |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | **Role and identity selection** (`/`) | Choose a role and dummy user. | Both | App name, two role cards, identity list, inline demo note. | **Masuk** | Change role; select identity; read note that data is local. |
-| 2 | **Praktikan schedule** (`/praktikan`) | Browse practicum sessions. | Praktikan | User greeting, count, session list with status, room/time, status legend. | Open a session. | **Riwayat**; **Ganti peran**. |
+| 2 | **Praktikan schedule** (`/praktikan`) | Browse practicum sessions. | Praktikan | User greeting, count, session list with status, room/time, assistant, status legend. | Open a session. | **Riwayat**; **Ganti peran**. |
 | 3 | **Praktikan session detail** (`/praktikan/session/[sessionId]`) | Understand a session and record attendance. | Praktikan | Session title, status, date/time, room, assistant, guidance, attendance state. | **Catat kehadiran** (only when open and not recorded). | Read guidance; see recorded time; go back. |
 | 4 | **Praktikan attendance history** (`/praktikan/history`) | View own attendance records. | Praktikan | Count, record list, empty state. | Open a related session detail. | Go back to schedule. |
-| 5 | **Asisten schedule** (`/asisten`) | Browse sessions; manage assigned ones. | Asisten | User greeting, session list with status, room/time, status legend. | Open a session. | **Ganti peran**. |
+| 5 | **Asisten schedule** (`/asisten`) | Browse sessions; manage assigned ones. | Asisten | User greeting, session list with status, room/time, assistant, **Sesi Anda** marker, status legend. | Open a session. | **Ganti peran**. |
 | 6 | **Asisten session detail** (`/asisten/session/[sessionId]`) | Manage assigned session status and access recap. | Asisten | Session title, status, metadata, status explanation, management actions or assignment notice. | **Buka sesi** or **Tutup sesi** when assigned. | **Lihat rekap kehadiran**; back. |
 | 7 | **Attendance recap** (`/asisten/session/[sessionId]/recap`) | Inspect attendance for one session. | Asisten | Session identity, attendee count, record list, empty state. | Back to session detail. | View individual attendance times. |
 | 8 | **Confirmation modal** (overlay) | Confirm opening or closing. | Asisten | Title, session name, consequence text, **Batal** / confirm. | Confirm. | Cancel, backdrop dismiss, back dismiss. |
@@ -586,7 +589,7 @@ interface DemoState {
 | `S-06` | Praktikum Kecerdasan Buatan | IF-3A | Kamis, 29 Okt 2026 | 10:00–11:40 | Lab Kecerdasan Buatan | `A-04` | `open` — Dibuka |
 | `S-07` | Praktikum Rekayasa Perangkat Lunak | IF-3A | Jumat, 30 Okt 2026 | 13:00–14:40 | Lab RPL | `A-05` | `upcoming` — Belum dibuka |
 | `S-08` | Praktikum Keamanan Informasi | IF-3A | Jumat, 30 Okt 2026 | 15:00–16:40 | Lab Keamanan | `A-06` | `closed` — Ditutup |
-| `S-09` | Praktikum Pemrograman Web | IF-3A | Selasa, 20 Okt 2026 | 08:00–09:40 | Lab Web | `A-03` | `closed` — Ditutup |
+| `S-09` | Praktikum Pemrograman Web | IF-3A | Selasa, 20 Okt 2026 | 08:00–09:40 | Lab Web | `A-03` | `open` — Dibuka |
 | `S-10` | Praktikum Analisis dan Perancangan Sistem | IF-3A | Selasa, 20 Okt 2026 | 10:00–11:40 | Lab APSI | `A-04` | `open` — Dibuka |
 
 ### Seeded attendance

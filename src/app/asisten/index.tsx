@@ -66,10 +66,16 @@ export default function AsistenScheduleScreen() {
             return null;
           }
 
+          const assistant = state.users.find(
+            (candidate) => candidate.id === practicum.assistantId
+          );
+
           return (
             <ScheduleListItem
               session={item}
               practicum={practicum}
+              assistantName={assistant?.name}
+              isAssignedToActiveUser={practicum.assistantId === activeUser.id}
               onPress={() =>
                 router.push({
                   pathname: '/asisten/session/[sessionId]',

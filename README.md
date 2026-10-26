@@ -19,6 +19,8 @@ The table describes the implemented feature set. Every row is functional for the
 | --- | --- | --- |
 | Role and dummy identity selection | Yes | Yes |
 | Practicum schedule and session status | Yes | Yes |
+| Assigned assistant name on schedule | Yes | Yes |
+| **Sesi Anda** marker for assigned sessions | — | Yes |
 | Session detail | Yes | Yes |
 | Open a session | — | Yes (asisten pengampu) |
 | Close a session | — | Yes (asisten pengampu) |
@@ -228,6 +230,7 @@ The prototype uses local, in-memory data only.
 - All state resets to the seed data when the app is reloaded. There is no persistence.
 - Session status is an explicit property (`upcoming`, `open`, `closed`); it is not derived from the real clock. The date and time shown on screen are display data.
 - Session management is restricted to the assistant assigned through `Practicum.assistantId`. Other assistants can view the session and recap but cannot open or close it; the reducer enforces the same rule.
+- Every schedule card shows the assigned assistant name. On the asisten schedule, sessions assigned to the active assistant also show a **Sesi Anda** marker so they are easy to find without opening each session.
 - Attendance is keyed by `(sessionId, praktikanId)`. The attendance screen checks this key before showing the action, and the reducer independently rejects a duplicate write, so a praktikan cannot record attendance twice for one session.
 - An attendance record stores the session, praktikan, status `Hadir`, and the local time at which the user pressed the attendance button.
 
@@ -259,7 +262,7 @@ Dummy sessions:
 | `S-06` | Praktikum Kecerdasan Buatan | IF-3A | Kamis, 29 Okt 2026 | 10:00–11:40 | Lab Kecerdasan Buatan | `A-04` | Dibuka |
 | `S-07` | Praktikum Rekayasa Perangkat Lunak | IF-3A | Jumat, 30 Okt 2026 | 13:00–14:40 | Lab RPL | `A-05` | Belum dibuka |
 | `S-08` | Praktikum Keamanan Informasi | IF-3A | Jumat, 30 Okt 2026 | 15:00–16:40 | Lab Keamanan | `A-06` | Ditutup |
-| `S-09` | Praktikum Pemrograman Web | IF-3A | Selasa, 20 Okt 2026 | 08:00–09:40 | Lab Web | `A-03` | Ditutup |
+| `S-09` | Praktikum Pemrograman Web | IF-3A | Selasa, 20 Okt 2026 | 08:00–09:40 | Lab Web | `A-03` | Dibuka |
 | `S-10` | Praktikum Analisis dan Perancangan Sistem | IF-3A | Selasa, 20 Okt 2026 | 10:00–11:40 | Lab APSI | `A-04` | Dibuka |
 
 Seeded attendance (illustrative):
