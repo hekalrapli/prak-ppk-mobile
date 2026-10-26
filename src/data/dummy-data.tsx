@@ -29,3 +29,5 @@ export const DUMMY_ATTENDANCE_RECORDS: AttendanceRecord[] = [
   { id: 'ATT-S02-P02', sessionId: 'S-02', praktikanId: 'P-02', status: 'present', recordedAt: '10:06' },
   { id: 'ATT-S02-P03', sessionId: 'S-02', praktikanId: 'P-03', status: 'present', recordedAt: '10:11' },
 ];
+
+
