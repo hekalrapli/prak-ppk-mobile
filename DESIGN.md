@@ -605,7 +605,7 @@ Scrollable / FlatList content
 ├── Greeting row
 │   ├── "Halo, Nabila Putri" (screenTitle)
 │   └── "2211102034 · IF-3A" (caption)
-├── Section row: "Jadwal Praktikum"   "4 sesi"   [Riwayat]
+├── Section row: "Jadwal Praktikum"   "10 sesi"   [Riwayat]
 ├── Session list (gap 8)
 │   └── ScheduleListItem × 4
 ├── Status legend
@@ -620,7 +620,7 @@ Scrollable / FlatList content
 
 **States**
 
-- Default: list of four sessions.
+- Default: list of ten sessions.
 - Empty: **Belum ada jadwal** (with explanation). This is not expected with seed data but must be implemented.
 - Long content: two-line title, wrapping metadata.
 - No loading or error state; data is local and synchronous.
@@ -722,7 +722,7 @@ Scrollable / FlatList content
 ├── Greeting row
 │   ├── "Halo, Raka Pratama" (screenTitle)
 │   └── "Asisten · 2211101008" (caption)
-├── Section row: "Sesi Praktikum"   "4 sesi"
+├── Section row: "Sesi Praktikum"   "10 sesi"
 ├── Session list (gap 8)
 │   └── ScheduleListItem × 4
 └── Status legend
@@ -736,7 +736,7 @@ Scrollable / FlatList content
 
 **States**
 
-- Default: four sessions.
+- Default: ten sessions.
 - Empty: **Belum ada jadwal**.
 - All statuses visible with the same `StatusBadge`.
 - No session-management action directly in the list; keep the list scannable and prevent accidental status changes.

@@ -163,7 +163,7 @@ All requirements below are **Must Have** because they constitute the required de
 
 **Acceptance criteria**
 
-- [ ] The initial list contains the four seeded sessions from §6.7 with the specified statuses.
+- [ ] The initial list contains the ten seeded sessions from §6.7 with the specified statuses.
 - [ ] Every item displays a status text label, not only a color.
 - [ ] Tapping **Praktikum Pemrograman Mobile** opens `S-01`; each item opens its matching session.
 - [ ] Long practicum names wrap or truncate gracefully without overlapping the status badge or time.
@@ -569,6 +569,10 @@ interface DemoState {
 | `P-03` | Praktikan | Salsabila Rahma | `2211102052` | IF-3A |
 | `A-01` | Asisten | Raka Pratama | `2211101008` | — |
 | `A-02` | Asisten | Dinda Maharani | `2211101015` | — |
+| `A-03` | Asisten | Fajar Nugroho | `2211101022` | — |
+| `A-04` | Asisten | Intan Permata | `2211101039` | — |
+| `A-05` | Asisten | Bayu Setiawan | `2211101046` | — |
+| `A-06` | Asisten | Citra Lestari | `2211101053` | — |
 
 ### Dummy sessions
 
@@ -578,6 +582,12 @@ interface DemoState {
 | `S-02` | Praktikum Basis Data | IF-3A | Selasa, 27 Okt 2026 | 10:00–11:40 | Lab Basis Data 1 | `A-02` | `open` — Dibuka |
 | `S-03` | Praktikum Jaringan Komputer | IF-3A | Senin, 19 Okt 2026 | 13:00–14:40 | Lab Jaringan | `A-01` | `closed` — Ditutup |
 | `S-04` | Praktikum Struktur Data | IF-3A | Rabu, 28 Okt 2026 | 15:00–16:40 | Lab Komputer 3 | `A-02` | `upcoming` — Belum dibuka |
+| `S-05` | Praktikum Sistem Operasi | IF-3A | Kamis, 29 Okt 2026 | 08:00–09:40 | Lab Sistem Operasi | `A-03` | `upcoming` — Belum dibuka |
+| `S-06` | Praktikum Kecerdasan Buatan | IF-3A | Kamis, 29 Okt 2026 | 10:00–11:40 | Lab Kecerdasan Buatan | `A-04` | `open` — Dibuka |
+| `S-07` | Praktikum Rekayasa Perangkat Lunak | IF-3A | Jumat, 30 Okt 2026 | 13:00–14:40 | Lab RPL | `A-05` | `upcoming` — Belum dibuka |
+| `S-08` | Praktikum Keamanan Informasi | IF-3A | Jumat, 30 Okt 2026 | 15:00–16:40 | Lab Keamanan | `A-06` | `closed` — Ditutup |
+| `S-09` | Praktikum Pemrograman Web | IF-3A | Selasa, 20 Okt 2026 | 08:00–09:40 | Lab Web | `A-03` | `closed` — Ditutup |
+| `S-10` | Praktikum Analisis dan Perancangan Sistem | IF-3A | Selasa, 20 Okt 2026 | 10:00–11:40 | Lab APSI | `A-04` | `open` — Dibuka |
 
 ### Seeded attendance
 
@@ -690,7 +700,7 @@ sessionId + praktikanId
 | NFR-05 | Maintainable component structure | Shared components live outside `src/app/`; screens compose shared components. No copy-pasted duplicate button/card implementations across roles. |
 | NFR-06 | Minimal dependencies | No backend/API/database, no state-management library, no UI kit, and no new dependency unless already justified and approved. Use React Native core, Expo Router, and installed Expo modules. |
 | NFR-07 | Predictable local state | Reducer guards invalid session transitions and duplicate attendance. State changes are synchronous from the user's perspective. Reloading restores seed data deterministically. |
-| NFR-08 | Performance | The small list (four sessions, a handful of records) renders without noticeable delay. Avoid unnecessary re-renders and heavy animation. |
+| NFR-08 | Performance | The small list (ten sessions, a handful of records) renders without noticeable delay. Avoid unnecessary re-renders and heavy animation. |
 | NFR-09 | Cross-platform behavior | Android, iOS, and web targets remain usable. Use platform-safe APIs and avoid iOS-only symbols without fallbacks or text labels. |
 | NFR-10 | Type safety | TypeScript strict mode passes with no errors. Domain types are shared between data, store, and screens. |
 | NFR-11 | Honest prototype behavior | No screen claims real authentication, persistence, notifications, or cross-device synchronization. Demo data resets on reload and this is documented. |
@@ -729,7 +739,7 @@ The application is ready to demonstrate when all items below are true.
 
 - [ ] **Role selection:** **Masuk** is disabled until role + identity are chosen; each role opens its own schedule.
 - [ ] **Role switching:** **Ganti peran** returns to selection, and a new identity can enter without restarting; attendance/session data persists within the run.
-- [ ] **Schedule:** four seeded sessions appear with name, class, date, time, room, and text status; tapping opens the matching detail.
+- [ ] **Schedule:** ten seeded sessions appear with name, class, date, time, room, and text status; tapping opens the matching detail.
 - [ ] **Session detail:** metadata and status guidance are correct for `upcoming`, `open`, and `closed`; unknown IDs show the not-found state.
 - [ ] **Open flow:** **Buka sesi** requires confirmation; cancel changes nothing; confirm changes `S-01` to **Dibuka**, updates the action, and shows success feedback.
 - [ ] **Attendance success:** with `S-01` open, Nabila can record attendance once; time is visible; a toast/banner confirms success.

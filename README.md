@@ -242,15 +242,25 @@ Dummy identities:
 | `P-03` | Praktikan | Salsabila Rahma | `2211102052` | IF-3A |
 | `A-01` | Asisten | Raka Pratama | `2211101008` | — |
 | `A-02` | Asisten | Dinda Maharani | `2211101015` | — |
+| `A-03` | Asisten | Fajar Nugroho | `2211101022` | — |
+| `A-04` | Asisten | Intan Permata | `2211101039` | — |
+| `A-05` | Asisten | Bayu Setiawan | `2211101046` | — |
+| `A-06` | Asisten | Citra Lestari | `2211101053` | — |
 
 Dummy sessions:
 
-| Session ID | Praktikum | Class | Date | Time | Room | Initial status |
-| --- | --- | --- | --- | --- | --- | --- |
-| `S-01` | Praktikum Pemrograman Mobile | IF-3A | Senin, 26 Okt 2026 | 08:00–09:40 | Lab Mobile 2 | Belum dibuka |
-| `S-02` | Praktikum Basis Data | IF-3A | Selasa, 27 Okt 2026 | 10:00–11:40 | Lab Basis Data 1 | Dibuka |
-| `S-03` | Praktikum Jaringan Komputer | IF-3A | Senin, 19 Okt 2026 | 13:00–14:40 | Lab Jaringan | Ditutup |
-| `S-04` | Praktikum Struktur Data | IF-3A | Rabu, 28 Okt 2026 | 15:00–16:40 | Lab Komputer 3 | Belum dibuka |
+| Session ID | Praktikum | Class | Date | Time | Room | Assistant | Initial status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `S-01` | Praktikum Pemrograman Mobile | IF-3A | Senin, 26 Okt 2026 | 08:00–09:40 | Lab Mobile 2 | `A-01` | Belum dibuka |
+| `S-02` | Praktikum Basis Data | IF-3A | Selasa, 27 Okt 2026 | 10:00–11:40 | Lab Basis Data 1 | `A-02` | Dibuka |
+| `S-03` | Praktikum Jaringan Komputer | IF-3A | Senin, 19 Okt 2026 | 13:00–14:40 | Lab Jaringan | `A-01` | Ditutup |
+| `S-04` | Praktikum Struktur Data | IF-3A | Rabu, 28 Okt 2026 | 15:00–16:40 | Lab Komputer 3 | `A-02` | Belum dibuka |
+| `S-05` | Praktikum Sistem Operasi | IF-3A | Kamis, 29 Okt 2026 | 08:00–09:40 | Lab Sistem Operasi | `A-03` | Belum dibuka |
+| `S-06` | Praktikum Kecerdasan Buatan | IF-3A | Kamis, 29 Okt 2026 | 10:00–11:40 | Lab Kecerdasan Buatan | `A-04` | Dibuka |
+| `S-07` | Praktikum Rekayasa Perangkat Lunak | IF-3A | Jumat, 30 Okt 2026 | 13:00–14:40 | Lab RPL | `A-05` | Belum dibuka |
+| `S-08` | Praktikum Keamanan Informasi | IF-3A | Jumat, 30 Okt 2026 | 15:00–16:40 | Lab Keamanan | `A-06` | Ditutup |
+| `S-09` | Praktikum Pemrograman Web | IF-3A | Selasa, 20 Okt 2026 | 08:00–09:40 | Lab Web | `A-03` | Ditutup |
+| `S-10` | Praktikum Analisis dan Perancangan Sistem | IF-3A | Selasa, 20 Okt 2026 | 10:00–11:40 | Lab APSI | `A-04` | Dibuka |
 
 Seeded attendance (illustrative):
 
