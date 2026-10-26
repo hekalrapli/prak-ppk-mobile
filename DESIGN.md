@@ -1038,7 +1038,7 @@ export const Colors = {
 | `src/components/ui/empty-state.tsx` | Shared empty state. |
 | `src/components/ui/confirm-modal.tsx` | Confirmation modal with pending state. |
 | `src/components/ui/info-sheet.tsx` | Optional informational bottom sheet. |
-| `src/components/ui/toast.tsx` | In-app success/error toast. |
+| `src/components/ui/toast-provider.tsx` | In-app success/error toast provider. |
 | `src/components/attendance/schedule-list-item.tsx` | Session list card. |
 | `src/components/attendance/session-card.tsx` | Detail summary card. |
 | `src/components/attendance/attendance-record-item.tsx` | Recap/history row. |

@@ -108,7 +108,7 @@ The app uses `expo-dev-client` for development builds. ESLint is configured with
 │   │   │   ├── header-role-switch.tsx
 │   │   │   ├── selection-cards.tsx
 │   │   │   ├── status-badge.tsx
-│   │   │   └── toast.tsx
+│   │   │   └── toast-provider.tsx
 │   │   └── ...                 # Remaining Expo starter components
 │   ├── constants/
 │   │   └── theme.ts            # Design tokens
