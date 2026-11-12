@@ -1,0 +1,187 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Helpers ----------
+    function signedIn() {
+      return request.auth != null;
+    }
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+    function role() {
+      return userDoc(request.auth.uid).data.role;
+    }
+    function isAsisten() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && role() == 'asisten';
+    }
+    function isPraktikan() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && role() == 'praktikan';
+    }
+    function practicum(pid) {
+      return get(/databases/$(database)/documents/practicums/$(pid));
+    }
+    function isPengampu(pid) {
+      return isAsisten() && practicum(pid).data.assistantId == request.auth.uid;
+    }
+    function isPeserta(pid) {
+      return isPraktikan() && request.auth.uid in practicum(pid).data.studentIds;
+    }
+    function session(pid, sid) {
+      return get(/databases/$(database)/documents/practicums/$(pid)/sessions/$(sid));
+    }
+    function onlyChanges(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+    function str(v, min, max) {
+      return v is string && v.size() >= min && v.size() <= max;
+    }
+
+    // ---------- Config (tidak bisa dibaca klien; hanya dipakai get() oleh rules) ----------
+    match /config/{doc} {
+      allow read, write: if false;
+    }
+
+    // ---------- Users ----------
+    match /users/{uid} {
+      // Pemilik membaca profilnya sendiri; asisten boleh membaca profil (untuk mencari praktikan sebagai peserta).
+      allow read: if signedIn() && (request.auth.uid == uid || isAsisten());
+
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name','identifier','email','role','createdAt','inviteCode'])
+        && str(request.resource.data.name, 1, 60)
+        && str(request.resource.data.identifier, 8, 20)
+        && str(request.resource.data.email, 5, 100)
+        && request.resource.data.createdAt == request.time
+        && (
+          (request.resource.data.role == 'praktikan' && !('inviteCode' in request.resource.data))
+          ||
+          (request.resource.data.role == 'asisten'
+            && request.resource.data.inviteCode ==
+               get(/databases/$(database)/documents/config/registration).data.asistenCode)
+        );
+
+      // Hanya nama yang boleh diubah; peran & identitas terkunci.
+      allow update: if signedIn() && request.auth.uid == uid
+        && onlyChanges(['name'])
+        && str(request.resource.data.name, 1, 60);
+
+      allow delete: if false;
+    }
+
+    // ---------- Practicums ----------
+    match /practicums/{pid} {
+      allow read: if isAsisten() || (isPraktikan() && request.auth.uid in resource.data.studentIds);
+
+      allow create: if isAsisten()
+        && request.resource.data.assistantId == request.auth.uid
+        && str(request.resource.data.name, 1, 100)
+        && str(request.resource.data.className, 1, 30)
+        && request.resource.data.studentIds is list;
+
+      allow update: if isAsisten() && resource.data.assistantId == request.auth.uid
+        && request.resource.data.assistantId == resource.data.assistantId
+        && str(request.resource.data.name, 1, 100)
+        && str(request.resource.data.className, 1, 30)
+        && request.resource.data.studentIds is list;
+
+      allow delete: if isAsisten() && resource.data.assistantId == request.auth.uid;
+
+      // ---------- Sessions ----------
+      match /sessions/{sid} {
+        allow read: if isAsisten() || isPeserta(pid);
+
+        allow create: if isPengampu(pid)
+          && request.resource.data.status == 'upcoming'
+          && str(request.resource.data.room, 1, 60)
+          && str(request.resource.data.date, 8, 30)
+          && str(request.resource.data.startTime, 4, 5)
+          && str(request.resource.data.endTime, 4, 5)
+          && request.resource.data.endTime > request.resource.data.startTime;
+
+        // Edit jadwal (status tidak berubah) ATAU transisi status upcoming->open / open->closed.
+        allow update: if isPengampu(pid) && (
+          (request.resource.data.status == resource.data.status
+             && resource.data.status != 'closed'
+             && str(request.resource.data.room, 1, 60)
+             && request.resource.data.endTime > request.resource.data.startTime)
+          ||
+          (resource.data.status == 'upcoming' && request.resource.data.status == 'open'
+             && onlyChanges(['status','openedAt']))
+          ||
+          (resource.data.status == 'open' && request.resource.data.status == 'closed'
+             && onlyChanges(['status','closedAt']))
+        );
+
+        allow delete: if isPengampu(pid);
+
+        // ---------- Attendance (ID dokumen = UID praktikan) ----------
+        match /attendance/{uid} {
+          allow read: if isAsisten() || (isPraktikan() && request.auth.uid == uid);
+
+          allow create: if isPeserta(pid)
+            && request.auth.uid == uid
+            && session(pid, sid).data.status == 'open'
+            && request.resource.data.keys().hasOnly(['praktikanId','praktikanName','praktikanNim','status','recordedAt'])
+            && request.resource.data.praktikanId == uid
+            && request.resource.data.status == 'present'
+            && request.resource.data.recordedAt == request.time;
+
+          allow update, delete: if false;
+        }
+
+        // ---------- Leave requests (ID dokumen = UID praktikan) ----------
+        match /leaveRequests/{uid} {
+          allow read: if isAsisten() || (isPraktikan() && request.auth.uid == uid);
+
+          allow create: if isPeserta(pid)
+            && request.auth.uid == uid
+            && session(pid, sid).data.status in ['upcoming', 'open']
+            && request.resource.data.keys().hasOnly(['praktikanId','praktikanName','praktikanNim','reason','status','ai','createdAt'])
+            && request.resource.data.praktikanId == uid
+            && request.resource.data.status == 'pending'
+            && str(request.resource.data.reason, 10, 500)
+            && request.resource.data.createdAt == request.time;
+
+          // Praktikan: ubah alasan / hasil AI selama pending. Asisten pengampu: hanya keputusan (atau retry AI).
+          allow update: if
+            (
+              isPeserta(pid) && request.auth.uid == uid
+              && resource.data.status == 'pending'
+              && onlyChanges(['reason','ai'])
+              && str(request.resource.data.reason, 10, 500)
+            )
+            ||
+            (
+              isPengampu(pid)
+              && resource.data.status == 'pending'
+              && request.resource.data.status in ['approved', 'rejected']
+              && onlyChanges(['status','decidedBy','decidedAt','reviewNote'])
+              && request.resource.data.decidedBy == request.auth.uid
+              && request.resource.data.decidedAt == request.time
+              && (!('reviewNote' in request.resource.data) || str(request.resource.data.reviewNote, 0, 200))
+              && (request.resource.data.status == 'approved' || str(request.resource.data.reviewNote, 1, 200))
+            )
+            ||
+            (
+              isPengampu(pid)
+              && onlyChanges(['ai'])
+            );
+
+          // Praktikan boleh membatalkan selama pending.
+          allow delete: if isPeserta(pid) && request.auth.uid == uid && resource.data.status == 'pending';
+        }
+      }
+    }
+
+    // ---------- Collection group: riwayat & izin pribadi lintas sesi ----------
+    match /{path=**}/attendance/{uid} {
+      allow read: if isAsisten() || (isPraktikan() && request.auth.uid == uid);
+    }
+    match /{path=**}/leaveRequests/{uid} {
+      allow read: if isAsisten() || (isPraktikan() && request.auth.uid == uid);
+    }
+  }
+}

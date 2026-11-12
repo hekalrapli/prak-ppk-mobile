@@ -786,3 +786,422 @@ These assumptions are part of this PRD and should be referenced when implementin
 6. The app is a single-user demonstration: there is no concurrent user simulation, optimistic update, or conflict resolution.
 7. The planned UI language is Indonesian; code identifiers and documentation are in English.
 8. The existing Expo starter screens and native tab layout will be replaced by the routes described here and in `DESIGN.md`.
+
+
+## 7.1 Ringkasan Sprint 2
+
+### Latar belakang
+Sprint 1 menghasilkan prototipe frontend dengan data in-memory yang hilang saat aplikasi di-reload dan tidak dibagi antar perangkat. Sprint 2 mengubahnya menjadi aplikasi multi-pengguna: tiap pengguna punya akun, data tersimpan permanen di Cloud Firestore, perubahan tampil real-time, dan praktikan dapat mengajukan izin yang diklasifikasikan model AI lalu diputuskan oleh asisten.
+
+### Tujuan utama
+1. Autentikasi nyata (register, login, logout) dengan peran praktikan/asisten.
+2. Seluruh data praktikum (kelas, peserta, jadwal, sesi, presensi, izin) di Firestore dengan CRUD oleh asisten.
+3. Presensi terintegrasi, satu kali per praktikan per sesi, dijamin di level data (bukan hanya UI).
+4. Sinkronisasi real-time melalui `onSnapshot` dan data persisten.
+5. Pengajuan izin dengan klasifikasi alasan oleh model AI sebagai **informasi pendukung saja**.
+6. Keputusan izin (terima/tolak) hanya oleh asisten dan terlihat oleh praktikan.
+7. Validasi input, penanganan error, dan Firebase Security Rules berbasis peran.
+
+### Non-goals Sprint 2
+- Notifikasi push, ekspor laporan, analitik.
+- Login sosial (Google) — tidak diwajibkan pada soal ini; email/password cukup.
+- Cloud Functions / backend sendiri (tidak tersedia pada paket gratis Spark; semua logika di klien + Security Rules).
+- Pelatihan ulang model AI. Model dipakai apa adanya dari repo.
+- Menyetujui/menolak izin otomatis berdasarkan prediksi AI (dilarang oleh soal).
+
+### Kriteria sukses
+1. Dua alur demo pada §7.5 berjalan penuh dengan dua akun berbeda di dua perangkat/jendela.
+2. Data tetap ada setelah aplikasi ditutup dan dibuka kembali; sesi login juga bertahan.
+3. Percobaan akses yang melanggar peran ditolak oleh Security Rules (bisa didemokan lewat Rules Playground).
+4. Semua kondisi: belum login, loading, kosong, offline, dan AI tidak merespons punya tampilan yang jelas.
+
+---
+
+## 7.2 User Stories Tambahan
+
+| ID | User story |
+| --- | --- |
+| US-16 | Sebagai pengguna baru, saya ingin mendaftar dengan email, kata sandi, nama, NIM/NIP, dan peran. |
+| US-17 | Sebagai pengguna, saya ingin login dan tetap login saat aplikasi dibuka kembali, serta dapat logout. |
+| US-18 | Sebagai asisten, saya ingin menambah/melihat/mengubah/menghapus praktikum, peserta, jadwal, dan sesi. |
+| US-19 | Sebagai praktikan, saya hanya melihat praktikum dan sesi yang saya ikuti. |
+| US-20 | Sebagai asisten, saya ingin rekap kehadiran ter-update real-time saat praktikan presensi. |
+| US-21 | Sebagai praktikan, saya ingin mengajukan izin untuk sesi tertentu dengan menuliskan alasan. |
+| US-22 | Sebagai praktikan, saya ingin memantau status pengajuan izin (menunggu / diterima / ditolak) beserta catatan asisten. |
+| US-23 | Sebagai asisten, saya ingin melihat daftar izin beserta alasan dan kategori hasil AI, lalu menerima atau menolak. |
+| US-24 | Sebagai pengguna, saya ingin pesan error yang jelas saat login gagal, koneksi putus, atau layanan AI tidak merespons. |
+
+---
+
+## 7.3 Functional Requirements
+
+Penomoran FR melanjutkan Sprint 1 (FR-01..FR-10). FR Sprint 1 yang berubah dicatat pada §7.9.
+
+### FR-11 — Registrasi
+| Field | Value |
+| --- | --- |
+| Role | Semua (belum login) |
+| Priority | Must Have |
+
+**Perilaku**
+- Form: nama lengkap, NIM/NIP, email, kata sandi, konfirmasi kata sandi, pilihan peran (**Praktikan** / **Asisten**).
+- Peran **Asisten** mewajibkan **kode undangan asisten** (disimpan di dokumen `config/registration`, dicek oleh Security Rules; lihat §7.6). Praktikan tidak memerlukan kode.
+- Setelah `createUserWithEmailAndPassword` berhasil, aplikasi membuat dokumen `users/{uid}` berisi profil dan peran, lalu masuk ke beranda sesuai peran.
+- Jika pembuatan dokumen profil gagal, akun Auth yang baru dibuat dihapus (rollback) agar tidak ada akun tanpa peran.
+
+**Validasi & acceptance criteria**
+- [ ] Nama tidak kosong (maks 60 karakter); NIM/NIP 8–20 digit; email berformat valid; kata sandi minimal 8 karakter dan cocok dengan konfirmasi.
+- [ ] Tombol **Daftar** nonaktif sampai semua field valid; pesan error per field tampil inline.
+- [ ] Email yang sudah terdaftar menampilkan "Email sudah digunakan".
+- [ ] Kode undangan salah → pendaftaran asisten ditolak dengan pesan jelas; tidak ada akun yang tersisa.
+- [ ] Peran tidak dapat diubah sendiri setelah dibuat (dijaga Rules).
+
+### FR-12 — Login, logout, dan persistensi sesi
+| Priority | Must Have |
+| --- | --- |
+
+- Login email + kata sandi; `onAuthStateChanged` menjadi sumber kebenaran status login.
+- Auth memakai persistence AsyncStorage agar pengguna tetap login setelah aplikasi ditutup.
+- Saat status auth belum diketahui → layar loading (splash), bukan layar login berkedip.
+- Setelah login, profil `users/{uid}` dibaca (real-time) untuk menentukan peran dan rute.
+- Logout: `signOut`, hentikan semua listener Firestore, kembali ke layar login.
+
+**Acceptance criteria**
+- [ ] Pengguna belum login yang membuka rute role mana pun diarahkan ke login.
+- [ ] Praktikan yang membuka rute `/asisten/...` diarahkan ke beranda praktikan (dan sebaliknya).
+- [ ] Pesan error dipetakan ke Bahasa Indonesia: `auth/invalid-credential` → "Email atau kata sandi salah", `auth/too-many-requests` → "Terlalu banyak percobaan, coba lagi nanti", `auth/network-request-failed` → "Tidak ada koneksi internet".
+- [ ] Setelah logout, tombol back tidak membuka layar yang dilindungi.
+- [ ] Tidak ada listener Firestore aktif setelah logout (tidak ada error `permission-denied` di console).
+
+### FR-13 — Pengelolaan data praktikum (CRUD asisten)
+| Role | Asisten (tulis), Praktikan (baca terbatas) |
+| --- | --- |
+| Priority | Must Have |
+
+**Entitas yang dikelola asisten**
+- **Praktikum**: nama, kelas, asisten pengampu, daftar peserta (praktikan).
+- **Sesi/Jadwal**: tanggal, jam mulai–selesai, ruang, status (`upcoming`/`open`/`closed`), `openedAt`, `closedAt`.
+- **Peserta**: asisten menambah/menghapus praktikan dari praktikum (memilih dari akun terdaftar berperan praktikan, dicari lewat NIM/email).
+
+**Perilaku**
+- Asisten: tambah, lihat, ubah, hapus praktikum dan sesi lewat form dengan validasi.
+- Hanya asisten pengampu yang boleh mengubah/menghapus praktikum itu, mengelola pesertanya, dan membuka/menutup sesinya.
+- Menghapus praktikum meminta konfirmasi dan ikut menghapus sesi di bawahnya (batch); menghapus sesi yang sudah memiliki presensi menampilkan peringatan.
+- Praktikan hanya melihat praktikum yang memuat UID-nya pada daftar peserta dan sesi di dalamnya.
+
+**Acceptance criteria**
+- [ ] Asisten dapat menambah praktikum + sesi baru; langsung muncul di layar praktikan peserta tanpa reload.
+- [ ] Ubah dan hapus bekerja dan tercermin real-time pada pengguna lain.
+- [ ] Praktikan bukan peserta tidak melihat praktikum tersebut (dan query langsung ditolak Rules).
+- [ ] Waktu selesai harus setelah waktu mulai; field wajib tidak boleh kosong; ruang maks 60 karakter.
+- [ ] Aturan transisi status sesi Sprint 1 tetap: `upcoming → open → closed`, tidak bisa dibuka ulang.
+- [ ] Aksi tulis menampilkan pending state, toast sukses, atau pesan error.
+
+### FR-14 — Presensi terintegrasi
+| Role | Praktikan |
+| --- | --- |
+| Priority | Must Have |
+
+- Presensi disimpan di `practicums/{pid}/sessions/{sid}/attendance/{uid}` — **ID dokumen = UID praktikan**, sehingga satu praktikan hanya bisa punya satu dokumen per sesi.
+- Rules hanya mengizinkan `create` jika: pemanggil adalah praktikan peserta, `request.auth.uid == uid`, sesi berstatus `open`, dan dokumen belum ada. `update` dan `delete` oleh praktikan ditolak.
+- Waktu presensi memakai `serverTimestamp()` (bukan jam perangkat) dan ditampilkan sebagai `HH:mm` WIB.
+- UI: tombol **Catat kehadiran** hanya aktif saat sesi `open` dan dokumen belum ada (berdasarkan listener), lalu berubah menjadi **Kehadiran sudah dicatat** + waktu.
+
+**Acceptance criteria**
+- [ ] Praktikan peserta berhasil presensi saat sesi `open`; data muncul di Firestore.
+- [ ] Presensi kedua pada sesi yang sama ditolak (UI nonaktif, dan Rules menolak walau lewat klien lain).
+- [ ] Presensi saat sesi `upcoming`/`closed` ditolak Rules; UI menampilkan penjelasan.
+- [ ] Presensi atas nama UID lain ditolak.
+- [ ] Praktikan yang punya izin `approved` pada sesi tersebut tidak dapat presensi (opsional, lihat §7.8).
+
+### FR-15 — Sinkronisasi real-time dan persistensi
+| Priority | Must Have |
+| --- | --- |
+
+- Gunakan `onSnapshot` untuk: profil pengguna, daftar praktikum, sesi, presensi sesi, izin. Listener dibuat saat layar mount dan dilepas saat unmount/logout.
+- Setiap listener memiliki tiga state: `loading`, `error`, `data` (termasuk kosong).
+- Pengguna melihat banner "Anda sedang offline" bila koneksi terputus; data cache tetap tampil (cache Firestore) dan perubahan ditulis ulang saat online.
+
+**Acceptance criteria**
+- [ ] Asisten membuka sesi → status praktikan berubah tanpa refresh.
+- [ ] Praktikan presensi → rekap asisten bertambah real-time.
+- [ ] Tutup dan buka ulang aplikasi → data dan sesi login masih ada.
+- [ ] Putus koneksi → banner offline tampil; tidak crash; setelah tersambung kembali data tersinkron.
+
+### FR-16 — Rekap kehadiran
+| Role | Asisten pengampu (dan asisten lain: baca) |
+| --- | --- |
+| Priority | Must Have |
+
+- Rekap per sesi memakai listener pada subkoleksi `attendance` + data peserta, menampilkan: nama, NIM, status (**Hadir** / **Izin** / **Belum hadir**), waktu.
+- Ringkasan angka: hadir, izin, belum hadir dari total peserta.
+- Praktikan hanya dapat membaca dokumen presensi miliknya (riwayat pribadi memakai collection group query `attendance` dengan `praktikanId == uid`).
+
+**Acceptance criteria**
+- [ ] Rekap menampilkan peserta yang belum presensi sebagai **Belum hadir** setelah sesi ditutup.
+- [ ] Rekap kosong menampilkan state kosong; error baca menampilkan state error dengan tombol coba lagi.
+- [ ] Praktikan tidak dapat membaca presensi praktikan lain (diuji lewat Rules).
+
+### FR-17 — Pengajuan izin
+| Role | Praktikan |
+| --- | --- |
+| Priority | Must Have |
+
+- Dari detail sesi (status `upcoming` atau `open`), praktikan memilih **Ajukan izin**, mengisi alasan (10–500 karakter), lalu mengirim.
+- Disimpan di `practicums/{pid}/sessions/{sid}/leaveRequests/{uid}` (satu pengajuan per praktikan per sesi; ID = UID).
+- Field: `praktikanId`, `praktikanName`, `praktikanNim`, `reason`, `status` (`pending`/`approved`/`rejected`), `ai` (objek hasil klasifikasi, §7.7), `createdAt`, `decidedBy`, `decidedAt`, `reviewNote`.
+- Praktikan dapat mengubah alasan atau membatalkan selama status masih `pending`; setelah diputuskan, dokumen read-only baginya.
+- Daftar **Izin Saya** menampilkan semua pengajuan beserta status dan catatan asisten, update real-time.
+
+**Acceptance criteria**
+- [ ] Alasan < 10 atau > 500 karakter ditolak validasi (klien) dan Rules.
+- [ ] Pengajuan kedua untuk sesi yang sama tidak membuat dokumen baru; UI menampilkan pengajuan yang sudah ada.
+- [ ] Praktikan tidak dapat menetapkan `status` selain `pending` saat membuat, dan tidak dapat mengubah `status`, `decidedBy`, `decidedAt`, `reviewNote`.
+- [ ] Praktikan tidak dapat mengajukan izin pada sesi `closed`.
+- [ ] Pengajuan tersimpan walaupun layanan AI gagal (lihat FR-18).
+
+### FR-18 — Klasifikasi alasan izin oleh model AI
+| Role | Sistem (dipicu praktikan) |
+| --- | --- |
+| Priority | Must Have |
+| Catatan | Menggantikan kebutuhan #6 pada soal (API AI pengajar) dengan model dari repo yang diberikan |
+
+- Setelah praktikan mengirim izin, aplikasi memanggil layanan model AI dengan teks alasan dan menerima prediksi kategori (mis. sakit, keluarga, akademik, dll. — **daftar kategori mengikuti model**).
+- Hasil disimpan pada field `ai` di dokumen izin: `category`, `confidence` (jika tersedia), `model` (nama/versi), `classifiedAt`, `state` (`success` | `failed` | `timeout`).
+- Hasil ditampilkan ke asisten sebagai **label informasi pendukung** (mis. chip "Kategori AI: Sakit") dengan teks "Prediksi otomatis, bukan keputusan".
+- **Hasil AI tidak pernah mengubah `status`.** Tidak ada logika `if category == ... then approve/reject` di kode klien maupun Rules.
+- Timeout 10 detik, 1x retry otomatis. Bila gagal: izin tetap tersimpan dengan `ai.state = "failed"`, asisten melihat "Klasifikasi tidak tersedia", dan tersedia tombol **Coba klasifikasi ulang** (asisten atau pemilik izin).
+
+**Acceptance criteria**
+- [ ] Alasan terkirim ke layanan AI dan kategori muncul pada kartu izin asisten.
+- [ ] Layanan mati / timeout / respons tidak valid → pengajuan tetap tersimpan, pesan jelas, tidak ada crash.
+- [ ] Kategori apa pun (termasuk yang tampak "layak") tidak mengubah status otomatis.
+- [ ] URL layanan AI disimpan sebagai konfigurasi environment, bukan hard-code di komponen.
+
+### FR-19 — Pemeriksaan izin oleh asisten
+| Role | Asisten pengampu |
+| --- | --- |
+| Priority | Must Have |
+
+- Layar **Izin Masuk** menampilkan daftar pengajuan (filter sederhana: Menunggu / Diterima / Ditolak) untuk praktikum yang diampu.
+- Kartu: nama, NIM, sesi, alasan lengkap, kategori AI (+ confidence bila ada), waktu pengajuan, status.
+- Aksi **Terima** / **Tolak** melalui modal konfirmasi dengan kolom catatan (wajib saat menolak, maks 200 karakter).
+- Keputusan menulis `status`, `decidedBy`, `decidedAt`, `reviewNote`; praktikan melihat perubahan real-time.
+- Keputusan bersifat final pada Sprint ini (tidak bisa diubah kembali).
+
+**Acceptance criteria**
+- [ ] Hanya asisten pengampu yang bisa memutuskan (Rules); asisten lain hanya baca.
+- [ ] Praktikan tidak bisa memutuskan izin sendiri atau izin orang lain.
+- [ ] Izin `approved` tampil pada rekap sebagai **Izin**.
+- [ ] Double tap pada konfirmasi tidak menghasilkan dua keputusan.
+
+### FR-20 — Validasi, error handling, dan Security Rules
+| Priority | Must Have |
+| --- | --- |
+
+- Semua input divalidasi di klien (schema sederhana) **dan** di Rules (tipe, panjang, nilai enum, field yang boleh diubah).
+- Error dipetakan ke pesan manusiawi: `permission-denied`, `unavailable`, `not-found`, `already-exists`, `deadline-exceeded`, error jaringan.
+- Aturan lengkap ada di `firestore.rules` (lampiran) dan dijelaskan di §7.6.
+
+**Acceptance criteria**
+- [ ] Rules diuji (Rules Playground/emulator) untuk minimal: baca lintas peran, presensi dobel, presensi saat sesi tidak open, praktikan mengubah status izin, asisten non-pengampu menulis.
+- [ ] Mode produksi, bukan test mode; tidak ada `allow read, write: if true`.
+- [ ] Tidak ada kunci rahasia (kunci privat/service account/token AI berhak tulis) di repository. Config Firebase web bukan rahasia, tetapi Rules wajib ketat.
+
+---
+
+## 7.4 Peran dan Hak Akses
+
+| Resource | Praktikan | Asisten pengampu | Asisten lain |
+| --- | --- | --- | --- |
+| `users/{uid}` | baca & ubah nama sendiri (peran tidak bisa diubah) | idem; baca profil praktikan (untuk mencari peserta) | idem |
+| `practicums` | baca jika peserta | CRUD | baca |
+| `sessions` | baca jika peserta | CRUD + buka/tutup | baca |
+| `attendance` | baca milik sendiri; **create** saat sesi open | baca semua | baca semua |
+| `leaveRequests` | create/baca milik sendiri; ubah alasan saat `pending` | baca semua; putuskan | baca |
+
+---
+
+## 7.5 User Flow (Demo)
+
+### Flow E — Presensi (dua akun)
+```mermaid
+flowchart LR
+    A[Asisten login] --> B[Buka sesi - konfirmasi]
+    B --> C[status open tersimpan di Firestore]
+    C --> D[Praktikan login di perangkat lain]
+    D --> E[Sesi tampil Dibuka tanpa refresh]
+    E --> F[Catat kehadiran]
+    F --> G[Dokumen attendance dibuat]
+    G --> H[Rekap asisten bertambah real-time]
+    H --> I[Asisten tutup sesi]
+    I --> J[Tombol presensi praktikan nonaktif]
+```
+
+### Flow F — Izin
+```mermaid
+flowchart LR
+    A[Praktikan login] --> B[Ajukan izin + alasan]
+    B --> C[Simpan ke Firestore - pending]
+    C --> D[Panggil model AI]
+    D -->|sukses| E[Simpan kategori ke dokumen izin]
+    D -->|gagal/timeout| F[Simpan state failed, izin tetap ada]
+    E --> G[Asisten lihat daftar izin + kategori]
+    F --> G
+    G --> H[Asisten terima/tolak + catatan]
+    H --> I[Praktikan lihat status & catatan real-time]
+```
+
+---
+
+## 7.6 Model Data Firestore dan Security Rules
+
+### Struktur koleksi
+```
+config/registration                     { asistenCode }         // tidak bisa dibaca klien
+users/{uid}                             { name, identifier, email, role, createdAt, inviteCode? }
+practicums/{pid}                        { name, className, assistantId, studentIds[], createdAt }
+  sessions/{sid}                        { date, startTime, endTime, room, status, openedAt?, closedAt? }
+    attendance/{uid}                    { praktikanId, praktikanName, praktikanNim, status:"present", recordedAt }
+    leaveRequests/{uid}                 { praktikanId, praktikanName, praktikanNim, reason, status, ai{...}, createdAt, decidedBy?, decidedAt?, reviewNote? }
+```
+Alasan desain: ID dokumen presensi/izin = UID menjamin "satu per praktikan per sesi" tanpa query tambahan; subkoleksi memudahkan Rules memeriksa status sesi dan kepesertaan lewat `get()`.
+
+Catatan teknis:
+- Riwayat pribadi & daftar izin lintas sesi memakai **collection group query** (`attendance`, `leaveRequests` dengan `praktikanId == uid`); butuh aturan `match /{path=**}/attendance/{id}` dan indeks collection group (Firestore akan memberi tautan pembuatan indeks saat pertama kali query dijalankan).
+- Praktikan menampilkan praktikum dengan `where('studentIds', 'array-contains', uid)`.
+- Batas query `in` 30: tidak dipakai; sesi dibaca per praktikum.
+
+### Prinsip Rules
+1. Default tolak semua.
+2. Identitas dari `request.auth.uid`; peran dari `users/{uid}.role` (dibaca dengan `get()`), tidak dari data kiriman klien.
+3. Presensi: `create` saja, syarat sesi `open` + peserta + ID = UID + `recordedAt == request.time`.
+4. Izin: praktikan hanya boleh membuat dengan `status == 'pending'`; perubahan oleh praktikan terbatas pada `reason` & `ai` saat `pending`; keputusan hanya oleh asisten pengampu dan hanya mengubah `status`, `decidedBy`, `decidedAt`, `reviewNote`.
+5. Transisi sesi hanya `upcoming → open → closed` oleh asisten pengampu.
+
+---
+
+## 7.7 Integrasi Model AI (menggantikan API AI pengajar)
+
+**Status: kontrak API belum final — menunggu detail dari repo model.** Bagian ini dibuat sebagai adapter agar sisa aplikasi tidak bergantung pada bentuk layanan.
+
+### Antarmuka di klien
+```ts
+// src/services/leaveClassifier.ts
+export interface LeaveClassification {
+  category: string;          // label dari model
+  confidence?: number;       // 0..1 jika model menyediakan
+  model: string;             // nama/versi model
+  classifiedAt: number;      // epoch ms
+  state: 'success' | 'failed' | 'timeout';
+}
+export async function classifyLeaveReason(reason: string): Promise<LeaveClassification>;
+```
+Hanya file ini yang mengetahui URL, format request/response, dan pemetaan label. Konfigurasi lewat `EXPO_PUBLIC_AI_API_URL`.
+
+### Hal yang harus diputuskan setelah repo model diperiksa
+| Pertanyaan | Dampak |
+| --- | --- |
+| Bentuk model: sudah punya server (FastAPI/Flask), atau hanya script/notebook/model file? | Menentukan perlu dibuat wrapper HTTP atau tidak |
+| Format request/response dan daftar label kategori | Isi adapter, tampilan chip kategori |
+| Tempat hosting (laptop+tunnel, Render/HF Spaces/Cloud Run, dsb.) | HP fisik tidak bisa mengakses `localhost`; butuh URL publik atau IP LAN |
+| Bahasa input (Indonesia?) dan batas panjang teks | Validasi panjang alasan |
+| Autentikasi API (API key?) | Kunci tidak boleh disimpan di klien jika bersifat rahasia |
+
+### Risiko yang diakui
+- Karena panggilan AI dilakukan dari klien, praktikan yang memodifikasi klien dapat memalsukan field `ai`. Dampaknya terbatas karena AI hanya informasi pendukung dan tidak menentukan keputusan; hal ini didokumentasikan sebagai batasan. Perbaikan yang lebih kuat (Cloud Function/server yang menulis hasil) berada di luar Sprint ini.
+
+---
+
+## 7.8 Edge Cases Tambahan
+
+| Skenario | Perilaku |
+| --- | --- |
+| Belum login membuka aplikasi | Layar login; rute terlindungi tidak dirender |
+| Status auth/profil sedang dimuat | Splash/loading, bukan layar kosong |
+| Akun Auth ada tetapi dokumen `users` tidak ada | Tampilkan error + opsi logout (jangan crash) |
+| Daftar praktikum/sesi/izin kosong | State kosong dengan teks bantuan |
+| Offline | Banner offline; data cache tampil; aksi tulis diberi tahu "akan disinkron saat online" atau ditolak dengan pesan jelas |
+| Layanan AI tidak merespons | Izin tersimpan, `ai.state = failed`, tombol coba ulang |
+| Sesi ditutup saat praktikan menekan presensi | Rules menolak; UI menampilkan "Sesi telah ditutup" |
+| Praktikan sudah punya izin `approved` untuk sesi | Presensi dinonaktifkan dengan penjelasan "Izin Anda sudah diterima" |
+| Dua asisten mengubah sesi bersamaan | Rules/transisi menolak transisi tidak valid; UI refresh dari listener |
+| Menghapus praktikum yang punya presensi | Konfirmasi dengan peringatan; hapus batch |
+| Email sudah terdaftar / kata sandi lemah | Pesan inline |
+| Kode undangan asisten salah | Pendaftaran gagal, tidak ada akun tersisa |
+
+---
+
+## 7.9 Dampak ke Kebutuhan Sprint 1
+
+| Item Sprint 1 | Perubahan |
+| --- | --- |
+| FR-01 pilih role & identitas dummy | Diganti FR-11/FR-12 (register/login) |
+| §6.7 data dummy | Menjadi seed script/data awal di Firestore (opsional) untuk demo |
+| `useReducer` demo store | Diganti Firestore + hook listener; reducer guard dipindah ke Security Rules |
+| Rekap/riwayat | Sumber data dari Firestore real-time |
+| NFR-11 "honest prototype" | Diperbarui: aplikasi memakai autentikasi & penyimpanan nyata |
+
+---
+
+## 7.10 Non-Functional Requirements Tambahan
+
+| ID | Requirement |
+| --- | --- |
+| NFR-12 | Keamanan: Rules produksi, tanpa rahasia di repo, `.env` di-ignore git, peran tidak dapat dinaikkan sendiri |
+| NFR-13 | Keandalan: setiap listener & aksi tulis punya penanganan error dan state loading |
+| NFR-14 | Performa: query terbatas pada data milik pengguna; hanya listener yang diperlukan layar aktif |
+| NFR-15 | Maintainability: akses Firebase dibungkus di `src/services/` dan hook di `src/hooks/`; komponen UI tidak memanggil Firestore langsung |
+| NFR-16 | Kuota: dirancang agar muat di paket gratis Spark (jumlah listener dan baca wajar) |
+| NFR-17 | Type safety: tipe domain Sprint 1 diperluas (`uid`, `Timestamp`), `tsc --noEmit` lulus |
+
+---
+
+## 7.11 Rencana Kerja Project Manager (pembagian tugas)
+
+Karena Anda berperan sebagai PM, berikut urutan kerja dan pembagian yang bisa disesuaikan jumlah anggota tim.
+
+| Tahap | Pekerjaan | Keluaran | Bergantung pada |
+| --- | --- | --- | --- |
+| 0 | Setup proyek Firebase + `firebase.ts` + `.env` + Rules awal | Proyek Firebase siap, semua anggota bisa terhubung | — |
+| 1 | Auth: register, login, logout, route guard, persistensi | FR-11, FR-12 | 0 |
+| 2 | Layer data: tipe, service Firestore, hook `onSnapshot` | Fondasi FR-13..16 | 0, 1 |
+| 3 | CRUD praktikum/sesi/peserta (asisten) | FR-13 | 2 |
+| 4 | Presensi + rekap + riwayat real-time | FR-14..16 | 2, 3 |
+| 5 | Pengajuan izin + adapter AI | FR-17, FR-18 | 2, repo AI siap |
+| 6 | Pemeriksaan izin asisten | FR-19 | 5 |
+| 7 | Security Rules final + pengujian + penanganan error | FR-20 | 3–6 |
+| 8 | QA dua akun, dokumentasi README, rekaman demo | Definition of Done | semua |
+
+Saran pembagian: (A) Auth + navigasi + Rules; (B) CRUD asisten + sesi; (C) presensi/rekap/riwayat; (D) izin + AI + pemeriksaan. Tahap 0 dikerjakan PM lebih dulu agar yang lain tidak terblokir.
+
+---
+
+## 7.12 Definition of Done Sprint 2
+
+**Fungsional**
+- [ ] Register/login/logout bekerja; sesi login bertahan setelah aplikasi ditutup.
+- [ ] Asisten CRUD praktikum, peserta, dan sesi; praktikan hanya melihat data miliknya.
+- [ ] Presensi tersimpan di Firestore, tidak bisa dobel, hanya saat sesi `open`.
+- [ ] Rekap asisten berubah real-time saat praktikan presensi.
+- [ ] Izin diajukan, dikategorikan model AI, diputuskan asisten, dan statusnya terlihat praktikan.
+- [ ] AI mati/timeout tidak menggagalkan pengajuan; AI tidak pernah memutuskan status.
+- [ ] Kondisi belum login, loading, kosong, offline, dan error semuanya tertangani.
+- [ ] Flow E dan Flow F berjalan penuh dengan dua akun.
+
+**Teknis**
+- [ ] `firestore.rules` terpasang, diuji dengan skenario di FR-20.
+- [ ] `npx tsc --noEmit` dan lint lulus.
+- [ ] Tidak ada rahasia di repository; `.env.example` tersedia.
+- [ ] README berisi cara setup Firebase, menjalankan layanan AI, dan langkah demo.
+
+---
+
+## Asumsi
+1. Autentikasi memakai email/password (Google Sign-In tidak diwajibkan pada soal ini).
+2. Aplikasi memakai Firebase JS SDK (modular) sehingga berjalan di Expo Go tanpa EAS build.
+3. Tidak ada backend/Cloud Functions; paket Firebase Spark (gratis).
+4. Kategori izin mengikuti label model dari repo AI.
+5. Waktu presensi memakai waktu server Firestore, ditampilkan dalam WIB.
+6. Bahasa UI Indonesia; kode dan dokumentasi teknis berbahasa Inggris.
+
