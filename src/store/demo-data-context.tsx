@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { AttendanceRecord, DemoState, UserRole } from '../types/attendance';
+import { AttendanceRecord, DemoState, DemoUser, UserRole } from '../types/attendance';
 import {
   DUMMY_ATTENDANCE_RECORDS,
   DUMMY_PRACTICUMS,
@@ -47,7 +47,9 @@ type Action =
   | {
       type: 'RECORD_ATTENDANCE';
       payload: { sessionId: string; praktikanId: string; at: string };
-    };
+    }
+  | { type: 'REGISTER_IDENTITY'; payload: { user: DemoUser } }
+  | { type: 'RESET_IDENTITY' };
 
 const DemoReducer = (state: DemoState, action: Action): DemoState => {
   switch (action.type) {
@@ -56,6 +58,27 @@ const DemoReducer = (state: DemoState, action: Action): DemoState => {
         ...state,
         activeRole: action.payload.role,
         activeUserId: action.payload.userId,
+      };
+    // Jembatan sementara: pengguna hasil registrasi Firebase ikut dipakai oleh
+    // layar demo yang masih memakai state lokal (digantikan pada FR-12/FR-13).
+    case 'REGISTER_IDENTITY': {
+      const { user } = action.payload;
+      const exists = state.users.some((candidate) => candidate.id === user.id);
+
+      return {
+        ...state,
+        activeRole: user.role,
+        activeUserId: user.id,
+        users: exists
+          ? state.users.map((candidate) => (candidate.id === user.id ? user : candidate))
+          : [...state.users, user],
+      };
+    }
+    case 'RESET_IDENTITY':
+      return {
+        ...state,
+        activeRole: null,
+        activeUserId: null,
       };
     case 'OPEN_SESSION': {
       const session = state.sessions.find((item) => item.id === action.payload.sessionId);
