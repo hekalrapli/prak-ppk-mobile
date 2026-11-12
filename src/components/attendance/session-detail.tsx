@@ -20,6 +20,7 @@ import { useSessionAttendance } from '../../hooks/use-session-attendance';
 import { useSessionLeave } from '../../hooks/use-session-leave';
 import { LeaveStatusCard } from '../leave/leave-status-card';
 import { LeaveRequestModal } from '../leave/leave-request-modal';
+import { AsistenLeaveReviewPanel } from '../leave/asisten-leave-review-panel';
 
 interface SessionDetailProps {
   role: UserRole;
@@ -248,6 +249,27 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
             onRetryAI={async () => {
               if (!activeUser) return;
               await handleRetryClassification(activeUser.id, myLeaveRequest.reason);
+              showToast('Klasifikasi AI berhasil diulang', 'success');
+            }}
+          />
+        ) : null}
+
+        {/* FR-18 & FR-19: Panel Review Izin Asisten */}
+        {isAsisten ? (
+          <AsistenLeaveReviewPanel
+            leaveRequests={leaveRequests}
+            canManage={canManage}
+            asistenId={activeUser?.id || ''}
+            onDecide={async (praktikanId, decision, reviewNote) => {
+              if (!activeUser) return;
+              await handleDecideLeave(praktikanId, activeUser.id, decision, reviewNote);
+              showToast(
+                `Izin praktikan berhasil ${decision === 'approved' ? 'diterima' : 'ditolak'}`,
+                'success'
+              );
+            }}
+            onRetryAI={async (praktikanId, reason) => {
+              await handleRetryClassification(praktikanId, reason);
               showToast('Klasifikasi AI berhasil diulang', 'success');
             }}
           />
