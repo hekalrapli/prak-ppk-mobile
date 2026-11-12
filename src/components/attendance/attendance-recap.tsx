@@ -10,6 +10,7 @@ import { EmptyState } from '../ui/empty-state';
 import { StatusBadge } from '../ui/status-badge';
 import { AttendanceRecordItem } from './attendance-record-item';
 import { useSessionAttendance } from '../../hooks/use-session-attendance';
+import { useSessionLeave } from '../../hooks/use-session-leave';
 import { formatTimestampToTime } from '../../services/attendanceService';
 
 interface AttendanceRecapProps {
@@ -38,7 +39,10 @@ export function AttendanceRecap({ sessionId }: AttendanceRecapProps) {
     practicum?.id || '',
     sessionId
   );
-  const realTimeLeaves: any[] = [];
+  const { leaveRequests: realTimeLeaves } = useSessionLeave(
+    practicum?.id || '',
+    sessionId
+  );
 
   if (!session || !practicum) {
     return (
