@@ -16,6 +16,7 @@ import { ConfirmModal } from '../ui/confirm-modal';
 import { StatusBadge } from '../ui/status-badge';
 import { useToast } from '../ui/toast-provider';
 import { AttendanceSuccessPanel } from './attendance-success-panel';
+import { useSessionAttendance } from '../../hooks/use-session-attendance';
 
 interface SessionDetailProps {
   role: UserRole;
@@ -54,6 +55,11 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
     role === 'praktikan' && activeUser
       ? findAttendanceRecord(state.attendanceRecords, sessionId, activeUser.id)
       : undefined;
+
+  const { handleRecordAttendance: recordAttendanceRemote } = useSessionAttendance(
+    practicum?.id || '',
+    sessionId
+  );
 
   useEffect(() => {
     return () => {
@@ -117,7 +123,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
     setPendingAction(null);
   };
 
-  const handleRecordAttendance = () => {
+  const handleRecordAttendance = async () => {
     if (!activeUser || savingRef.current) {
       return;
     }
@@ -132,20 +138,23 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
       return;
     }
 
-    const at = currentClockTime();
     savingRef.current = true;
     setIsSaving(true);
 
-    saveTimerRef.current = setTimeout(() => {
-      dispatch({
-        type: 'RECORD_ATTENDANCE',
-        payload: { sessionId, praktikanId: activeUser.id, at },
+    try {
+      const res = await recordAttendanceRemote({
+        praktikanId: activeUser.id,
+        praktikanName: activeUser.name,
+        praktikanNim: activeUser.identifier,
       });
 
+      showToast(`Kehadiran berhasil dicatat pada pukul ${res.recordedAtDisplay}`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Gagal mencatat kehadiran.', 'error');
+    } finally {
       savingRef.current = false;
       setIsSaving(false);
-      showToast(`Kehadiran berhasil dicatat pada pukul ${at}`, 'success');
-    }, 250);
+    }
   };
 
   const confirmationCopy = pendingAction === 'open'
