@@ -5,6 +5,7 @@ import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { ToastProvider } from '@/components/ui/toast-provider';
+import { OfflineBanner } from '@/components/ui/offline-banner';
 import { Colors } from '@/constants/theme';
 import { DemoProvider } from '@/store/demo-data-context';
 
@@ -21,6 +22,7 @@ export default function RootLayout() {
         <ToastProvider>
           <StatusBar style={isDark ? 'light' : 'dark'} />
           <AnimatedSplashOverlay />
+          <OfflineBanner />
           <Stack
             screenOptions={{
               headerShown: false,
