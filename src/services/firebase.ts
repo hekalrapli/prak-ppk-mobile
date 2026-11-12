@@ -1,6 +1,8 @@
 // src/services/firebase.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApp, getApps, initializeApp } from 'firebase/app';
+// @ts-expect-error Firebase JS SDK types do not declare getReactNativePersistence in browser types
+import { getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
 import * as FirebaseAuth from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { Platform } from 'react-native';

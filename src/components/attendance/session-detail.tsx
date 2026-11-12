@@ -16,6 +16,11 @@ import { ConfirmModal } from '../ui/confirm-modal';
 import { StatusBadge } from '../ui/status-badge';
 import { useToast } from '../ui/toast-provider';
 import { AttendanceSuccessPanel } from './attendance-success-panel';
+import { useSessionAttendance } from '../../hooks/use-session-attendance';
+import { useSessionLeave } from '../../hooks/use-session-leave';
+import { LeaveStatusCard } from '../leave/leave-status-card';
+import { LeaveRequestModal } from '../leave/leave-request-modal';
+import { AsistenLeaveReviewPanel } from '../leave/asisten-leave-review-panel';
 
 interface SessionDetailProps {
   role: UserRole;
@@ -39,6 +44,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
 
   const [pendingAction, setPendingAction] = useState<SessionAction | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLeaveModalVisible, setIsLeaveModalVisible] = useState(false);
   const savingRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -54,6 +60,21 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
     role === 'praktikan' && activeUser
       ? findAttendanceRecord(state.attendanceRecords, sessionId, activeUser.id)
       : undefined;
+
+  const { handleRecordAttendance: recordAttendanceRemote } = useSessionAttendance(
+    practicum?.id || '',
+    sessionId
+  );
+
+  const {
+    leaveRequests,
+    myLeaveRequest,
+    handleSubmitLeave,
+    handleUpdateLeave,
+    handleCancelLeave,
+    handleRetryClassification,
+    handleDecideLeave,
+  } = useSessionLeave(practicum?.id || '', sessionId, activeUser?.id);
 
   useEffect(() => {
     return () => {
@@ -117,7 +138,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
     setPendingAction(null);
   };
 
-  const handleRecordAttendance = () => {
+  const handleRecordAttendance = async () => {
     if (!activeUser || savingRef.current) {
       return;
     }
@@ -132,20 +153,28 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
       return;
     }
 
-    const at = currentClockTime();
+    if (myLeaveRequest?.status === 'approved') {
+      showToast('Anda tidak dapat presensi karena pengajuan izin Anda telah diterima.', 'error');
+      return;
+    }
+
     savingRef.current = true;
     setIsSaving(true);
 
-    saveTimerRef.current = setTimeout(() => {
-      dispatch({
-        type: 'RECORD_ATTENDANCE',
-        payload: { sessionId, praktikanId: activeUser.id, at },
+    try {
+      const res = await recordAttendanceRemote({
+        praktikanId: activeUser.id,
+        praktikanName: activeUser.name,
+        praktikanNim: activeUser.identifier,
       });
 
+      showToast(`Kehadiran berhasil dicatat pada pukul ${res.recordedAtDisplay}`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Gagal mencatat kehadiran.', 'error');
+    } finally {
       savingRef.current = false;
       setIsSaving(false);
-      showToast(`Kehadiran berhasil dicatat pada pukul ${at}`, 'success');
-    }, 250);
+    }
   };
 
   const confirmationCopy = pendingAction === 'open'
@@ -201,6 +230,50 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
           canManage={canManage}
           assistantName={assistant?.name}
         />
+
+        {/* FR-17 & FR-18: Status Izin Praktikan */}
+        {!isAsisten && myLeaveRequest ? (
+          <LeaveStatusCard
+            leaveRequest={myLeaveRequest}
+            sessionTitle={practicum.name}
+            onUpdateReason={async (newReason) => {
+              if (!activeUser) return;
+              await handleUpdateLeave(activeUser.id, newReason);
+              showToast('Alasan izin berhasil diperbarui', 'success');
+            }}
+            onCancelLeave={async () => {
+              if (!activeUser) return;
+              await handleCancelLeave(activeUser.id);
+              showToast('Pengajuan izin berhasil dibatalkan', 'success');
+            }}
+            onRetryAI={async () => {
+              if (!activeUser) return;
+              await handleRetryClassification(activeUser.id, myLeaveRequest.reason);
+              showToast('Klasifikasi AI berhasil diulang', 'success');
+            }}
+          />
+        ) : null}
+
+        {/* FR-18 & FR-19: Panel Review Izin Asisten */}
+        {isAsisten ? (
+          <AsistenLeaveReviewPanel
+            leaveRequests={leaveRequests}
+            canManage={canManage}
+            asistenId={activeUser?.id || ''}
+            onDecide={async (praktikanId, decision, reviewNote) => {
+              if (!activeUser) return;
+              await handleDecideLeave(praktikanId, activeUser.id, decision, reviewNote);
+              showToast(
+                `Izin praktikan berhasil ${decision === 'approved' ? 'diterima' : 'ditolak'}`,
+                'success'
+              );
+            }}
+            onRetryAI={async (praktikanId, reason) => {
+              await handleRetryClassification(praktikanId, reason);
+              showToast('Klasifikasi AI berhasil diulang', 'success');
+            }}
+          />
+        ) : null}
       </ScrollView>
 
       <View
@@ -236,28 +309,78 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
               />
             </View>
           ) : null}
+
           {!isAsisten && attendanceRecord ? (
             <AttendanceSuccessPanel recordedAt={attendanceRecord.recordedAt} />
           ) : null}
-          {!isAsisten && !attendanceRecord && session.status === 'open' ? (
+
+          {/* FR-14: Praktikan yang punya izin approved tidak dapat presensi */}
+          {!isAsisten && !attendanceRecord && myLeaveRequest?.status === 'approved' ? (
             <AppButton
-              label="Catat kehadiran"
-              onPress={handleRecordAttendance}
-              loading={isSaving}
-            />
-          ) : null}
-          {!isAsisten && !attendanceRecord && session.status === 'upcoming' ? (
-            <AppButton
-              label="Presensi belum tersedia"
+              label="Izin Anda sudah diterima"
               onPress={() => undefined}
               disabled
+              variant="secondary"
             />
           ) : null}
-          {!isAsisten && !attendanceRecord && session.status === 'closed' ? (
+
+          {!isAsisten && !attendanceRecord && myLeaveRequest?.status !== 'approved' && session.status === 'open' ? (
+            <View style={styles.actionStack}>
+              <AppButton
+                label="Catat kehadiran"
+                onPress={handleRecordAttendance}
+                loading={isSaving}
+              />
+              {!myLeaveRequest ? (
+                <AppButton
+                  label="Ajukan izin"
+                  onPress={() => setIsLeaveModalVisible(true)}
+                  variant="secondary"
+                />
+              ) : null}
+            </View>
+          ) : null}
+
+          {!isAsisten && !attendanceRecord && myLeaveRequest?.status !== 'approved' && session.status === 'upcoming' ? (
+            <View style={styles.actionStack}>
+              <AppButton
+                label="Presensi belum tersedia"
+                onPress={() => undefined}
+                disabled
+              />
+              {!myLeaveRequest ? (
+                <AppButton
+                  label="Ajukan izin"
+                  onPress={() => setIsLeaveModalVisible(true)}
+                  variant="secondary"
+                />
+              ) : null}
+            </View>
+          ) : null}
+
+          {!isAsisten && !attendanceRecord && myLeaveRequest?.status !== 'approved' && session.status === 'closed' ? (
             <AppButton label="Sesi telah ditutup" onPress={() => undefined} disabled />
           ) : null}
         </View>
       </View>
+
+      {/* FR-17 & FR-18: Modal Pengajuan Izin */}
+      {!isAsisten && activeUser ? (
+        <LeaveRequestModal
+          visible={isLeaveModalVisible}
+          sessionTitle={practicum.name}
+          onClose={() => setIsLeaveModalVisible(false)}
+          onSubmit={async (reason) => {
+            await handleSubmitLeave({
+              praktikanId: activeUser.id,
+              praktikanName: activeUser.name,
+              praktikanNim: activeUser.identifier,
+              reason,
+            });
+            showToast('Pengajuan izin berhasil dikirim', 'success');
+          }}
+        />
+      ) : null}
 
       <ConfirmModal
         destructive={pendingAction === 'close'}

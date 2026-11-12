@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { AttendanceRecord, DemoState, DemoUser, UserRole } from '../types/attendance';
+import { AttendanceRecord, DemoState, LeaveRequest, DemoUser, UserRole } from '../types/attendance';
 import {
   DUMMY_ATTENDANCE_RECORDS,
   DUMMY_PRACTICUMS,
@@ -15,6 +15,7 @@ const initialState: DemoState = {
   practicums: DUMMY_PRACTICUMS,
   sessions: DUMMY_SESSIONS,
   attendanceRecords: DUMMY_ATTENDANCE_RECORDS,
+  leaveRequests: [],
 };
 
 export function findAttendanceRecord(
@@ -48,6 +49,9 @@ type Action =
       type: 'RECORD_ATTENDANCE';
       payload: { sessionId: string; praktikanId: string; at: string };
     }
+  | { type: 'ADD_LEAVE_REQUEST'; payload: LeaveRequest }
+  | { type: 'UPDATE_LEAVE_REQUEST'; payload: { sessionId: string; praktikanId: string; reason: string } }
+  | { type: 'CANCEL_LEAVE_REQUEST'; payload: { sessionId: string; praktikanId: string } };
   | { type: 'REGISTER_IDENTITY'; payload: { user: DemoUser } }
   | { type: 'RESET_IDENTITY' };
 
@@ -145,6 +149,36 @@ const DemoReducer = (state: DemoState, action: Action): DemoState => {
       return {
         ...state,
         attendanceRecords: [...state.attendanceRecords, record],
+      };
+    }
+    case 'ADD_LEAVE_REQUEST': {
+      const current = state.leaveRequests || [];
+      const filtered = current.filter(
+        (r) => !(r.sessionId === action.payload.sessionId && r.praktikanId === action.payload.praktikanId)
+      );
+      return {
+        ...state,
+        leaveRequests: [...filtered, action.payload],
+      };
+    }
+    case 'UPDATE_LEAVE_REQUEST': {
+      const current = state.leaveRequests || [];
+      return {
+        ...state,
+        leaveRequests: current.map((r) =>
+          r.sessionId === action.payload.sessionId && r.praktikanId === action.payload.praktikanId
+            ? { ...r, reason: action.payload.reason }
+            : r
+        ),
+      };
+    }
+    case 'CANCEL_LEAVE_REQUEST': {
+      const current = state.leaveRequests || [];
+      return {
+        ...state,
+        leaveRequests: current.filter(
+          (r) => !(r.sessionId === action.payload.sessionId && r.praktikanId === action.payload.praktikanId)
+        ),
       };
     }
     default:
