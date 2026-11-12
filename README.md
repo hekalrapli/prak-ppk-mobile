@@ -1,198 +1,142 @@
 # PrakPresensi
 
-A small Expo/React Native prototype for managing practicum attendance at a university. The app demonstrates two roles — **Praktikan** and **Asisten** — through a complete, frontend-only attendance flow.
+A mobile practicum attendance app for a university, built with Expo / React Native. Two roles — **Praktikan** (student) and **Asisten** (teaching assistant) — share live data through **Firebase Authentication** and **Cloud Firestore**. Praktikans can also submit leave requests (**izin**), whose reasons are categorized by an AI model for the assistant's review.
 
-> **Implementation status:** all features described in [`PRD.md`](./PRD.md) and [`DESIGN.md`](./DESIGN.md) are implemented: role/identity selection, schedules, session detail, asisten session management (open/close with confirmation), praktikan attendance, personal attendance history, and the per-session attendance recap. The starter `explore` route is still present but is not part of the product flow.
+> **Implementation status**
+> - **Sprint 1 (complete):** frontend-only prototype with local dummy data and React state (role selection, schedules, session open/close, attendance, history, recap).
+> - **Sprint 2 (in progress):** Firebase Authentication, Firestore (CRUD, real-time listeners, Security Rules), leave requests, and AI classification of leave reasons. See [`PRD.md`](./PRD.md) §7.
 
 ## Objectives
 
-- Demonstrate a complete practicum attendance flow in one mobile app.
-- Show a clear separation of capabilities between praktikan and asisten.
-- Keep the implementation small enough for one developer: local dummy data, React state, and no backend.
-- Produce a consistent, responsive UI that looks like a polished university utility rather than an admin dashboard.
+- Let many users sign in with their own accounts and see the same data in real time.
+- Show different information and actions per role, enforced by Firestore Security Rules and not only by the UI.
+- Record attendance once per praktikan per session, only while the session is open.
+- Let praktikans submit leave requests; an AI model suggests a reason category, and the assistant makes the final decision.
 
 ## Key Features
 
-The table describes the implemented feature set. Every row is functional for the corresponding role.
-
 | Feature | Praktikan | Asisten |
 | --- | --- | --- |
-| Role and dummy identity selection | Yes | Yes |
-| Practicum schedule and session status | Yes | Yes |
-| Assigned assistant name on schedule | Yes | Yes |
-| **Sesi Anda** marker for assigned sessions | — | Yes |
-| Session detail | Yes | Yes |
-| Open a session | — | Yes (asisten pengampu) |
-| Close a session | — | Yes (asisten pengampu) |
-| Record attendance during an open session | Yes | — |
-| Duplicate attendance prevention | Yes | — |
+| Register, login, logout (Firebase Auth) | Yes | Yes (requires invitation code) |
+| Persistent login after app restart | Yes | Yes |
+| Practicum, participant, and session CRUD | — | Yes (assigned asisten only) |
+| View schedule and session detail | Own practicums only | All |
+| Open / close a session (with confirmation) | — | Yes (assigned asisten only) |
+| Record attendance (once per session) | Yes | — |
+| Real-time attendance recap | — | Yes |
 | Personal attendance history | Yes | — |
-| Attendance recap per session | — | Yes |
-| Confirmation modal and success feedback | Yes | Yes |
+| Submit a leave request (**izin**) | Yes | — |
+| AI category for the leave reason | Sees own result | Sees on each request |
+| Approve / reject leave request with note | Sees decision | Yes (assigned asisten only) |
+| Offline banner, loading, empty, and error states | Yes | Yes |
 
-Supported session statuses are **Belum dibuka** (`upcoming`), **Dibuka** (`open`), and **Ditutup** (`closed`). Statuses are changed through app interactions, not real-time scheduling.
-
-## Supported Roles
-
-The role definitions are final; the capability descriptions below are the target behavior.
-
-| Role | Capabilities |
-| --- | --- |
-| **Praktikan** | Select a dummy student identity, view schedules, open session details, record attendance when a session is open, see the recorded time, view personal attendance history. Attendance cannot be recorded twice for the same session. |
-| **Asisten** | Select a dummy assistant identity, view schedules and session details, open and close sessions assigned to them with confirmation, view the attendance recap for a session, and see status changes immediately. Assistants can view but not manage sessions assigned to another assistant. |
-
-Role switching is available from the **Ganti peran** action in the role stack header. No restart is required; the selected identity is stored in the shared demo context.
+The AI result is **supporting information only**. It never approves or rejects a request automatically.
 
 ## Technology Stack
 
-Versions below come from the current `package.json` and `package-lock.json`.
+| Layer | Technology |
+| --- | --- |
+| Framework | Expo (SDK 58), React Native 0.88, React 19 |
+| Navigation | Expo Router |
+| Language | TypeScript (strict) |
+| Authentication | Firebase Authentication (email/password) |
+| Database | Cloud Firestore (real-time `onSnapshot` listeners) |
+| Local session storage | `@react-native-async-storage/async-storage` |
+| Access control | Firestore Security Rules (`firestore.rules`) |
+| AI | Leave-reason classifier served over HTTP (URL set in `EXPO_PUBLIC_AI_API_URL`) |
+| Animation / icons / images | `react-native-reanimated`, `expo-symbols`, `expo-image` |
+| Development build | `expo-dev-client` |
+| Linting | ESLint + `eslint-config-expo` |
+| Package manager | npm (`package-lock.json`) |
 
-| Layer | Technology | Version |
-| --- | --- | --- |
-| Runtime/framework | Expo | `^58.0.19` |
-| UI runtime | React Native | `0.88.0` |
-| UI library | React | `19.3.0` |
-| Navigation | Expo Router | `~58.0.26` |
-| Language | TypeScript (strict) | `~6.0.3` |
-| Safe areas | `react-native-safe-area-context` | `~5.10.1` |
-| Icons | `expo-symbols` | `~58.0.4` |
-| Images | `expo-image` | `~58.0.17` |
-| Animation | `react-native-reanimated` | `4.7.1` |
-| Development build | `expo-dev-client` | `~58.0.15` |
-| Linting | ESLint + `eslint-config-expo` | `^9.0.0` / `~58.0.4` |
-| Web support | `react-native-web` | `~0.21.0` |
-| Package manager | npm (`package-lock.json`) | — |
+The project uses the **Firebase JS SDK** (not `@react-native-firebase`), so no `google-services.json` or Firebase config plugin is needed in `app.json`. The project has no UI kit and no state-management library.
 
-The project does **not** include a UI kit, state-management library, backend client, database, or test framework. The planned implementation requires none of them. Use React Context/`useReducer`, React Native core components, and the already-installed modules.
-
-The app uses `expo-dev-client` for development builds. ESLint is configured with `eslint-config-expo` (flat config in `eslint.config.js`).
-
-> `package-lock.json` is present and no Bun/pnpm/Yarn lockfile exists. Use **npm** and `npx`, not `bun`/`bunx`.
+> Use **npm** and `npx`, not `bun`/`bunx`.
 
 ## Project Structure
-
-### Current repository
 
 ```
 .
 ├── app.json
-├── assets/
-│   └── images/                 # App icons and Expo starter images
-├── scripts/
-│   └── reset-project.js        # Expo starter reset script (do not run)
+├── firestore.rules                # Firestore Security Rules (publish in Firebase Console)
+├── .env.example                   # Variable names only; copy to .env
+├── docs/
+│   ├── PRD.md
+│   ├── DESIGN.md
+│   └── FIREBASE_SETUP.md
 ├── src/
-│   ├── app/                    # Expo Router routes
-│   │   ├── _layout.tsx         # Root Stack + theme + demo provider
-│   │   ├── index.tsx           # Role and identity selection
-│   │   ├── praktikan/
-│   │   │   ├── _layout.tsx     # Praktikan stack header
-│   │   │   ├── index.tsx       # Schedule list (implemented)
-│   │   │   ├── history.tsx     # Personal attendance history (implemented)
-│   │   │   └── session/[sessionId].tsx
-│   │   ├── asisten/
-│   │   │   ├── _layout.tsx     # Asisten stack header
-│   │   │   ├── index.tsx       # Schedule list (implemented)
-│   │   │   └── session/[sessionId]/
-│   │   │       ├── index.tsx   # Asisten session detail (implemented)
-│   │   │       └── recap.tsx   # Attendance recap (implemented)
-│   │   └── explore.tsx         # Expo starter route (not part of product)
+│   ├── app/                       # Expo Router routes
+│   │   ├── _layout.tsx            # Root layout, auth gate, providers
+│   │   ├── (auth)/                # Login and register screens
+│   │   ├── praktikan/             # Schedule, session detail, history, leave requests
+│   │   └── asisten/               # Schedule, session management, recap, leave review, CRUD forms
 │   ├── components/
-│   │   ├── attendance/
-│   │   │   ├── attendance-recap.tsx
-│   │   │   ├── attendance-record-item.tsx
-│   │   │   ├── attendance-success-panel.tsx
-│   │   │   ├── schedule-list-item.tsx
-│   │   │   └── session-detail.tsx
-│   │   ├── ui/
-│   │   │   ├── app-button.tsx
-│   │   │   ├── confirm-modal.tsx
-│   │   │   ├── empty-state.tsx
-│   │   │   ├── header-role-switch.tsx
-│   │   │   ├── selection-cards.tsx
-│   │   │   ├── status-badge.tsx
-│   │   │   └── toast-provider.tsx
-│   │   └── ...                 # Remaining Expo starter components
-│   ├── constants/
-│   │   └── theme.ts            # Design tokens
-│   ├── data/
-│   │   └── dummy-data.tsx      # Dummy identities, practicums, sessions, attendance
-│   ├── hooks/
-│   │   ├── use-color-scheme.ts
-│   │   └── use-theme.ts
-│   ├── store/
-│   │   └── demo-data-context.tsx
-│   ├── types/
-│   │   ├── attendance.tsx
-│   │   └── styles.d.ts
-│   └── global.css
-├── AGENTS.md
-├── DESIGN.md
-├── LICENSE
-├── PRD.md
-├── eslint.config.js
-├── package.json
-└── tsconfig.json
+│   │   ├── ui/                    # Buttons, inputs, badges, modal, toast, empty/error states
+│   │   └── attendance/            # Schedule, session, attendance, and leave items
+│   ├── services/                  # All Firebase and AI access (no Firestore calls in UI components)
+│   │   ├── firebase.ts            # App, Auth (AsyncStorage persistence), Firestore
+│   │   ├── auth.ts
+│   │   ├── practicums.ts
+│   │   ├── sessions.ts
+│   │   ├── attendance.ts
+│   │   ├── leaves.ts
+│   │   └── leaveClassifier.ts     # AI adapter
+│   ├── hooks/                     # Real-time listener hooks (loading / error / data)
+│   ├── store/                     # Auth/profile context
+│   ├── types/                     # Shared domain types
+│   └── constants/theme.ts         # Design tokens
+└── package.json
 ```
 
-### Planned implementation structure
-
-This is the target layout described in `DESIGN.md` §7.10. Role layouts, schedules, session detail, session management, praktikan attendance, personal history, and the asisten recap follow this structure.
-
-```
-src/
-├── app/
-│   ├── _layout.tsx                         # Root Stack + demo data provider
-│   ├── index.tsx                           # Role and identity selection
-│   ├── praktikan/
-│   │   ├── _layout.tsx
-│   │   ├── index.tsx                       # Praktikan schedule
-│   │   ├── history.tsx                     # Personal attendance history
-│   │   └── session/[sessionId].tsx         # Praktikan session detail
-│   └── asisten/
-│       ├── _layout.tsx
-│       ├── index.tsx                       # Asisten schedule
-│       └── session/[sessionId]/
-│           ├── index.tsx                   # Asisten session detail
-│           └── recap.tsx                   # Attendance recap
-├── components/
-│   ├── ui/                                 # Buttons, inputs, badges, modal, etc.
-│   └── attendance/                         # Schedule, session, attendance items
-├── constants/theme.ts                      # Design tokens (extended)
-├── data/dummy-data.ts                      # Users, sessions, seeded attendance
-├── hooks/
-├── store/demo-data-context.tsx             # In-memory state and actions
-└── types/attendance.ts                     # Shared TypeScript types
-```
-
-The `@/*` path alias maps to `src/*` (configured in `tsconfig.json`).
+The `@/*` path alias maps to `src/*`. Files from Sprint 1 (`dummy-data`, `demo-data-context`) are replaced as the Firebase features land.
 
 ## Prerequisites
 
-- Node.js 22.13 or newer (the minimum for Expo SDK 58).
-- npm (bundled with Node.js).
-- One of:
-  - a physical device with **Expo Go**, or
-  - a development build on a device/emulator (recommended because `expo-dev-client` is installed), or
-  - an Android emulator via Android Studio, or
-  - an iOS simulator via Xcode on macOS, or
-  - a modern browser for the web target.
-- Internet access for the initial dependency install and Expo tooling.
+- Node.js 22.13 or newer and npm.
+- A physical Android device or emulator running a **development build** (the project uses `expo-dev-client`), or a browser for the web target.
+- A Firebase project (see below). Team members must be invited as **Editor** in Firebase Console → Project settings → Users and permissions.
 
-The project targets **Expo SDK 58**, so use the current **Expo Go** release from the App Store or Google Play. The project also includes `expo-dev-client`. `npm run android` and `npm run ios` compile a local development build and require the corresponding native toolchain; `npm run ios` requires macOS and Xcode. The repository does not include `ios/` or `android/` directories; they are generated when needed.
+## Firebase Setup (project owner, once)
 
-## Installation and Setup
+Full step-by-step instructions are in [`docs/FIREBASE_SETUP.md`](./docs/FIREBASE_SETUP.md). Summary:
+
+1. Create a Firebase project and register a **Web app** to obtain the `firebaseConfig` values.
+2. Enable **Authentication → Email/Password**.
+3. Create **Firestore Database** in **production mode**.
+4. Paste the contents of `firestore.rules` into Firestore → **Rules** and **Publish**. The file in the repository is not applied automatically.
+5. Create the document `config/registration` with the string field `asistenCode` (the invitation code required to register as asisten).
+6. Create the Firestore composite/collection-group indexes when the console prompts for them (open the link in the first error message).
+
+## Installation and Setup (developers)
 
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Start the Expo development server
-npx expo start
+# 2. Create your local environment file
+cp .env.example .env      # then fill in the values provided by the project owner
+
+# 3. Start the dev server (clear cache so .env is read)
+npx expo start -c
 ```
 
-From the Expo terminal UI, press `a` (Android), `i` (iOS, macOS only), or `w` (web), or scan the QR code with a compatible client.
+`.env` variables:
 
-You can also build and launch a native development build:
+```
+EXPO_PUBLIC_FIREBASE_API_KEY=
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+EXPO_PUBLIC_FIREBASE_APP_ID=
+EXPO_PUBLIC_AI_API_URL=
+```
+
+- `.env` is git-ignored. Do not commit it.
+- Building in the cloud with EAS does not include `.env`; provide the same `EXPO_PUBLIC_*` variables through `eas.json` (`build.<profile>.env`) or EAS environment variables.
+- After adding a new native dependency (for example AsyncStorage), rebuild the development build.
+
+Native development builds:
 
 ```bash
 npm run android   # expo run:android; requires Android Studio/SDK
@@ -204,123 +148,103 @@ npm run web       # web target
 
 | Command | Purpose |
 | --- | --- |
-| `npm start` | Start the Expo dev server (same as `npx expo start`). |
-| `npm run android` | Build/run the Android development build (`expo run:android`). |
-| `npm run ios` | Build/run the iOS development build (`expo run:ios`, macOS only). |
-| `npm run web` | Start Expo and open the web target. |
+| `npm start` | Start the Expo dev server. |
+| `npm run android` | Build and run the Android development build. |
+| `npm run ios` | Build and run the iOS development build (macOS only). |
+| `npm run web` | Start the web target. |
 | `npm run lint` | Run `expo lint`. |
-| `npx tsc --noEmit` | Type-check the project with the installed TypeScript compiler. |
+| `npx tsc --noEmit` | Type-check the project. |
 | `npx expo-doctor` | Diagnose dependency and configuration issues. |
 | `npx expo install --fix` | Align package versions with the installed Expo SDK. |
 
-Notes:
+`npm run reset-project` exists in `package.json` but deletes or moves starter code. **Do not run it.**
 
-- There is **no test script** and no test framework configured yet. Verification is currently manual, following the definition of done in `PRD.md`.
-- `npm run lint` is configured with `eslint.config.js` and `eslint-config-expo`; it passes for the current source.
-- `npx tsc --noEmit` passes for the current source. CSS module declarations live in `src/types/styles.d.ts`.
-- `npm run reset-project` exists in `package.json` but deletes/moves starter code. **Do not run it** on this repository.
+## Data Model (Firestore)
 
-## Dummy Data and Local State
+```
+config/registration                     { asistenCode }                       # not readable by clients
+users/{uid}                             { name, identifier, email, role, createdAt }
+practicums/{pid}                        { name, className, assistantId, studentIds[], createdAt }
+  sessions/{sid}                        { date, startTime, endTime, room, status, openedAt?, closedAt? }
+    attendance/{uid}                    { praktikanId, praktikanName, praktikanNim, status, recordedAt }
+    leaveRequests/{uid}                 { praktikanId, praktikanName, praktikanNim, reason, status, ai, createdAt, decidedBy?, decidedAt?, reviewNote? }
+```
 
-The prototype uses local, in-memory data only.
+- Attendance and leave request documents use the **praktikan's UID as the document ID**, so at most one record per praktikan per session is guaranteed at the data level.
+- Session status transitions are `upcoming → open → closed` only. A closed session cannot be reopened.
+- Attendance time uses the Firestore server timestamp and is displayed as `HH:mm` (WIB).
 
-- Dummy identities, sessions, and attendance seed records live in `src/data/dummy-data.tsx` and are loaded into the `DemoProvider` at app start.
-- Role, selected identity, session statuses, and attendance records are held in React state. No network request, database, or cloud service is involved.
-- The two role views read the **same in-memory demo store during a single app run**, so the main demonstration can be performed without restarting. This is local UI state sharing, not backend or cross-device synchronization.
-- All state resets to the seed data when the app is reloaded. There is no persistence.
-- Session status is an explicit property (`upcoming`, `open`, `closed`); it is not derived from the real clock. The date and time shown on screen are display data.
-- Session management is restricted to the assistant assigned through `Practicum.assistantId`. Other assistants can view the session and recap but cannot open or close it; the reducer enforces the same rule.
-- Every schedule card shows the assigned assistant name. On the asisten schedule, sessions assigned to the active assistant also show a **Sesi Anda** marker so they are easy to find without opening each session.
-- Attendance is keyed by `(sessionId, praktikanId)`. The attendance screen checks this key before showing the action, and the reducer independently rejects a duplicate write, so a praktikan cannot record attendance twice for one session.
-- An attendance record stores the session, praktikan, status `Hadir`, and the local time at which the user pressed the attendance button.
+## Roles and Security Rules
 
-### Seed Data
+| Resource | Praktikan | Asisten (assigned) | Asisten (other) |
+| --- | --- | --- | --- |
+| `users/{uid}` | read/update own name | read | read |
+| `practicums`, `sessions` | read if participant | create, update, delete | read |
+| `attendance` | read own; create while session is open | read | read |
+| `leaveRequests` | create/read own; edit reason while pending | read; approve/reject | read |
 
-Dummy identities:
+Rules enforce identity (`request.auth.uid`), role (from `users/{uid}`), session status, field whitelists, and string lengths. Role cannot be changed after registration, and registering as asisten requires the invitation code.
 
-| User ID | Role | Name | Identifier | Class |
-| --- | --- | --- | --- | --- |
-| `P-01` | Praktikan | Nabila Putri | `2211102034` | IF-3A |
-| `P-02` | Praktikan | Bagas Saputra | `2211102041` | IF-3A |
-| `P-03` | Praktikan | Salsabila Rahma | `2211102052` | IF-3A |
-| `A-01` | Asisten | Raka Pratama | `2211101008` | — |
-| `A-02` | Asisten | Dinda Maharani | `2211101015` | — |
-| `A-03` | Asisten | Fajar Nugroho | `2211101022` | — |
-| `A-04` | Asisten | Intan Permata | `2211101039` | — |
-| `A-05` | Asisten | Bayu Setiawan | `2211101046` | — |
-| `A-06` | Asisten | Citra Lestari | `2211101053` | — |
+## AI Leave-Reason Classification
 
-Dummy sessions:
+- When a praktikan submits a leave request, the app sends the reason text to the classifier at `EXPO_PUBLIC_AI_API_URL` and stores the result in the request's `ai` field (`category`, `confidence`, `model`, `classifiedAt`, `state`).
+- Timeout is 10 seconds with one automatic retry. If the service fails, the request is still saved with `ai.state = "failed"` and can be reclassified later.
+- The result is displayed as "Prediksi otomatis, bukan keputusan". The decision (`approved` / `rejected`) is made only by the assigned asisten.
+- All request/response details live in `src/services/leaveClassifier.ts`.
 
-| Session ID | Praktikum | Class | Date | Time | Room | Assistant | Initial status |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `S-01` | Praktikum Pemrograman Mobile | IF-3A | Senin, 26 Okt 2026 | 08:00–09:40 | Lab Mobile 2 | `A-01` | Belum dibuka |
-| `S-02` | Praktikum Basis Data | IF-3A | Selasa, 27 Okt 2026 | 10:00–11:40 | Lab Basis Data 1 | `A-02` | Dibuka |
-| `S-03` | Praktikum Jaringan Komputer | IF-3A | Senin, 19 Okt 2026 | 13:00–14:40 | Lab Jaringan | `A-01` | Ditutup |
-| `S-04` | Praktikum Struktur Data | IF-3A | Rabu, 28 Okt 2026 | 15:00–16:40 | Lab Komputer 3 | `A-02` | Belum dibuka |
-| `S-05` | Praktikum Sistem Operasi | IF-3A | Kamis, 29 Okt 2026 | 08:00–09:40 | Lab Sistem Operasi | `A-03` | Belum dibuka |
-| `S-06` | Praktikum Kecerdasan Buatan | IF-3A | Kamis, 29 Okt 2026 | 10:00–11:40 | Lab Kecerdasan Buatan | `A-04` | Dibuka |
-| `S-07` | Praktikum Rekayasa Perangkat Lunak | IF-3A | Jumat, 30 Okt 2026 | 13:00–14:40 | Lab RPL | `A-05` | Belum dibuka |
-| `S-08` | Praktikum Keamanan Informasi | IF-3A | Jumat, 30 Okt 2026 | 15:00–16:40 | Lab Keamanan | `A-06` | Ditutup |
-| `S-09` | Praktikum Pemrograman Web | IF-3A | Selasa, 20 Okt 2026 | 08:00–09:40 | Lab Web | `A-03` | Dibuka |
-| `S-10` | Praktikum Analisis dan Perancangan Sistem | IF-3A | Selasa, 20 Okt 2026 | 10:00–11:40 | Lab APSI | `A-04` | Dibuka |
+> The classifier is served from the AI model repository provided for this project. Its API contract and hosting URL are configured through `EXPO_PUBLIC_AI_API_URL`.
 
-Seeded attendance (illustrative):
+## Demonstrating the Main Flows
 
-- `S-02`: `P-02` at 10:06, `P-03` at 10:11.
-- `S-03`: `P-01` at 13:04, `P-02` at 13:02, `P-03` at 13:09.
+**Flow 1 — Attendance (two accounts, two devices or windows)**
 
-All dummy praktikans are treated as enrolled in all listed sessions. There is no enrollment or class-filtering feature.
+1. Register/login as **Asisten**, open a session, and confirm **Buka sesi**.
+2. Register/login as **Praktikan** (a participant of that practicum). The session shows **Dibuka** without refresh.
+3. Tap **Catat kehadiran**. The button changes to the completed state with the recorded time.
+4. On the asisten device, the recap updates in real time.
+5. Close the session with **Tutup sesi**. The praktikan's attendance action becomes unavailable.
 
-## Demonstrating the Main Flow
+**Flow 2 — Leave request**
 
-> **Demo scenario:** the current build supports every step below, including personal history and the attendance recap.
+1. Login as **Praktikan**, open a session, tap **Ajukan izin**, enter a reason, and submit.
+2. The AI category appears on the request; the status is **Menunggu**.
+3. Login as **Asisten**, open **Izin Masuk**, review the reason and AI category, then **Terima** or **Tolak** with a note.
+4. The praktikan sees the decision and note in **Izin Saya** in real time.
 
-Start the app, then follow these steps. This script matches `PRD.md` §6.5 and `DESIGN.md` §7.8.
+## Current Limitations
 
-1. **Select Asisten.** On the role screen, choose **Asisten**, select **Raka Pratama**, then tap **Masuk**.
-2. **Choose a session.** Open **Praktikum Pemrograman Mobile** (`S-01`, Senin 26 Okt 2026, 08:00–09:40). Its badge reads **Belum dibuka**.
-3. **Open the session.** Tap **Buka sesi**. A confirmation modal appears; confirm. The badge changes to **Dibuka**, and a success toast is shown.
-4. **Switch to Praktikan.** Tap **Ganti peran**, choose **Praktikan**, select **Nabila Putri**, and enter.
-5. **View the same session.** Open **Praktikum Pemrograman Mobile**. Attendance is available because `S-01` is now open in the shared local demo state.
-6. **Record attendance.** Tap **Catat kehadiran**. The button becomes a completed state showing the recorded time, and a success toast appears.
-7. **Check history.** Open **Riwayat** from the praktikan header. The new record appears with the session name, date, status **Hadir**, and attendance time.
-8. **View the recap.** Tap **Ganti peran**, return as **Asisten Raka Pratama**, open `S-01`, and tap **Lihat rekap kehadiran**. The recap lists Nabila Putri with status **Hadir** and the recorded time.
-9. **Close the session.** Go back to the session detail, tap **Tutup sesi**, and confirm. The badge changes to **Ditutup**.
-10. **Verify attendance is unavailable.** Switch back to **Praktikan** and open `S-01`. The attendance action is disabled and the screen states that the session has been closed. The existing record remains visible in history.
+- Calls to the AI service are made from the client, so the stored `ai` field is informational and not tamper-proof. It never influences the decision.
+- No Cloud Functions or custom backend (Firebase Spark plan); all logic runs in the client and Security Rules.
+- No push notifications, export, analytics, or Google sign-in.
+- Session status is managed manually and is not derived from the clock.
+- No automated tests; verification is manual (see the definition of done in `PRD.md` §7.12).
+- Leave decisions are final in this version.
 
-Only **Raka Pratama** (`A-01`) is assigned to `S-01`. If you enter as **Dinda Maharani** (`A-02`), `S-01` remains visible but the screen states that Raka is the assigned assistant and shows no **Buka sesi** / **Tutup sesi** action. The recap remains accessible.
+## Team Workflow
 
-Reloading the app resets all sessions and attendance to the seed data, which makes the scenario repeatable.
+| Area | Owner |
+| --- | --- |
+| Authentication, asisten features (CRUD, open/close, recap, leave review), Rules for `users`/`practicums`/`sessions` | Programmer A |
+| Praktikan features (schedule, attendance, history), leave requests, AI integration, real-time hooks, Rules for `attendance`/`leaveRequests` | Programmer B |
+| Firebase project, Rules integration, QA, documentation | Project manager |
 
-## Current Limitations and Out of Scope
-
-- No backend, database, cloud service, or persistent storage.
-- No real authentication, authorization, or user accounts; roles and identities are selected locally.
-- No synchronization across devices or app instances. State is shared only between role views inside one running app.
-- No automatic schedule/status calculation from the current time; statuses are managed manually.
-- No notifications, reminders, QR/NFC check-in, geolocation, or biometrics.
-- No attendance recap filtering, exporting, analytics, or pagination.
-- No enrollment management; all dummy praktikans see all dummy sessions.
-- No profile editing, password flows, or admin screens.
-- No automated tests yet; no test framework is installed.
-- Role selection, schedule lists, session detail, asisten open/close, praktikan attendance, personal history, and the attendance recap are implemented. The unused Expo starter `explore` route and starter components remain in the source.
+- One branch per feature (`feat/auth`, `feat/attendance`, …); merge into `main` through reviewed pull requests.
+- Components never call Firestore directly; use `src/services/` and `src/hooks/`.
+- Tick the acceptance criteria in `PRD.md` as each requirement is completed.
 
 ## Documentation
 
-- [`PRD.md`](./PRD.md) — product behavior, requirements, flows, data model, scope, and definition of done.
-- [`DESIGN.md`](./DESIGN.md) — design tokens, component rules, screen layouts, and interaction specifications.
+- [`docs/PRD.md`](./docs/PRD.md) — requirements, flows, data model, and definition of done (Sprint 1 and Sprint 2).
+- [`docs/DESIGN.md`](./docs/DESIGN.md) — design tokens, component rules, and screen specifications.
+- [`docs/FIREBASE_SETUP.md`](./docs/FIREBASE_SETUP.md) — Firebase project setup.
 - [`AGENTS.md`](./AGENTS.md) — repository conventions for AI-assisted development.
 
 ## Assumptions
 
-These are stated explicitly because the repository does not pin them:
-
-- Node.js 22.13+ and npm are assumed to be compatible with Expo SDK 58.
-- Expo Go must be the current release (SDK 58). Because `expo-dev-client` is installed, a local development build (`npm run android` / `npm run ios`) or an EAS development build remains the recommended path for production-like testing.
+- Authentication uses email/password only.
 - UI copy is in Indonesian; developer documentation is in English.
-- Dates use WIB (UTC+7) display labels. The prototype does not perform timezone conversion.
-- Attendance is a single status, **Hadir**. There is no permission/sick/absent workflow.
+- Times are displayed in WIB (UTC+7).
+- Attendance is a single status, **Hadir**; approved leave is shown as **Izin** in the recap.
 
 ## License
 

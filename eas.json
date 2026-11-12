@@ -6,7 +6,16 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCoHsjOD5K8xpxGTqqu2Cj52qp9-UiteTo",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "prak-ppk-7-d45fd.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "prak-ppk-7-d45fd",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "prak-ppk-7-d45fd.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "236448103237",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:236448103237:web:382662d61c1849aa8a1c2c"
+      }
     },
     "preview": {
       "distribution": "internal"

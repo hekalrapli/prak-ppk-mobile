@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 
-import { HeaderRoleSwitch } from '@/components/ui/header-role-switch';
+import { HeaderLogoutButton } from '@/components/ui/header-logout-button';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function AsistenLayout() {
@@ -14,7 +14,7 @@ export default function AsistenLayout() {
         headerTintColor: theme.textPrimary,
         headerTitleStyle: { fontSize: 18, fontWeight: '600' },
         contentStyle: { backgroundColor: theme.background },
-        headerRight: () => <HeaderRoleSwitch />,
+        headerRight: () => <HeaderLogoutButton />,
       }}>
       <Stack.Screen name="index" options={{ title: 'Jadwal' }} />
       <Stack.Screen name="session/[sessionId]/index" options={{ title: 'Kelola Sesi' }} />

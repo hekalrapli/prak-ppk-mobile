@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "320249168594",
+    "project_id": "tugasppk-74639",
+    "storage_bucket": "tugasppk-74639.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:320249168594:android:a43318385894e4ec92230b",
+        "android_client_info": {
+          "package_name": "com.vans.tugasfirebase"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "320249168594-oodpulebitllruigq5gql9jd1oa5jfg9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCB8_mk1sKlzBtNVUJ2g9m1qaesQKGfxuM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "320249168594-oodpulebitllruigq5gql9jd1oa5jfg9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
