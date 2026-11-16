@@ -78,7 +78,7 @@ export function LeaveStatusCard({
       </View>
 
       <Text style={[styles.reasonLabel, { color: theme.textSecondary }]}>Alasan yang diajukan:</Text>
-      <Text style={[styles.reasonText, { color: theme.textPrimary }]}>"{leaveRequest.reason}"</Text>
+      <Text style={[styles.reasonText, { color: theme.textPrimary }]}>“{leaveRequest.reason}”</Text>
 
       {/* AI Category Chip (FR-18) */}
       <AICategoryBadge

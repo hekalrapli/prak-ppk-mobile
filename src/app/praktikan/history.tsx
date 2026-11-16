@@ -215,7 +215,7 @@ export default function PraktikanHistoryScreen() {
                 ) : null}
 
                 <Text style={[styles.reasonText, { color: theme.textPrimary }]}>
-                  "{item.reason}"
+                  “{item.reason}”
                 </Text>
 
                 {/* AI Category chip (FR-18) */}

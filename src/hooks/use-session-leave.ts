@@ -12,26 +12,29 @@ import {
 import { useDemoData } from '../store/demo-data-context';
 
 export function useSessionLeave(practicumId: string, sessionId: string, currentUserId?: string) {
+  const hasTarget = Boolean(practicumId && sessionId);
+  const targetKey = `${practicumId}|${sessionId}`;
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<{ key: string; message: string } | null>(null);
   const { state: demoState, dispatch } = useDemoData();
+
+  const loading = hasTarget && loadedKey !== targetKey;
+  const error = errorState?.key === targetKey ? errorState.message : null;
 
   useEffect(() => {
     if (!practicumId || !sessionId) {
-      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    const key = `${practicumId}|${sessionId}`;
 
     const unsubscribe = subscribeSessionLeaveRequests(
       practicumId,
       sessionId,
       (data) => {
         setLeaveRequests(data);
-        setLoading(false);
+        setLoadedKey(key);
       },
       (err) => {
         // Fallback jika Firestore belum terkoneksi
@@ -39,8 +42,8 @@ export function useSessionLeave(practicumId: string, sessionId: string, currentU
           (lr) => lr.sessionId === sessionId
         );
         setLeaveRequests(local);
-        setError(err.message);
-        setLoading(false);
+        setErrorState({ key, message: err.message });
+        setLoadedKey(key);
       }
     );
 
@@ -61,30 +64,26 @@ export function useSessionLeave(practicumId: string, sessionId: string, currentU
       praktikanNim: string;
       reason: string;
     }) => {
-      try {
-        const result = await submitLeaveRequest({
-          practicumId,
-          sessionId,
-          ...params,
+      const result = await submitLeaveRequest({
+        practicumId,
+        sessionId,
+        ...params,
+      });
+
+      // Update local state juga jika diperlukan
+      setLeaveRequests((prev) => {
+        const filtered = prev.filter((r) => r.praktikanId !== params.praktikanId);
+        return [...filtered, result];
+      });
+
+      if ('leaveRequests' in demoState) {
+        dispatch({
+          type: 'ADD_LEAVE_REQUEST' as any,
+          payload: result,
         });
-
-        // Update local state juga jika diperlukan
-        setLeaveRequests((prev) => {
-          const filtered = prev.filter((r) => r.praktikanId !== params.praktikanId);
-          return [...filtered, result];
-        });
-
-        if ('leaveRequests' in demoState) {
-          dispatch({
-            type: 'ADD_LEAVE_REQUEST' as any,
-            payload: result,
-          });
-        }
-
-        return result;
-      } catch (err: any) {
-        throw err;
       }
+
+      return result;
     },
     [practicumId, sessionId, demoState, dispatch]
   );

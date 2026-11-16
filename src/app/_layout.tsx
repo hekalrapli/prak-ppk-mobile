@@ -20,20 +20,22 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-      <AuthProvider>
-        <ToastProvider>
-          <StatusBar style={isDark ? 'light' : 'dark'} />
-          <AnimatedSplashOverlay />
-          <OfflineBanner />
-          <AuthGate />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: theme.background },
-            }}
-          />
-        </ToastProvider>
-      </AuthProvider>
+      <DemoProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <StatusBar style={isDark ? 'light' : 'dark'} />
+            <AnimatedSplashOverlay />
+            <OfflineBanner />
+            <AuthGate />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: theme.background },
+              }}
+            />
+          </ToastProvider>
+        </AuthProvider>
+      </DemoProvider>
     </ThemeProvider>
   );
 }

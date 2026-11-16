@@ -124,7 +124,7 @@ export function AsistenLeaveReviewPanel({
             </View>
 
             <Text style={[styles.reasonText, { color: theme.textPrimary }]}>
-              "{req.reason}"
+              “{req.reason}”
             </Text>
 
             {/* AI Classification Chip (FR-18) */}
