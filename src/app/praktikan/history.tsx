@@ -6,12 +6,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AttendanceRecordItem } from '@/components/attendance/attendance-record-item';
 import { EmptyState } from '@/components/ui/empty-state';
-import { AICategoryBadge } from '@/components/leave/ai-category-badge';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useDemoData } from '@/store/demo-data-context';
 import { AttendanceRecord, LeaveRequest, Practicum, Session } from '@/types/attendance';
-import { subscribeUserLeaveRequests } from '@/services/leaveService';
+import { subscribeOwnLeaveRequests } from '@/services/leaveService';
 
 interface HistoryEntry {
   record: AttendanceRecord;
@@ -31,7 +30,13 @@ export default function PraktikanHistoryScreen() {
   useEffect(() => {
     if (!user) return;
 
-    const unsubscribe = subscribeUserLeaveRequests(
+    const targets = state.sessions.map((session) => ({
+      practicumId: session.practicumId,
+      sessionId: session.id,
+    }));
+
+    const unsubscribe = subscribeOwnLeaveRequests(
+      targets,
       user.id,
       (data) => {
         setLeaveList(data);
@@ -46,7 +51,7 @@ export default function PraktikanHistoryScreen() {
     );
 
     return () => unsubscribe();
-  }, [user, state.leaveRequests]);
+  }, [user, state.sessions, state.leaveRequests]);
 
   if (!user) {
     return <Redirect href="/" />;
@@ -217,9 +222,6 @@ export default function PraktikanHistoryScreen() {
                 <Text style={[styles.reasonText, { color: theme.textPrimary }]}>
                   “{item.reason}”
                 </Text>
-
-                {/* AI Category chip (FR-18) */}
-                <AICategoryBadge ai={item.ai} />
 
                 {item.reviewNote ? (
                   <View style={[styles.noteBox, { backgroundColor: theme.surfaceSubtle }]}>

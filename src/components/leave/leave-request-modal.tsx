@@ -110,7 +110,7 @@ export function LeaveRequestModal({
           </View>
 
           <Text style={[styles.infoText, { color: theme.textTertiary }]}>
-            Alasan Anda akan dianalisis secara otomatis oleh AI sebagai informasi pendukung untuk asisten.
+            Alasan Anda akan dianalisis otomatis oleh AI sebagai informasi pendukung. Hasil analisis hanya dapat dilihat oleh asisten.
           </Text>
 
           <View style={styles.actions}>

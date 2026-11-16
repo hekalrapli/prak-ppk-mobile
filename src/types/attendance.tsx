@@ -6,11 +6,16 @@ export type AttendanceStatus = 'present';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
 export interface LeaveClassification {
-  category: string; // label dari model
-  confidence?: number; // 0..1 jika model menyediakan
-  model: string; // nama/versi model
+  category: string; // kategori izin: positif / netral / negatif
+  confidence?: number; // 0..1
+  model: string; // nama pipeline klasifikasi
   classifiedAt: number; // epoch ms
   state: 'success' | 'failed' | 'timeout';
+  /** Sinyal sentimen sekunder dari model-edom (tidak ditampilkan di UI). */
+  sentiment?: {
+    category: string;
+    confidence?: number;
+  };
 }
 
 export interface LeaveRequest {

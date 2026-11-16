@@ -119,7 +119,11 @@ service cloud.firestore {
 
         // ---------- Attendance (ID dokumen = UID praktikan) ----------
         match /attendance/{uid} {
-          allow read: if isAsisten() || (isPraktikan() && request.auth.uid == uid);
+          allow read: if isAsisten()
+            || (isPraktikan() && (
+              request.auth.uid == uid
+              || resource.data.praktikanId == request.auth.uid
+            ));
 
           allow create: if isPeserta(pid)
             && request.auth.uid == uid
@@ -134,23 +138,29 @@ service cloud.firestore {
 
         // ---------- Leave requests (ID dokumen = UID praktikan) ----------
         match /leaveRequests/{uid} {
-          allow read: if isAsisten() || (isPraktikan() && request.auth.uid == uid);
+          // Alternatif berbasis field (resource.data.praktikanId) agar QUERY
+          // praktikan dengan where('praktikanId','==',uid) diizinkan.
+          allow read: if isAsisten()
+            || (isPraktikan() && (
+              request.auth.uid == uid
+              || resource.data.praktikanId == request.auth.uid
+            ));
 
           allow create: if isPeserta(pid)
             && request.auth.uid == uid
             && session(pid, sid).data.status in ['upcoming', 'open']
-            && request.resource.data.keys().hasOnly(['praktikanId','praktikanName','praktikanNim','reason','status','ai','createdAt'])
+            && request.resource.data.keys().hasOnly(['praktikanId','praktikanName','praktikanNim','reason','status','createdAt'])
             && request.resource.data.praktikanId == uid
             && request.resource.data.status == 'pending'
             && str(request.resource.data.reason, 10, 500)
             && request.resource.data.createdAt == request.time;
 
-          // Praktikan: ubah alasan / hasil AI selama pending. Asisten pengampu: hanya keputusan (atau retry AI).
+          // Praktikan: ubah alasan selama pending. Asisten pengampu: hanya keputusan.
           allow update: if
             (
               isPeserta(pid) && request.auth.uid == uid
               && resource.data.status == 'pending'
-              && onlyChanges(['reason','ai'])
+              && onlyChanges(['reason'])
               && str(request.resource.data.reason, 10, 500)
             )
             ||
@@ -163,25 +173,58 @@ service cloud.firestore {
               && request.resource.data.decidedAt == request.time
               && (!('reviewNote' in request.resource.data) || str(request.resource.data.reviewNote, 0, 200))
               && (request.resource.data.status == 'approved' || str(request.resource.data.reviewNote, 1, 200))
-            )
-            ||
-            (
-              isPengampu(pid)
-              && onlyChanges(['ai'])
             );
 
           // Praktikan boleh membatalkan selama pending.
           allow delete: if isPeserta(pid) && request.auth.uid == uid && resource.data.status == 'pending';
         }
+
+        // ---------- Hasil klasifikasi AI (hanya asisten yang boleh membaca) ----------
+        // Dokumen terpisah dari leaveRequests agar praktikan tidak dapat melihat
+        // hasil klasifikasi. ID dokumen = UID praktikan.
+        match /leaveClassifications/{uid} {
+          allow read: if isAsisten();
+
+          allow create: if
+            (
+              (
+                isPeserta(pid)
+                && request.auth.uid == uid
+                && get(/databases/$(database)/documents/practicums/$(pid)/sessions/$(sid)/leaveRequests/$(uid)).data.status == 'pending'
+              )
+              || isPengampu(pid)
+            )
+            && request.resource.data.keys().hasOnly(['ai','updatedAt'])
+            && request.resource.data.ai is map
+            && request.resource.data.updatedAt == request.time;
+
+          allow update: if
+            (
+              (
+                isPeserta(pid) && request.auth.uid == uid
+                && get(/databases/$(database)/documents/practicums/$(pid)/sessions/$(sid)/leaveRequests/$(uid)).data.status == 'pending'
+              )
+              || isPengampu(pid)
+            )
+            && onlyChanges(['ai','updatedAt'])
+            && request.resource.data.ai is map
+            && request.resource.data.updatedAt == request.time;
+
+          allow delete: if false;
+        }
       }
     }
 
     // ---------- Collection group: riwayat & izin pribadi lintas sesi ----------
+    // Collection-group query wajib dibatasi where('praktikanId','==',uid);
+    // aturan memakai field tersebut agar query dapat dibuktikan aman.
     match /{path=**}/attendance/{uid} {
-      allow read: if isAsisten() || (isPraktikan() && request.auth.uid == uid);
+      allow read: if isAsisten()
+        || (isPraktikan() && resource.data.praktikanId == request.auth.uid);
     }
     match /{path=**}/leaveRequests/{uid} {
-      allow read: if isAsisten() || (isPraktikan() && request.auth.uid == uid);
+      allow read: if isAsisten()
+        || (isPraktikan() && resource.data.praktikanId == request.auth.uid);
     }
   }
 }
