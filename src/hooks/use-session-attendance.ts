@@ -5,19 +5,22 @@ import { recordAttendance, subscribeSessionAttendance } from '../services/attend
 import { useDemoData } from '../store/demo-data-context';
 
 export function useSessionAttendance(practicumId: string, sessionId: string) {
+  const hasTarget = Boolean(practicumId && sessionId);
+  const targetKey = `${practicumId}|${sessionId}`;
   const [records, setRecords] = useState<AttendanceDoc[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<{ key: string; message: string } | null>(null);
   const { state: demoState, dispatch } = useDemoData();
+
+  const loading = hasTarget && loadedKey !== targetKey;
+  const error = errorState?.key === targetKey ? errorState.message : null;
 
   useEffect(() => {
     if (!practicumId || !sessionId) {
-      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    const key = `${practicumId}|${sessionId}`;
 
     // Jalankan listener Firestore
     const unsubscribe = subscribeSessionAttendance(
@@ -25,7 +28,7 @@ export function useSessionAttendance(practicumId: string, sessionId: string) {
       sessionId,
       (data) => {
         setRecords(data);
-        setLoading(false);
+        setLoadedKey(key);
       },
       (err) => {
         // Jika Firestore belum dikonfigurasi / offline, fallback ke in-memory demo records
@@ -45,15 +48,15 @@ export function useSessionAttendance(practicumId: string, sessionId: string) {
             } as AttendanceDoc;
           });
         setRecords(fallback);
-        setError(err.message);
-        setLoading(false);
+        setErrorState({ key, message: err.message });
+        setLoadedKey(key);
       }
     );
 
     return () => {
       unsubscribe();
     };
-  }, [practicumId, sessionId, demoState.attendanceRecords]);
+  }, [practicumId, sessionId, demoState.attendanceRecords, demoState.users]);
 
   const handleRecordAttendance = useCallback(
     async (params: {
@@ -79,7 +82,7 @@ export function useSessionAttendance(practicumId: string, sessionId: string) {
         });
 
         return result;
-      } catch (err: any) {
+      } catch {
         // Jika gagal di Firestore (misal mode offline / belum ada config), fallback simpan di local demo context
         const now = new Date();
         const hours = String(now.getHours()).padStart(2, '0');

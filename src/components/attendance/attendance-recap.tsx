@@ -8,7 +8,6 @@ import { useTheme } from '../../hooks/use-theme';
 import { useDemoData } from '../../store/demo-data-context';
 import { EmptyState } from '../ui/empty-state';
 import { StatusBadge } from '../ui/status-badge';
-import { AttendanceRecordItem } from './attendance-record-item';
 import { useSessionAttendance } from '../../hooks/use-session-attendance';
 import { useSessionLeave } from '../../hooks/use-session-leave';
 import { formatTimestampToTime } from '../../services/attendanceService';

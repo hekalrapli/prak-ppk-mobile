@@ -68,9 +68,6 @@ export function AsistenLeaveReviewPanel({
       <Text style={[styles.title, { color: theme.textPrimary }]}>
         Pengajuan Izin Masuk ({leaveRequests.length})
       </Text>
-      <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-        Daftar praktikan yang mengajukan izin untuk sesi ini.
-      </Text>
 
       {leaveRequests.map((req) => {
         const isPending = req.status === 'pending';
@@ -124,7 +121,7 @@ export function AsistenLeaveReviewPanel({
             </View>
 
             <Text style={[styles.reasonText, { color: theme.textPrimary }]}>
-              "{req.reason}"
+              “{req.reason}”
             </Text>
 
             {/* AI Classification Chip (FR-18) */}
@@ -243,10 +240,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 2,
-  },
-  subtitle: {
-    fontSize: 13,
     marginBottom: Spacing.three,
   },
   requestItem: {

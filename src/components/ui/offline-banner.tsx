@@ -4,14 +4,16 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Spacing } from '../../constants/theme';
 
 export function OfflineBanner() {
-  const [isOffline, setIsOffline] = useState(false);
+  const [isOffline, setIsOffline] = useState(() =>
+    Platform.OS === 'web' && typeof window !== 'undefined'
+      ? !window.navigator.onLine
+      : false
+  );
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const handleOnline = () => setIsOffline(false);
       const handleOffline = () => setIsOffline(true);
-
-      setIsOffline(!window.navigator.onLine);
 
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
