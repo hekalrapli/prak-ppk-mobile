@@ -14,6 +14,7 @@ import { useSessionAttendance } from '@/hooks/use-session-attendance';
 import { useSessionLeave } from '@/hooks/use-session-leave';
 import { useTheme } from '@/hooks/use-theme';
 import { buildRecapEntries } from '@/lib/recap';
+import { formatTimestampToTime } from '@/services/attendanceService';
 import { closeSession, openSession } from '@/services/scheduleService';
 import { useAuth } from '@/store/auth-context';
 import type { Practicum, Session, SessionStatus, UserRole } from '@/types/attendance';
@@ -405,7 +406,9 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
                   ) : null}
 
                   {!attendanceLoading && attendanceRecord ? (
-                    <AttendanceSuccessPanel recordedAt={attendanceRecord.recordedAt} />
+                    <AttendanceSuccessPanel
+                      recordedAt={formatTimestampToTime(attendanceRecord.recordedAt)}
+                    />
                   ) : null}
 
                   {!attendanceLoading &&
