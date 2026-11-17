@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { LeaveRequest } from '../../types/attendance';
-import { Radius, Spacing } from '../../constants/theme';
+import { Radius, Shadow, Spacing, Typography } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
 import { StatusDot } from '../ui/status-dot';
 import { AICategoryBadge } from './ai-category-badge';
@@ -95,7 +95,7 @@ export function AsistenLeaveReviewPanel({
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+    <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
       <Text style={[styles.title, { color: theme.textPrimary }]}>
         Pengajuan Izin Masuk ({leaveRequests.length})
       </Text>
@@ -175,7 +175,7 @@ export function AsistenLeaveReviewPanel({
         animationType="fade"
         onRequestClose={() => setSelectedRequest(null)}>
         <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
-          <View style={[styles.modalBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={[styles.modalBox, Shadow.soft, { backgroundColor: theme.surface }]}>
             <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
               {decisionType === 'approved' ? 'Terima Pengajuan Izin?' : 'Tolak Pengajuan Izin?'}
             </Text>
@@ -247,19 +247,16 @@ export function AsistenLeaveReviewPanel({
 
 const styles = StyleSheet.create({
   card: {
-    borderWidth: 1,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.card,
     padding: Spacing.four,
     marginTop: Spacing.four,
   },
   title: {
-    fontSize: 17,
-    fontWeight: '700',
+    ...Typography.cardTitle,
     marginBottom: Spacing.three,
   },
   requestItem: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     padding: Spacing.three,
     marginBottom: Spacing.three,
   },
@@ -270,20 +267,19 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.one,
   },
   studentName: {
-    fontSize: 15,
-    fontWeight: '700',
+    ...Typography.bodyStrong,
   },
   studentNim: {
-    fontSize: 13,
+    ...Typography.caption,
   },
   reasonText: {
-    fontSize: 14,
+    ...Typography.body,
     fontStyle: 'italic',
     marginTop: 2,
     marginBottom: 4,
   },
   noteText: {
-    fontSize: 13,
+    ...Typography.caption,
     marginTop: 4,
   },
   actionRow: {
@@ -293,18 +289,18 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
   },
   btn: {
-    paddingVertical: 6,
+    paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
-    borderRadius: Radius.sm,
+    borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 44,
   },
   outlineBtn: {
     borderWidth: 1,
   },
   btnText: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...Typography.label,
   },
   modalOverlay: {
     flex: 1,
@@ -315,36 +311,34 @@ const styles = StyleSheet.create({
   modalBox: {
     width: '100%',
     maxWidth: 420,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.sheet,
     padding: Spacing.four,
-    borderWidth: 1,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...Typography.sectionTitle,
     marginBottom: 4,
   },
   modalDesc: {
-    fontSize: 14,
+    ...Typography.caption,
     marginBottom: Spacing.three,
   },
   noteInputContainer: {
     marginBottom: Spacing.three,
   },
   inputLabel: {
-    fontSize: 13,
+    ...Typography.caption,
     marginBottom: 4,
   },
   noteInput: {
     borderWidth: 1,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     padding: Spacing.two,
     height: 70,
     textAlignVertical: 'top',
-    fontSize: 14,
+    ...Typography.body,
   },
   errorText: {
-    fontSize: 13,
+    ...Typography.caption,
     marginTop: 4,
   },
   modalActions: {

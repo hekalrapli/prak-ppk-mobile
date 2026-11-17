@@ -11,7 +11,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { Radius, Spacing } from '../../constants/theme';
+import { Radius, Shadow, Spacing, Typography } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
 import { validateLeaveReason } from '../../services/errorHandler';
 
@@ -65,7 +65,7 @@ export function LeaveRequestModal({
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={[styles.overlay, { backgroundColor: theme.overlay }]}>
-        <View style={[styles.modalCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[styles.modalCard, Shadow.soft, { backgroundColor: theme.surface }]}>
           <Text style={[styles.title, { color: theme.textPrimary }]}>
             {isEditing ? 'Ubah Alasan Izin' : 'Pengajuan Izin Praktikum'}
           </Text>
@@ -153,34 +153,27 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 480,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.sheet,
     padding: Spacing.four,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
   },
   title: {
-    fontSize: 19,
-    fontWeight: '700',
+    ...Typography.sectionTitle,
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 15,
+    ...Typography.caption,
     marginBottom: Spacing.three,
   },
   inputContainer: {
     marginBottom: Spacing.two,
   },
   textArea: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     padding: Spacing.three,
-    height: 110,
+    height: 120,
     textAlignVertical: 'top',
-    fontSize: 15,
+    ...Typography.body,
+    borderWidth: 1,
   },
   charCountRow: {
     flexDirection: 'row',
@@ -188,16 +181,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   counter: {
-    fontSize: 13,
+    ...Typography.caption,
   },
   errorText: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '500',
   },
   infoText: {
-    fontSize: 13,
+    ...Typography.caption,
     marginBottom: Spacing.four,
-    lineHeight: 18,
   },
   actions: {
     flexDirection: 'row',
@@ -207,16 +199,16 @@ const styles = StyleSheet.create({
   button: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.four,
-    borderRadius: Radius.md,
+    borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 48,
     minWidth: 90,
   },
   cancelButton: {
     borderWidth: 1,
   },
   buttonText: {
-    fontSize: 15,
-    fontWeight: '600',
+    ...Typography.label,
   },
 });

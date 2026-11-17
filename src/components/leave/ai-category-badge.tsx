@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LeaveClassification } from '../../types/attendance';
-import { Spacing } from '../../constants/theme';
+import { Spacing, Typography } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
 import { StatusDot, StatusTone } from '../ui/status-dot';
 
@@ -36,7 +36,7 @@ export function AICategoryBadge({ ai, onRetry, isRetrying }: AICategoryBadgeProp
         <StatusDot label="Klasifikasi AI belum tersedia" tone="muted" />
         {onRetry ? (
           <TouchableOpacity disabled={isRetrying} hitSlop={8} onPress={onRetry}>
-            <Text style={[styles.action, { color: theme.textPrimary }]}>
+            <Text style={[styles.action, { color: theme.primary }]}>
               {isRetrying ? 'Mencoba…' : 'Klasifikasi sekarang'}
             </Text>
           </TouchableOpacity>
@@ -68,7 +68,7 @@ export function AICategoryBadge({ ai, onRetry, isRetrying }: AICategoryBadgeProp
       <StatusDot label={label} tone={tone} />
       {isFailed && onRetry ? (
         <TouchableOpacity disabled={isRetrying} hitSlop={8} onPress={onRetry}>
-          <Text style={[styles.action, { color: theme.textPrimary }]}>
+          <Text style={[styles.action, { color: theme.primary }]}>
             {isRetrying ? 'Mencoba…' : 'Coba ulang'}
           </Text>
         </TouchableOpacity>
@@ -88,8 +88,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.half,
   },
   action: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...Typography.caption,
+    fontWeight: '700',
     textDecorationLine: 'underline',
   },
 });

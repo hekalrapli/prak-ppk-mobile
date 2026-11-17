@@ -4,7 +4,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState, LoadingState } from '@/components/ui/screen-state';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { StatusDot } from '@/components/ui/status-dot';
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { RecapEntry } from '@/lib/recap';
 import type { Practicum, Session } from '@/types/attendance';
@@ -41,11 +41,7 @@ export function SessionRecapList({
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <View
-        style={[
-          styles.summaryCard,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}>
+      <View style={[styles.summaryCard, Shadow.soft, { backgroundColor: theme.surface }]}>
         <View style={styles.rowBetween}>
           <Text style={[styles.title, { color: theme.textPrimary }]}>{practicum.name}</Text>
           <StatusBadge status={session.status} />
@@ -55,11 +51,9 @@ export function SessionRecapList({
         </Text>
       </View>
 
-      <View style={styles.statsRow}>
-        <Text style={[styles.count, { color: theme.textSecondary }]}>
-          {entries.length} data tercatat ({hadirCount} Hadir, {izinCount} Izin)
-        </Text>
-      </View>
+      <Text style={[styles.count, { color: theme.textSecondary }]}>
+        {entries.length} data tercatat ({hadirCount} Hadir, {izinCount} Izin)
+      </Text>
     </View>
   );
 
@@ -75,42 +69,30 @@ export function SessionRecapList({
           description="Kehadiran dan izin akan muncul di sini."
         />
       }
-      renderItem={({ item, index }) => {
-        const isFirst = index === 0;
-        const isLast = index === entries.length - 1;
+      renderItem={({ item }) => (
+        <View style={[styles.itemCard, Shadow.soft, { backgroundColor: theme.surface }]}>
+          <View style={styles.itemRow}>
+            <View style={styles.itemInfo}>
+              <Text style={[styles.itemName, { color: theme.textPrimary }]}>
+                {item.name}
+              </Text>
+              <Text style={[styles.itemMeta, { color: theme.textSecondary }]}>
+                {item.identifier}
+              </Text>
+            </View>
 
-        return (
-          <View
-            style={[
-              styles.groupItem,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-              isFirst && styles.groupFirst,
-              isLast && styles.groupLast,
-              !isLast && styles.groupDivider,
-            ]}>
-            <View style={styles.itemRow}>
-              <View style={styles.itemInfo}>
-                <Text style={[styles.itemName, { color: theme.textPrimary }]}>
-                  {item.name}
-                </Text>
-                <Text style={[styles.itemMeta, { color: theme.textSecondary }]}>
-                  {item.identifier}
-                </Text>
-              </View>
-
-              <View style={styles.badgeContainer}>
-                <StatusDot
-                  label={item.statusLabel}
-                  tone={item.statusLabel === 'Hadir' ? 'success' : 'warning'}
-                />
-                <Text style={[styles.timeText, { color: theme.textSecondary }]}>
-                  {item.timeDisplay}
-                </Text>
-              </View>
+            <View style={styles.badgeContainer}>
+              <StatusDot
+                label={item.statusLabel}
+                tone={item.statusLabel === 'Hadir' ? 'success' : 'warning'}
+              />
+              <Text style={[styles.timeText, { color: theme.textSecondary }]}>
+                {item.timeDisplay}
+              </Text>
             </View>
           </View>
-        );
-      }}
+        </View>
+      )}
     />
   );
 }
@@ -119,14 +101,14 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.three,
     paddingBottom: Spacing.five,
+    gap: Spacing.two,
     maxWidth: 560,
     alignSelf: 'center',
     width: '100%',
   },
   header: { gap: Spacing.two, marginBottom: Spacing.two },
   summaryCard: {
-    borderWidth: 1,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.card,
     padding: Spacing.three,
     gap: Spacing.two,
   },
@@ -136,45 +118,28 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: Spacing.two,
   },
-  title: { flex: 1, minWidth: 0, fontSize: 19, fontWeight: '700', lineHeight: 27 },
-  meta: { fontSize: 15, lineHeight: 22 },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  title: { ...Typography.cardTitle, flex: 1, minWidth: 0 },
+  meta: { ...Typography.caption },
+  count: { ...Typography.label, fontWeight: '600' },
+  itemCard: {
+    borderRadius: Radius.lg,
+    padding: Spacing.three,
   },
-  count: { fontSize: 15, fontWeight: '600', lineHeight: 22 },
-  groupItem: { borderLeftWidth: 1, borderRightWidth: 1, padding: Spacing.three },
-  groupFirst: {
-    borderTopWidth: 1,
-    borderTopLeftRadius: Radius.lg,
-    borderTopRightRadius: Radius.lg,
-  },
-  groupLast: {
-    borderBottomWidth: 1,
-    borderBottomLeftRadius: Radius.lg,
-    borderBottomRightRadius: Radius.lg,
-  },
-  groupDivider: { borderBottomWidth: 1 },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Spacing.two,
   },
   itemInfo: { flex: 1, minWidth: 0 },
-  itemName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  itemMeta: {
-    fontSize: 14,
-    marginTop: 2,
-  },
+  itemName: { ...Typography.bodyStrong },
+  itemMeta: { ...Typography.caption, marginTop: Spacing.half },
   badgeContainer: {
     alignItems: 'flex-end',
-    gap: 4,
+    gap: Spacing.one,
   },
   timeText: {
-    fontSize: 13,
+    ...Typography.caption,
+    fontVariant: ['tabular-nums'],
   },
 });

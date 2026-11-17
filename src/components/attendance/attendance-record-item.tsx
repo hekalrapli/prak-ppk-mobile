@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/use-theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { StatusDot } from '../ui/status-dot';
 
 interface AttendanceRecordItemProps {
@@ -22,9 +22,7 @@ export function AttendanceRecordItem({
   const content = (
     <View style={styles.row}>
       <View style={styles.info}>
-        <Text
-          numberOfLines={2}
-          style={[styles.name, { color: theme.textPrimary }]}>
+        <Text numberOfLines={2} style={[styles.name, { color: theme.textPrimary }]}>
           {name}
         </Text>
         <Text style={[styles.meta, { color: theme.textSecondary }]}>{meta}</Text>
@@ -63,13 +61,11 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   info: { flex: 1, minWidth: 0, gap: Spacing.half },
-  name: { fontSize: 17, fontWeight: '600', lineHeight: 24 },
-  meta: { fontSize: 13, lineHeight: 18 },
+  name: { ...Typography.cardTitle },
+  meta: { ...Typography.caption },
   end: { alignItems: 'flex-end', gap: Spacing.one },
   time: {
-    fontSize: 17,
-    fontWeight: '600',
-    lineHeight: 24,
+    ...Typography.bodyStrong,
     fontVariant: ['tabular-nums'],
   },
 });

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { LeaveRequest } from '../../types/attendance';
-import { Radius, Spacing } from '../../constants/theme';
+import { Radius, Shadow, Spacing, Typography } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
 import { StatusDot, StatusTone } from '../ui/status-dot';
 import { LeaveRequestModal } from './leave-request-modal';
@@ -55,7 +55,7 @@ export function LeaveStatusCard({
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+    <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
       <View style={styles.headerRow}>
         <Text style={[styles.cardTitle, { color: theme.textPrimary }]}>Pengajuan Izin</Text>
         <StatusDot label={currentStatus.label} tone={currentStatus.tone} />
@@ -109,8 +109,7 @@ export function LeaveStatusCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderWidth: 1,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.card,
     padding: Spacing.four,
     marginTop: Spacing.three,
   },
@@ -121,11 +120,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...Typography.cardTitle,
   },
   reasonText: {
-    fontSize: 15,
+    ...Typography.body,
     fontStyle: 'italic',
     marginTop: 2,
     marginBottom: Spacing.two,
@@ -136,11 +134,11 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
   },
   reviewNoteTitle: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...Typography.caption,
+    fontWeight: '700',
   },
   reviewNoteText: {
-    fontSize: 14,
+    ...Typography.body,
     marginTop: 2,
   },
   actionRow: {
@@ -154,11 +152,12 @@ const styles = StyleSheet.create({
   smallBtn: {
     borderWidth: 1,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: Radius.sm,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.pill,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   smallBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...Typography.label,
   },
 });
