@@ -10,7 +10,7 @@ import { SkeletonCardList } from '@/components/ui/skeleton';
 import { StatusDot } from '@/components/ui/status-dot';
 import { TabScreen } from '@/components/ui/tab-screen';
 import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
-import { useAttendanceHistory, useLeaveHistory } from '@/hooks/use-history';
+import { useAttendanceHistory, useLeaveHistory, type HistorySessionRef } from '@/hooks/use-history';
 import { usePracticumFeed } from '@/hooks/use-practicum-feed';
 import { useTheme } from '@/hooks/use-theme';
 import { formatTimestampToTime } from '@/services/attendanceService';
@@ -41,8 +41,16 @@ export default function PraktikanHistoryScreen() {
   const [activeTab, setActiveTab] = useState<'attendance' | 'leave'>('attendance');
 
   const feed = usePracticumFeed('praktikan', profile?.uid);
-  const attendance = useAttendanceHistory(profile?.uid);
-  const leave = useLeaveHistory(profile?.uid);
+  const sessionRefs = useMemo<HistorySessionRef[]>(
+    () =>
+      feed.sessions.map((session) => ({
+        practicumId: session.practicumId,
+        sessionId: session.id,
+      })),
+    [feed.sessions]
+  );
+  const attendance = useAttendanceHistory(profile?.uid, sessionRefs);
+  const leave = useLeaveHistory(profile?.uid, sessionRefs);
 
   const sessionsById = useMemo(
     () => new Map(feed.sessions.map((session) => [session.id, session])),

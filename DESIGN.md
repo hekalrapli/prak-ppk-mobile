@@ -433,6 +433,11 @@ The redesign uses only data already returned by hooks:
   list.
 - `Session.date/startTime/endTime/room/status/openedAt/closedAt`.
 - Attendance and leave documents already used by the existing screens.
+- Praktikan history reads its own `attendance/{uid}` and `leaveRequests/{uid}`
+  documents per session (document listeners, allowed by Security Rules), so it
+  does not depend on a COLLECTION_GROUP index in the Firebase console.
+- Profil menampilkan maksimal 4 praktikum terlebih dahulu, diurutkan menurut
+  nama, dengan tombol **Lihat semua (N)** / **Tampilkan lebih sedikit**.
 
 Not added: new queries, fields, Firestore calls, chat, sharing, attachments,
 descriptions, notifications, or dashboard statistics.

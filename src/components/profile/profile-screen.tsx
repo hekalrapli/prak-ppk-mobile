@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/app-button';
 import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
@@ -12,6 +12,9 @@ import type { UserRole } from '@/types/attendance';
 interface ProfileScreenProps {
   role: UserRole;
 }
+
+/** Batas tampilan awal agar profil tetap ringkas saat praktikum banyak. */
+const MAX_VISIBLE_PRACTICUMS = 4;
 
 function initialsOf(name: string) {
   return name
@@ -27,6 +30,7 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
   const { profile, logout } = useAuth();
   const { practicums, loading, error } = usePracticumFeed(role, profile?.uid);
   const [leaving, setLeaving] = useState(false);
+  const [showAllPracticums, setShowAllPracticums] = useState(false);
 
   const handleLogout = async () => {
     if (leaving) {
@@ -43,6 +47,14 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
 
   const isAsisten = role === 'asisten';
   const version = Constants.expoConfig?.version ?? '1.0.0';
+  const sortedPracticums = useMemo(
+    () => [...practicums].sort((a, b) => a.name.localeCompare(b.name)),
+    [practicums]
+  );
+  const visiblePracticums = showAllPracticums
+    ? sortedPracticums
+    : sortedPracticums.slice(0, MAX_VISIBLE_PRACTICUMS);
+  const hasHiddenPracticums = sortedPracticums.length > MAX_VISIBLE_PRACTICUMS;
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -70,9 +82,16 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
       </View>
 
       <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-          {isAsisten ? 'Praktikum yang Anda ampu' : 'Praktikum yang Anda ikuti'}
-        </Text>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
+            {isAsisten ? 'Praktikum yang Anda ampu' : 'Praktikum yang Anda ikuti'}
+          </Text>
+          {!loading && !error ? (
+            <Text style={[styles.sectionCount, { color: theme.textSecondary }]}>
+              {sortedPracticums.length}
+            </Text>
+          ) : null}
+        </View>
 
         {loading ? (
           <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
@@ -89,7 +108,7 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
               : 'Belum ada praktikum yang Anda ikuti.'}
           </Text>
         ) : (
-          practicums.map((practicum, index) => (
+          visiblePracticums.map((practicum, index) => (
             <View
               key={practicum.id}
               style={[
@@ -117,6 +136,24 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
             </View>
           ))
         )}
+
+        {hasHiddenPracticums ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showAllPracticums }}
+            onPress={() => setShowAllPracticums((value) => !value)}
+            style={({ pressed }) => [
+              styles.toggle,
+              { borderTopColor: theme.border },
+              pressed && { opacity: 0.7 },
+            ]}>
+            <Text style={[styles.toggleText, { color: theme.link }]}>
+              {showAllPracticums
+                ? 'Tampilkan lebih sedikit'
+                : `Lihat semua (${sortedPracticums.length})`}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.actions}>
@@ -189,7 +226,14 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     textAlign: 'right',
   },
-  sectionTitle: { ...Typography.cardTitle },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  sectionTitle: { ...Typography.cardTitle, flexShrink: 1 },
+  sectionCount: { ...Typography.label, fontWeight: '400' },
   emptyText: { ...Typography.body },
   practicumRow: {
     flexDirection: 'row',
@@ -201,6 +245,13 @@ const styles = StyleSheet.create({
   practicumInfo: { flex: 1, gap: 2 },
   practicumName: { ...Typography.bodyStrong },
   practicumMeta: { ...Typography.caption },
+  toggle: {
+    minHeight: 44,
+    justifyContent: 'center',
+    borderTopWidth: 1,
+    marginTop: Spacing.one,
+  },
+  toggleText: { ...Typography.label },
   actions: { marginTop: Spacing.one },
   version: { ...Typography.caption, textAlign: 'center' },
 });
