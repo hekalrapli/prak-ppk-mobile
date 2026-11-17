@@ -1,13 +1,16 @@
 // src/services/leaveService.ts
 import {
   collection,
+  collectionGroup,
   doc,
   getDoc,
   setDoc,
   updateDoc,
   deleteDoc,
   onSnapshot,
+  query,
   serverTimestamp,
+  where,
   Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -17,9 +20,9 @@ import { getHumanReadableErrorMessage, validateLeaveReason } from './errorHandle
 
 /**
  * Hasil klasifikasi AI disimpan di dokumen terpisah
- * (leaveClassifications/{uid}) agar hanya asisten yang dapat membacanya.
- * Setiap praktikan tetap dapat menulis hasil klasifikasi miliknya sendiri
- * (write-only) tanpa bisa membacanya kembali.
+ * (leaveClassifications/{uid}) agar hanya asisten pengampu yang dapat
+ * membacanya. Sejak FR-18 direvisi, dokumen ini hanya ditulis oleh asisten
+ * pengampu agar praktikan tidak dapat memalsukan hasil klasifikasi.
  */
 function classificationDocRef(practicumId: string, sessionId: string, praktikanId: string) {
   return doc(
@@ -34,10 +37,10 @@ function classificationDocRef(practicumId: string, sessionId: string, praktikanI
 }
 
 /**
- * FR-17 & FR-18: Mengajukan izin oleh praktikan.
- * Memvalidasi alasan, memanggil model AI, dan menyimpan dokumen ke
- * practicums/{pid}/sessions/{sid}/leaveRequests/{uid}. Hasil klasifikasi
- * disimpan terpisah di leaveClassifications/{uid} (hanya untuk asisten).
+ * FR-17: Mengajukan izin oleh praktikan.
+ * Memvalidasi alasan dan menyimpan dokumen ke
+ * practicums/{pid}/sessions/{sid}/leaveRequests/{uid}. Klasifikasi AI tidak
+ * lagi dijalankan di sini; asisten pengampu yang memicunya (FR-18).
  */
 export async function submitLeaveRequest(params: {
   practicumId: string;
@@ -81,11 +84,7 @@ export async function submitLeaveRequest(params: {
       };
     }
 
-    // 2. Panggil klasifikasi AI (FR-18)
-    // AI gagal tidak membatalkan pengajuan, tetap disimpan dengan state failed
-    const aiResult = await classifyLeaveReason(reason);
-
-    // 3. Simpan dokumen izin (tanpa hasil AI; praktikan tidak boleh melihatnya)
+    // 2. Simpan dokumen izin (tanpa hasil AI; praktikan tidak boleh melihatnya)
     const newRequest: LeaveRequest = {
       praktikanId,
       praktikanName,
@@ -105,16 +104,6 @@ export async function submitLeaveRequest(params: {
       status: 'pending',
       createdAt: serverTimestamp(),
     });
-
-    // 4. Simpan hasil klasifikasi untuk asisten (best-effort, FR-18)
-    try {
-      await setDoc(classificationDocRef(practicumId, sessionId, praktikanId), {
-        ai: aiResult,
-        updatedAt: serverTimestamp(),
-      });
-    } catch {
-      // Gagal menyimpan hasil AI tidak boleh menggagalkan pengajuan izin.
-    }
 
     return newRequest;
   } catch (error: any) {
@@ -147,22 +136,9 @@ export async function updateLeaveReason(
       throw new Error('Izin tidak dapat diubah karena sudah diproses oleh asisten.');
     }
 
-    const aiResult = await classifyLeaveReason(newReason);
-
     await updateDoc(leaveDocRef, {
       reason: newReason.trim(),
     });
-
-    // Tulis ulang hasil klasifikasi terbaru untuk asisten (best-effort).
-    try {
-      await setDoc(
-        classificationDocRef(practicumId, sessionId, praktikanId),
-        { ai: aiResult, updatedAt: serverTimestamp() },
-        { merge: true }
-      );
-    } catch {
-      // Hasil AI gagal disimpan tidak membatalkan perubahan alasan.
-    }
   } catch (error: any) {
     throw new Error(getHumanReadableErrorMessage(error));
   }
@@ -194,14 +170,15 @@ export async function cancelLeaveRequest(
 }
 
 /**
- * FR-18: Mencoba ulang klasifikasi AI jika sebelumnya gagal atau timeout
+ * FR-18: Klasifikasi AI dijalankan dan disimpan oleh asisten pengampu.
+ * Praktikan hanya mengirim alasan; hasil klasifikasi tidak dapat dipalsukan.
  */
-export async function retryLeaveClassification(
+export async function classifyLeaveRequest(
   practicumId: string,
   sessionId: string,
   praktikanId: string,
   reason: string
-): Promise<void> {
+): Promise<LeaveClassification> {
   try {
     const aiResult = await classifyLeaveReason(reason);
     await setDoc(
@@ -209,6 +186,7 @@ export async function retryLeaveClassification(
       { ai: aiResult, updatedAt: serverTimestamp() },
       { merge: true }
     );
+    return aiResult;
   } catch (error: any) {
     throw new Error(getHumanReadableErrorMessage(error));
   }
@@ -336,7 +314,6 @@ export function subscribeSessionLeaveRequests(
             praktikanNim: data.praktikanNim || '',
             reason: data.reason || '',
             status: data.status as LeaveStatus,
-            ai: data.ai,
             createdAt: data.createdAt,
             decidedBy: data.decidedBy,
             decidedAt: data.decidedAt,
@@ -400,51 +377,33 @@ export function subscribeSessionLeaveClassifications(
 }
 
 /**
- * FR-15: Sinkronisasi real-time pengajuan izin milik praktikan untuk daftar
- * sesi yang diketahui aplikasi. Memakai listener dokumen per sesi karena
- * collection-group query memerlukan index khusus dan rules praktikan hanya
- * mengizinkan dokumennya sendiri.
+ * FR-15: riwayat pengajuan izin milik praktikan lintas sesi.
+ *
+ * Memakai collection-group query dengan where('praktikanId','==',uid) agar
+ * Security Rules dapat membuktikan kepemilikan tanpa membuka izin praktikan
+ * lain, dan tidak perlu membuka satu listener per sesi.
  */
-export function subscribeOwnLeaveRequests(
-  targets: { practicumId: string; sessionId: string }[],
+export function subscribeOwnLeaveHistory(
   praktikanId: string,
   onData: (requests: LeaveRequest[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
-  const results = new Map<string, LeaveRequest>();
-  const unsubscribes: Unsubscribe[] = [];
-
-  const notify = () => {
-    const list = Array.from(results.values()).sort(
-      (a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0)
-    );
-    onData(list);
-  };
-
-  for (const target of targets) {
-    const key = `${target.practicumId}|${target.sessionId}`;
-    const docRef = doc(
-      db,
-      'practicums',
-      target.practicumId,
-      'sessions',
-      target.sessionId,
-      'leaveRequests',
-      praktikanId
+  try {
+    const target = query(
+      collectionGroup(db, 'leaveRequests'),
+      where('praktikanId', '==', praktikanId)
     );
 
-    unsubscribes.push(
-      onSnapshot(
-        docRef,
-        (docSnap) => {
-          if (!docSnap.exists()) {
-            results.delete(key);
-            notify();
-            return;
-          }
+    return onSnapshot(
+      target,
+      (snapshot) => {
+        const requests: LeaveRequest[] = [];
 
+        snapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          results.set(key, {
+          const segments = docSnap.ref.path.split('/');
+
+          requests.push({
             id: docSnap.id,
             praktikanId: data.praktikanId,
             praktikanName: data.praktikanName || '',
@@ -455,20 +414,20 @@ export function subscribeOwnLeaveRequests(
             decidedBy: data.decidedBy,
             decidedAt: data.decidedAt,
             reviewNote: data.reviewNote,
-            sessionId: target.sessionId,
-            practicumId: target.practicumId,
+            sessionId: segments[3],
+            practicumId: segments[1],
           });
-          notify();
-        },
-        (error) => {
-          if (onError) onError(new Error(getHumanReadableErrorMessage(error)));
-        }
-      )
-    );
-  }
+        });
 
-  return () => {
-    unsubscribes.forEach((unsubscribe) => unsubscribe());
-  };
+        onData(requests);
+      },
+      (error) => {
+        if (onError) onError(new Error(getHumanReadableErrorMessage(error)));
+      }
+    );
+  } catch (err: any) {
+    if (onError) onError(new Error(getHumanReadableErrorMessage(err)));
+    return () => {};
+  }
 }
 

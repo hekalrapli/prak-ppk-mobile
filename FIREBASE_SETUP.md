@@ -92,7 +92,7 @@ npx expo start -c
 ```
 
 ## 9. Indeks Firestore
-Tidak ada indeks collection-group yang wajib untuk fitur praktikan: izin dan riwayat memakai listener **dokumen per sesi** (`leaveRequests/{uid}`), sehingga tidak memerlukan index khusus. Jika nanti menambahkan query collection group, ikuti tautan **Create index** yang muncul di pesan error.
+Riwayat praktikan memakai collection-group query `where('praktikanId','==',uid)` pada `attendance` dan `leaveRequests`. Firestore membuat indeks single-field otomatis untuk query ini; jika konsol tetap menampilkan tautan **Create index**, buka tautan tersebut sekali saja. Daftar praktikum memakai query `where('assistantId','==',uid)` dan `where('studentIds','array-contains',uid)` yang juga memakai indeks otomatis.
 
 ## 9b. Siapkan data demo (practicums & sessions)
 Security Rules memeriksa `practicums/{pid}.studentIds` dan `sessions/{sid}.status`. Tanpa dokumen ini, presensi dan pengajuan izin **selalu ditolak** (`permission-denied`).
@@ -105,13 +105,16 @@ npm run seed:dummy -- --key secrets/service-account.json   # akun Auth + users/{
 npm run seed:demo  -- --key secrets/service-account.json   # practicums + sessions
 ```
 
-`seed:demo` memasukkan semua user dengan role `praktikan` ke `studentIds` semua praktikum demo. Jalankan ulang setelah mendaftarkan akun praktikan baru.
+`seed:demo` memasukkan semua user dengan role `praktikan` ke `studentIds` semua praktikum demo, dan memasangkan setiap praktikum ke akun `asisten` yang terdaftar secara round-robin (field `assistantId` + `assistantName`). Minimal harus ada satu akun asisten dan satu akun praktikan di koleksi `users`. Jalankan ulang setelah mendaftarkan akun baru.
+
+> Setelah menarik perubahan aturan, buka **Firestore → Rules** dan **Publish** ulang `firestore.rules`. Tanpa itu, aturan lama masih berlaku.
 
 ## 10. Uji cepat
 1. Daftar satu akun praktikan dan satu akun asisten (dengan kode undangan) di aplikasi, atau pakai akun dummy hasil `seed:dummy`.
 2. Cek di **Authentication → Users** dan **Firestore → users** (dokumen berisi `role`).
 3. Lakukan `seed:demo` agar praktikum/sesi tersedia untuk validasi Rules.
-4. Gunakan dua perangkat/jendela untuk uji real-time.
+4. Login sebagai asisten: daftar praktikum harus **hanya** berisi praktikum dengan `assistantId` miliknya. Asisten lain tidak melihat praktikum tersebut.
+5. Gunakan dua perangkat/jendela untuk uji real-time.
 
 ## 11. Model AI
 Model AI (`model-edom`) sudah terintegrasi dan berjalan **on-device** di aplikasi (pure JS) — tidak perlu server, URL, atau koneksi jaringan. Lihat README bagian *AI Leave-Reason Classification*.

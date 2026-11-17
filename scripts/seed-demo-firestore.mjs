@@ -1,16 +1,21 @@
 #!/usr/bin/env node
 /**
- * Menyiapkan dokumen `practicums/{pid}` dan `sessions/{sid}` di Firestore untuk
- * data demo di `src/data/dummy-data.tsx`.
+ * Menyiapkan dokumen `practicums/{pid}` dan `sessions/{sid}` di Firestore.
  *
  * Kenapa perlu: Security Rules memeriksa `isPeserta(pid)` (uid praktikan ada di
  * `studentIds`) dan `session(pid, sid).data.status`. Tanpa dokumen ini, Firestore
  * menolak semua penulisan presensi/izin dari aplikasi dengan `permission-denied`.
  *
+ * Sejak FR-13, daftar praktikum asisten diambil dari Firestore dengan
+ * `where('assistantId','==',uid)`. Script ini memasangkan setiap praktikum ke
+ * akun asisten yang benar-benar terdaftar (round-robin) sehingga asisten hanya
+ * melihat praktikum yang diampu olehnya.
+ *
  * Semua user dengan role `praktikan` di koleksi `users` dimasukkan ke
  * `studentIds`, sehingga akun yang didaftarkan lewat aplikasi ikut dikenali.
  *
- * Prasyarat: service account key dari project Firebase yang sama dengan `.env`.
+ * Prasyarat: service account key dari project Firebase yang sama dengan `.env`,
+ * serta minimal satu akun asisten dan satu akun praktikan di koleksi `users`.
  *
  * Pemakaian:
  *   node scripts/seed-demo-firestore.mjs --key secrets/service-account.json
@@ -22,18 +27,18 @@ import { resolve } from 'node:path';
 import { cert, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-// Salinan dari src/data/dummy-data.tsx (jaga agar tetap sinkron).
+// Data jadwal demo. assistantId diisi dinamis dari akun asisten terdaftar.
 const DUMMY_PRACTICUMS = [
-  { id: 'PRK-1', name: 'Praktikum Pemrograman Mobile', className: 'IF-3A', assistantId: 'A-01' },
-  { id: 'PRK-2', name: 'Praktikum Basis Data', className: 'IF-3A', assistantId: 'A-02' },
-  { id: 'PRK-3', name: 'Praktikum Jaringan Komputer', className: 'IF-3A', assistantId: 'A-01' },
-  { id: 'PRK-4', name: 'Praktikum Struktur Data', className: 'IF-3A', assistantId: 'A-02' },
-  { id: 'PRK-5', name: 'Praktikum Sistem Operasi', className: 'IF-3A', assistantId: 'A-03' },
-  { id: 'PRK-6', name: 'Praktikum Kecerdasan Buatan', className: 'IF-3A', assistantId: 'A-04' },
-  { id: 'PRK-7', name: 'Praktikum Rekayasa Perangkat Lunak', className: 'IF-3A', assistantId: 'A-05' },
-  { id: 'PRK-8', name: 'Praktikum Keamanan Informasi', className: 'IF-3A', assistantId: 'A-06' },
-  { id: 'PRK-9', name: 'Praktikum Pemrograman Web', className: 'IF-3A', assistantId: 'A-03' },
-  { id: 'PRK-10', name: 'Praktikum Analisis dan Perancangan Sistem', className: 'IF-3A', assistantId: 'A-04' },
+  { id: 'PRK-1', name: 'Praktikum Pemrograman Mobile', className: 'IF-3A' },
+  { id: 'PRK-2', name: 'Praktikum Basis Data', className: 'IF-3A' },
+  { id: 'PRK-3', name: 'Praktikum Jaringan Komputer', className: 'IF-3A' },
+  { id: 'PRK-4', name: 'Praktikum Struktur Data', className: 'IF-3A' },
+  { id: 'PRK-5', name: 'Praktikum Sistem Operasi', className: 'IF-3A' },
+  { id: 'PRK-6', name: 'Praktikum Kecerdasan Buatan', className: 'IF-3A' },
+  { id: 'PRK-7', name: 'Praktikum Rekayasa Perangkat Lunak', className: 'IF-3A' },
+  { id: 'PRK-8', name: 'Praktikum Keamanan Informasi', className: 'IF-3A' },
+  { id: 'PRK-9', name: 'Praktikum Pemrograman Web', className: 'IF-3A' },
+  { id: 'PRK-10', name: 'Praktikum Analisis dan Perancangan Sistem', className: 'IF-3A' },
 ];
 
 const DUMMY_SESSIONS = [
@@ -141,32 +146,56 @@ async function main() {
   console.log(`\nProject Firebase : ${projectId}`);
 
   const usersSnapshot = await db.collection('users').get();
-  const praktikanIds = usersSnapshot.docs
-    .filter((docSnap) => docSnap.data().role === 'praktikan')
-    .map((docSnap) => docSnap.id);
+  const users = usersSnapshot.docs.map((docSnap) => ({
+    uid: docSnap.id,
+    ...docSnap.data(),
+  }));
+
+  const praktikanIds = users
+    .filter((user) => user.role === 'praktikan')
+    .map((user) => user.uid);
+
+  const asistenList = users
+    .filter((user) => user.role === 'asisten')
+    .map((user) => ({ uid: user.uid, name: user.name || 'Asisten' }));
 
   if (praktikanIds.length === 0) {
-    fail('Tidak ada user dengan role "praktikan". Jalankan npm run seed:dummy terlebih dahulu.');
+    fail(
+      'Tidak ada user dengan role "praktikan". Daftarkan minimal satu akun praktikan di aplikasi.'
+    );
+  }
+
+  if (asistenList.length === 0) {
+    fail(
+      'Tidak ada user dengan role "asisten". Daftarkan minimal satu akun asisten ' +
+        '(butuh kode undangan) atau jalankan npm run seed:dummy terlebih dahulu.'
+    );
   }
 
   console.log(`Praktikan        : ${praktikanIds.join(', ')}`);
+  console.log(
+    `Asisten pengampu : ${asistenList.map((asisten) => `${asisten.name} (${asisten.uid})`).join(', ')}`
+  );
   console.log(`Praktikum        : ${DUMMY_PRACTICUMS.length}`);
   console.log(`Sesi             : ${DUMMY_SESSIONS.length}\n`);
 
   const batch = db.batch();
 
-  for (const practicum of DUMMY_PRACTICUMS) {
+  DUMMY_PRACTICUMS.forEach((practicum, index) => {
+    const assistant = asistenList[index % asistenList.length];
+
     batch.set(
       db.collection('practicums').doc(practicum.id),
       {
         name: practicum.name,
         className: practicum.className,
-        assistantId: practicum.assistantId,
+        assistantId: assistant.uid,
+        assistantName: assistant.name,
         studentIds: praktikanIds,
       },
       { merge: true }
     );
-  }
+  });
 
   for (const session of DUMMY_SESSIONS) {
     batch.set(
@@ -187,8 +216,10 @@ async function main() {
   await batch.commit();
 
   console.log('✅ Selesai. Dokumen practicums/sessions siap dipakai aplikasi.');
-  console.log('   Semua akun praktikan di koleksi users kini menjadi peserta semua praktikum demo.');
-  console.log('   Jalankan ulang script ini setelah mendaftarkan akun praktikan baru.\n');
+  console.log('   Setiap praktikum dipasangkan ke asisten terdaftar secara round-robin,');
+  console.log('   sehingga asisten hanya melihat praktikum yang ia ampu.');
+  console.log('   Semua akun praktikan di koleksi users menjadi peserta semua praktikum demo.');
+  console.log('   Jalankan ulang script ini setelah mendaftarkan akun baru.\n');
 }
 
 main().catch((error) => {

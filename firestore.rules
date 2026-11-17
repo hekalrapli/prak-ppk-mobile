@@ -73,7 +73,10 @@ service cloud.firestore {
 
     // ---------- Practicums ----------
     match /practicums/{pid} {
-      allow read: if isAsisten() || (isPraktikan() && request.auth.uid in resource.data.studentIds);
+      // Hanya asisten pengampu dan praktikan peserta yang boleh membaca.
+      // Asisten lain tidak dapat menemukan praktikum ini sama sekali.
+      allow read: if (isAsisten() && resource.data.assistantId == request.auth.uid)
+        || (isPraktikan() && request.auth.uid in resource.data.studentIds);
 
       allow create: if isAsisten()
         && request.resource.data.assistantId == request.auth.uid
@@ -91,7 +94,7 @@ service cloud.firestore {
 
       // ---------- Sessions ----------
       match /sessions/{sid} {
-        allow read: if isAsisten() || isPeserta(pid);
+        allow read: if isPengampu(pid) || isPeserta(pid);
 
         allow create: if isPengampu(pid)
           && request.resource.data.status == 'upcoming'
@@ -119,11 +122,8 @@ service cloud.firestore {
 
         // ---------- Attendance (ID dokumen = UID praktikan) ----------
         match /attendance/{uid} {
-          allow read: if isAsisten()
-            || (isPraktikan() && (
-              request.auth.uid == uid
-              || resource.data.praktikanId == request.auth.uid
-            ));
+          allow read: if isPengampu(pid)
+            || (isPraktikan() && request.auth.uid == uid);
 
           allow create: if isPeserta(pid)
             && request.auth.uid == uid
@@ -138,13 +138,8 @@ service cloud.firestore {
 
         // ---------- Leave requests (ID dokumen = UID praktikan) ----------
         match /leaveRequests/{uid} {
-          // Alternatif berbasis field (resource.data.praktikanId) agar QUERY
-          // praktikan dengan where('praktikanId','==',uid) diizinkan.
-          allow read: if isAsisten()
-            || (isPraktikan() && (
-              request.auth.uid == uid
-              || resource.data.praktikanId == request.auth.uid
-            ));
+          allow read: if isPengampu(pid)
+            || (isPraktikan() && request.auth.uid == uid);
 
           allow create: if isPeserta(pid)
             && request.auth.uid == uid
@@ -179,33 +174,19 @@ service cloud.firestore {
           allow delete: if isPeserta(pid) && request.auth.uid == uid && resource.data.status == 'pending';
         }
 
-        // ---------- Hasil klasifikasi AI (hanya asisten yang boleh membaca) ----------
+        // ---------- Hasil klasifikasi AI (hanya asisten pengampu) ----------
         // Dokumen terpisah dari leaveRequests agar praktikan tidak dapat melihat
-        // hasil klasifikasi. ID dokumen = UID praktikan.
+        // maupun memalsukan hasil klasifikasi. Sejak FR-18 direvisi, hanya
+        // asisten pengampu yang boleh menulis dokumen ini.
         match /leaveClassifications/{uid} {
-          allow read: if isAsisten();
+          allow read: if isPengampu(pid);
 
-          allow create: if
-            (
-              (
-                isPeserta(pid)
-                && request.auth.uid == uid
-                && get(/databases/$(database)/documents/practicums/$(pid)/sessions/$(sid)/leaveRequests/$(uid)).data.status == 'pending'
-              )
-              || isPengampu(pid)
-            )
+          allow create: if isPengampu(pid)
             && request.resource.data.keys().hasOnly(['ai','updatedAt'])
             && request.resource.data.ai is map
             && request.resource.data.updatedAt == request.time;
 
-          allow update: if
-            (
-              (
-                isPeserta(pid) && request.auth.uid == uid
-                && get(/databases/$(database)/documents/practicums/$(pid)/sessions/$(sid)/leaveRequests/$(uid)).data.status == 'pending'
-              )
-              || isPengampu(pid)
-            )
+          allow update: if isPengampu(pid)
             && onlyChanges(['ai','updatedAt'])
             && request.resource.data.ai is map
             && request.resource.data.updatedAt == request.time;
@@ -219,12 +200,10 @@ service cloud.firestore {
     // Collection-group query wajib dibatasi where('praktikanId','==',uid);
     // aturan memakai field tersebut agar query dapat dibuktikan aman.
     match /{path=**}/attendance/{uid} {
-      allow read: if isAsisten()
-        || (isPraktikan() && resource.data.praktikanId == request.auth.uid);
+      allow read: if isPraktikan() && resource.data.praktikanId == request.auth.uid;
     }
     match /{path=**}/leaveRequests/{uid} {
-      allow read: if isAsisten()
-        || (isPraktikan() && resource.data.praktikanId == request.auth.uid);
+      allow read: if isPraktikan() && resource.data.praktikanId == request.auth.uid;
     }
   }
 }

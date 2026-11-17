@@ -1,147 +1,124 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Radius, Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/use-theme';
-import {
-  canManageSession,
-  findAttendanceRecord,
-  useDemoData,
-} from '../../store/demo-data-context';
-import { UserRole } from '../../types/attendance';
-import { AppButton } from '../ui/app-button';
-import { ConfirmModal } from '../ui/confirm-modal';
-import { StatusBadge } from '../ui/status-badge';
-import { useToast } from '../ui/toast-provider';
+import { AppButton } from '@/components/ui/app-button';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { useToast } from '@/components/ui/toast-provider';
+import { Radius, Spacing } from '@/constants/theme';
+import { useSessionAttendance } from '@/hooks/use-session-attendance';
+import { useSessionLeave } from '@/hooks/use-session-leave';
+import { useTheme } from '@/hooks/use-theme';
+import { closeSession, openSession } from '@/services/scheduleService';
+import { useAuth } from '@/store/auth-context';
+import type { Practicum, Session, SessionStatus, UserRole } from '@/types/attendance';
 import { AttendanceSuccessPanel } from './attendance-success-panel';
-import { useSessionAttendance } from '../../hooks/use-session-attendance';
-import { useSessionLeave } from '../../hooks/use-session-leave';
-import { LeaveStatusCard } from '../leave/leave-status-card';
-import { LeaveRequestModal } from '../leave/leave-request-modal';
-import { AsistenLeaveReviewPanel } from '../leave/asisten-leave-review-panel';
+import { AsistenLeaveReviewPanel } from '@/components/leave/asisten-leave-review-panel';
+import { LeaveRequestModal } from '@/components/leave/leave-request-modal';
+import { LeaveStatusCard } from '@/components/leave/leave-status-card';
 
 interface SessionDetailProps {
   role: UserRole;
-  sessionId: string;
+  practicum: Practicum;
+  session: Session;
 }
 
 type SessionAction = 'open' | 'close';
 
-function currentClockTime() {
-  const now = new Date();
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
-}
-
-export function SessionDetail({ role, sessionId }: SessionDetailProps) {
+export function SessionDetail({ role, practicum, session }: SessionDetailProps) {
   const router = useRouter();
   const theme = useTheme();
-  const { state, dispatch } = useDemoData();
-  const { showToast } = useToast(); 
+  const { profile } = useAuth();
+  const { showToast } = useToast();
+
+  const isAsisten = role === 'asisten';
+  const canManage = isAsisten && profile?.uid === practicum.assistantId;
+  const assistantName = practicum.assistantName ?? (isAsisten ? profile?.name : undefined);
 
   const [pendingAction, setPendingAction] = useState<SessionAction | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLeaveModalVisible, setIsLeaveModalVisible] = useState(false);
   const savingRef = useRef(false);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const session = state.sessions.find((candidate) => candidate.id === sessionId);
-  const practicum = session
-    ? state.practicums.find((candidate) => candidate.id === session.practicumId)
-    : undefined;
-  const assistant = practicum
-    ? state.users.find((candidate) => candidate.id === practicum.assistantId)
-    : undefined;
-  const activeUser = state.users.find((candidate) => candidate.id === state.activeUserId);
-  const attendanceRecord =
-    role === 'praktikan' && activeUser
-      ? findAttendanceRecord(state.attendanceRecords, sessionId, activeUser.id)
-      : undefined;
-
-  const { handleRecordAttendance: recordAttendanceRemote } = useSessionAttendance(
-    practicum?.id || '',
-    sessionId
-  );
-
-  const isAsisten = role === 'asisten';
+  const {
+    myRecord: attendanceRecord,
+    loading: attendanceLoading,
+    error: attendanceError,
+    retry: retryAttendance,
+    handleRecordAttendance: recordAttendanceRemote,
+  } = useSessionAttendance(practicum.id, session.id, { role, userId: profile?.uid });
 
   const {
     leaveRequests,
     myLeaveRequest,
     loading: leaveLoading,
+    error: leaveError,
+    retry: retryLeave,
     handleSubmitLeave,
     handleUpdateLeave,
     handleCancelLeave,
-    handleRetryClassification,
+    handleClassifyLeave,
     handleDecideLeave,
-  } = useSessionLeave(practicum?.id || '', sessionId, activeUser?.id, isAsisten);
+  } = useSessionLeave({
+    practicumId: practicum.id,
+    sessionId: session.id,
+    currentUserId: profile?.uid,
+    isAsisten,
+  });
 
-  useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-      }
-    };
-  }, []);
-
-  if (!session || !practicum) {
-    return (
-      <SafeAreaView
-        edges={['bottom']}
-        style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={styles.notFound}>
-          <Text style={[styles.title, { color: theme.textPrimary }]}>Sesi tidak ditemukan</Text>
-          <Text style={[styles.body, { color: theme.textSecondary }]}>
-            Sesi yang Anda cari tidak tersedia. Kembali ke jadwal untuk memilih sesi lain.
-          </Text>
-          <AppButton
-            label="Kembali ke jadwal"
-            onPress={() => router.replace(role === 'asisten' ? '/asisten' : '/praktikan')}
-          />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const canManage = isAsisten && canManageSession(state, sessionId);
-
-  const handleConfirm = () => {
-    if (!pendingAction) {
+  const handleConfirm = async () => {
+    if (!pendingAction || savingRef.current) {
       return;
     }
 
-    const at = currentClockTime();
-    const action = pendingAction;
-
     if (!canManage) {
       setPendingAction(null);
-      showToast('Tidak dapat mengelola sesi. Hanya asisten pengampu yang diizinkan.', 'error');
+      showToast(
+        'Tidak dapat mengelola sesi. Hanya asisten pengampu yang diizinkan.',
+        'error'
+      );
       return;
     }
 
     if (
-      (action === 'open' && session.status !== 'upcoming') ||
-      (action === 'close' && session.status !== 'open')
+      (pendingAction === 'open' && session.status !== 'upcoming') ||
+      (pendingAction === 'close' && session.status !== 'open')
     ) {
       setPendingAction(null);
       showToast('Status sesi sudah berubah, periksa kembali.', 'error');
       return;
     }
 
-    dispatch({
-      type: action === 'open' ? 'OPEN_SESSION' : 'CLOSE_SESSION',
-      payload: { sessionId, at },
-    });
+    const action = pendingAction;
+    savingRef.current = true;
+    setIsSaving(true);
 
-    showToast(action === 'open' ? 'Sesi berhasil dibuka' : 'Sesi berhasil ditutup', 'success');
-    setPendingAction(null);
+    try {
+      if (action === 'open') {
+        await openSession(practicum.id, session.id);
+      } else {
+        await closeSession(practicum.id, session.id);
+      }
+      showToast(
+        action === 'open' ? 'Sesi berhasil dibuka' : 'Sesi berhasil ditutup',
+        'success'
+      );
+      setPendingAction(null);
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Gagal mengubah status sesi.',
+        'error'
+      );
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
   };
 
   const handleRecordAttendance = async () => {
-    if (!activeUser || savingRef.current) {
+    if (!profile || savingRef.current) {
       return;
     }
 
@@ -156,7 +133,10 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
     }
 
     if (myLeaveRequest?.status === 'approved') {
-      showToast('Anda tidak dapat presensi karena pengajuan izin Anda telah diterima.', 'error');
+      showToast(
+        'Anda tidak dapat presensi karena pengajuan izin Anda telah diterima.',
+        'error'
+      );
       return;
     }
 
@@ -164,32 +144,40 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
     setIsSaving(true);
 
     try {
-      const res = await recordAttendanceRemote({
-        praktikanId: activeUser.id,
-        praktikanName: activeUser.name,
-        praktikanNim: activeUser.identifier,
+      const result = await recordAttendanceRemote({
+        praktikanId: profile.uid,
+        praktikanName: profile.name,
+        praktikanNim: profile.identifier,
       });
-
-      showToast(`Kehadiran berhasil dicatat pada pukul ${res.recordedAtDisplay}`, 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Gagal mencatat kehadiran.', 'error');
+      showToast(
+        `Kehadiran berhasil dicatat pada pukul ${result.recordedAtDisplay}`,
+        'success'
+      );
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Gagal mencatat kehadiran.',
+        'error'
+      );
     } finally {
       savingRef.current = false;
       setIsSaving(false);
     }
   };
 
-  const confirmationCopy = pendingAction === 'open'
-    ? {
-        title: 'Buka sesi?',
-        message: `Status ${practicum.name} pada ${session.date} akan berubah menjadi Dibuka.`,
-        confirmLabel: 'Buka sesi',
-      }
-    : {
-        title: 'Tutup sesi?',
-        message: `Status ${practicum.name} pada ${session.date} akan berubah menjadi Ditutup dan tidak dapat dibuka kembali pada prototipe ini.`,
-        confirmLabel: 'Tutup sesi',
-      };
+  const confirmationCopy =
+    pendingAction === 'open'
+      ? {
+          title: 'Buka sesi?',
+          message: `Status ${practicum.name} pada ${session.date} akan berubah menjadi Dibuka.`,
+          confirmLabel: 'Buka sesi',
+        }
+      : {
+          title: 'Tutup sesi?',
+          message: `Status ${practicum.name} pada ${session.date} akan berubah menjadi Ditutup dan tidak dapat dibuka kembali.`,
+          confirmLabel: 'Tutup sesi',
+        };
+
+  const showLeaveActions = !isAsisten && !attendanceRecord && !attendanceLoading;
 
   return (
     <SafeAreaView
@@ -197,10 +185,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
       style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <View
-          style={[
-            styles.card,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}>
+          style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.rowBetween}>
             <Text style={[styles.date, { color: theme.textSecondary }]}>{session.date}</Text>
             <StatusBadge status={session.status} />
@@ -215,7 +200,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
 
           <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
-          <DetailRow label="Asisten" value={assistant?.name ?? '—'} />
+          <DetailRow label="Asisten" value={assistantName ?? '—'} />
           <DetailRow label="Kelas" value={practicum.className} />
           <DetailRow label="Ruang" value={session.room} />
           {session.openedAt ? <DetailRow label="Dibuka pukul" value={session.openedAt} /> : null}
@@ -229,46 +214,57 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
           openedAt={session.openedAt}
           closedAt={session.closedAt}
           hasAttended={Boolean(attendanceRecord)}
-          canManage={canManage}
-          assistantName={assistant?.name}
         />
 
-        {/* FR-17 & FR-18: Status Izin Praktikan */}
+        {attendanceError ? (
+          <InlineError message={attendanceError} onRetry={retryAttendance} />
+        ) : null}
+        {leaveError ? <InlineError message={leaveError} onRetry={retryLeave} /> : null}
+
         {!isAsisten && myLeaveRequest ? (
           <LeaveStatusCard
             leaveRequest={myLeaveRequest}
             sessionTitle={practicum.name}
             onUpdateReason={async (newReason) => {
-              if (!activeUser) return;
-              await handleUpdateLeave(activeUser.id, newReason);
+              if (!profile) return;
+              await handleUpdateLeave(profile.uid, newReason);
               showToast('Alasan izin berhasil diperbarui', 'success');
             }}
             onCancelLeave={async () => {
-              if (!activeUser) return;
-              await handleCancelLeave(activeUser.id);
-              showToast('Pengajuan izin berhasil dibatalkan', 'success');
+              if (!profile) return;
+              try {
+                await handleCancelLeave(profile.uid);
+                showToast('Pengajuan izin berhasil dibatalkan', 'success');
+              } catch (error) {
+                showToast(
+                  error instanceof Error ? error.message : 'Gagal membatalkan izin.',
+                  'error'
+                );
+              }
             }}
           />
         ) : null}
 
-        {/* FR-18 & FR-19: Panel Review Izin Asisten */}
         {isAsisten ? (
           <AsistenLeaveReviewPanel
             leaveRequests={leaveRequests}
             canManage={canManage}
-            asistenId={activeUser?.id || ''}
             onDecide={async (praktikanId, decision, reviewNote) => {
-              if (!activeUser) return;
-              await handleDecideLeave(praktikanId, activeUser.id, decision, reviewNote);
+              if (!profile) return;
+              await handleDecideLeave(
+                praktikanId,
+                profile.uid,
+                decision,
+                reviewNote
+              );
               showToast(
-                `Izin praktikan berhasil ${decision === 'approved' ? 'diterima' : 'ditolak'}`,
+                `Izin praktikan berhasil ${
+                  decision === 'approved' ? 'diterima' : 'ditolak'
+                }`,
                 'success'
               );
             }}
-            onRetryAI={async (praktikanId, reason) => {
-              await handleRetryClassification(praktikanId, reason);
-              showToast('Klasifikasi AI berhasil diulang', 'success');
-            }}
+            onClassify={handleClassifyLeave}
           />
         ) : null}
       </ScrollView>
@@ -281,17 +277,19 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
         <View style={styles.footerContent}>
           {isAsisten ? (
             <View style={styles.actionStack}>
-              {!canManage ? (
-                <UnassignedSessionPanel assistantName={assistant?.name} />
-              ) : null}
               {canManage && session.status === 'upcoming' ? (
-                <AppButton label="Buka sesi" onPress={() => setPendingAction('open')} />
+                <AppButton
+                  label="Buka sesi"
+                  onPress={() => setPendingAction('open')}
+                  loading={isSaving && pendingAction === 'open'}
+                />
               ) : null}
               {canManage && session.status === 'open' ? (
                 <AppButton
                   label="Tutup sesi"
                   onPress={() => setPendingAction('close')}
                   variant="secondary"
+                  loading={isSaving && pendingAction === 'close'}
                 />
               ) : null}
               <AppButton
@@ -299,7 +297,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
                 onPress={() =>
                   router.push({
                     pathname: '/asisten/session/[sessionId]/recap',
-                    params: { sessionId },
+                    params: { sessionId: session.id, practicumId: practicum.id },
                   })
                 }
                 variant={session.status === 'closed' ? 'primary' : 'secondary'}
@@ -307,12 +305,15 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
             </View>
           ) : null}
 
-          {!isAsisten && attendanceRecord ? (
+          {!isAsisten && attendanceLoading ? (
+            <AppButton label="Memuat status presensi…" onPress={() => undefined} disabled />
+          ) : null}
+
+          {!isAsisten && !attendanceLoading && attendanceRecord ? (
             <AttendanceSuccessPanel recordedAt={attendanceRecord.recordedAt} />
           ) : null}
 
-          {/* FR-14: Praktikan yang punya izin approved tidak dapat presensi */}
-          {!isAsisten && !attendanceRecord && myLeaveRequest?.status === 'approved' ? (
+          {showLeaveActions && myLeaveRequest?.status === 'approved' ? (
             <AppButton
               label="Izin Anda sudah diterima"
               onPress={() => undefined}
@@ -321,7 +322,9 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
             />
           ) : null}
 
-          {!isAsisten && !attendanceRecord && myLeaveRequest?.status !== 'approved' && session.status === 'open' ? (
+          {showLeaveActions &&
+          myLeaveRequest?.status !== 'approved' &&
+          session.status === 'open' ? (
             <View style={styles.actionStack}>
               <AppButton
                 label="Catat kehadiran"
@@ -336,7 +339,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
                 />
               ) : !myLeaveRequest && leaveLoading ? (
                 <AppButton
-                  label="Memuat status izin..."
+                  label="Memuat status izin…"
                   onPress={() => undefined}
                   disabled
                   variant="secondary"
@@ -345,13 +348,11 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
             </View>
           ) : null}
 
-          {!isAsisten && !attendanceRecord && myLeaveRequest?.status !== 'approved' && session.status === 'upcoming' ? (
+          {showLeaveActions &&
+          myLeaveRequest?.status !== 'approved' &&
+          session.status === 'upcoming' ? (
             <View style={styles.actionStack}>
-              <AppButton
-                label="Presensi belum tersedia"
-                onPress={() => undefined}
-                disabled
-              />
+              <AppButton label="Presensi belum tersedia" onPress={() => undefined} disabled />
               {!myLeaveRequest && !leaveLoading ? (
                 <AppButton
                   label="Ajukan izin"
@@ -360,7 +361,7 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
                 />
               ) : !myLeaveRequest && leaveLoading ? (
                 <AppButton
-                  label="Memuat status izin..."
+                  label="Memuat status izin…"
                   onPress={() => undefined}
                   disabled
                   variant="secondary"
@@ -369,23 +370,24 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
             </View>
           ) : null}
 
-          {!isAsisten && !attendanceRecord && myLeaveRequest?.status !== 'approved' && session.status === 'closed' ? (
+          {showLeaveActions &&
+          myLeaveRequest?.status !== 'approved' &&
+          session.status === 'closed' ? (
             <AppButton label="Sesi telah ditutup" onPress={() => undefined} disabled />
           ) : null}
         </View>
       </View>
 
-      {/* FR-17 & FR-18: Modal Pengajuan Izin */}
-      {!isAsisten && activeUser ? (
+      {!isAsisten && profile ? (
         <LeaveRequestModal
           visible={isLeaveModalVisible}
           sessionTitle={practicum.name}
           onClose={() => setIsLeaveModalVisible(false)}
           onSubmit={async (reason) => {
             await handleSubmitLeave({
-              praktikanId: activeUser.id,
-              praktikanName: activeUser.name,
-              praktikanNim: activeUser.identifier,
+              praktikanId: profile.uid,
+              praktikanName: profile.name,
+              praktikanNim: profile.identifier,
               reason,
             });
             showToast('Pengajuan izin berhasil dikirim', 'success');
@@ -417,6 +419,20 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const theme = useTheme();
+
+  return (
+    <View
+      style={[styles.inlineError, { backgroundColor: theme.errorSoft, borderColor: theme.error }]}>
+      <Text style={[styles.inlineErrorText, { color: theme.error }]}>{message}</Text>
+      <Pressable accessibilityRole="button" hitSlop={8} onPress={onRetry}>
+        <Text style={[styles.inlineErrorAction, { color: theme.error }]}>Coba lagi</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function StatusGuidance({
   role,
   status,
@@ -424,17 +440,13 @@ function StatusGuidance({
   openedAt,
   closedAt,
   hasAttended,
-  canManage,
-  assistantName,
 }: {
   role: UserRole;
-  status: 'upcoming' | 'open' | 'closed';
+  status: SessionStatus;
   sessionName: string;
   openedAt?: string;
   closedAt?: string;
   hasAttended: boolean;
-  canManage: boolean;
-  assistantName?: string;
 }) {
   const theme = useTheme();
 
@@ -445,7 +457,9 @@ function StatusGuidance({
           styles.guidance,
           { backgroundColor: theme.successSoft, borderColor: theme.success },
         ]}>
-        <Text style={[styles.guidanceTitle, { color: theme.success }]}>Sesi sedang dibuka</Text>
+        <Text style={[styles.guidanceTitle, { color: theme.success }]}>
+          Sesi sedang dibuka
+        </Text>
         <Text style={[styles.body, { color: theme.textSecondary }]}>
           {role === 'praktikan' && hasAttended
             ? `Kehadiran Anda pada ${sessionName} sudah tercatat.`
@@ -454,9 +468,7 @@ function StatusGuidance({
         </Text>
         {role === 'asisten' ? (
           <Text style={[styles.body, { color: theme.textSecondary }]}>
-            {canManage
-              ? 'Tutup sesi setelah periode presensi selesai.'
-              : `Sesi ini diampu oleh ${assistantName ?? 'asisten lain'}. Hanya asisten pengampu yang dapat menutup sesi.`}
+            Tutup sesi setelah periode presensi selesai.
           </Text>
         ) : null}
       </View>
@@ -481,7 +493,7 @@ function StatusGuidance({
         </Text>
         {role === 'asisten' ? (
           <Text style={[styles.body, { color: theme.textSecondary }]}>
-            Sesi yang sudah ditutup tidak dapat dibuka kembali pada prototipe ini.
+            Sesi yang sudah ditutup tidak dapat dibuka kembali.
           </Text>
         ) : null}
       </View>
@@ -498,39 +510,15 @@ function StatusGuidance({
         Sesi belum dibuka
       </Text>
       <Text style={[styles.body, { color: theme.textSecondary }]}>
-        Asisten belum membuka presensi untuk {sessionName}.
+        {role === 'asisten'
+          ? 'Buka sesi agar status berubah menjadi Dibuka.'
+          : `Asisten belum membuka presensi untuk ${sessionName}.`}
       </Text>
-      {role === 'asisten' ? (
-        <Text style={[styles.body, { color: theme.textSecondary }]}>
-          {canManage
-            ? 'Buka sesi agar status berubah menjadi Dibuka.'
-            : `Sesi ini diampu oleh ${assistantName ?? 'asisten lain'}. Hanya asisten pengampu yang dapat membuka sesi.`}
-        </Text>
-      ) : (
+      {role === 'praktikan' ? (
         <Text style={[styles.body, { color: theme.textSecondary }]}>
           Presensi akan tersedia setelah asisten membuka sesi.
         </Text>
-      )}
-    </View>
-  );
-}
-
-function UnassignedSessionPanel({ assistantName }: { assistantName?: string }) {
-  const theme = useTheme();
-
-  return (
-    <View
-      style={[
-        styles.unassigned,
-        { backgroundColor: theme.surfaceSubtle, borderColor: theme.border },
-      ]}>
-      <Text style={[styles.unassignedTitle, { color: theme.textPrimary }]}>
-        Anda bukan asisten pengampu
-      </Text>
-      <Text style={[styles.unassignedBody, { color: theme.textSecondary }]}>
-        Sesi ini diampu oleh {assistantName ?? 'asisten lain'}. Anda tetap dapat melihat
-        rekap kehadiran.
-      </Text>
+      ) : null}
     </View>
   );
 }
@@ -564,21 +552,20 @@ const styles = StyleSheet.create({
   guidance: { borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.three, gap: Spacing.two },
   guidanceTitle: { fontSize: 18, fontWeight: '600', lineHeight: 26 },
   body: { fontSize: 16, lineHeight: 24 },
+  inlineError: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    padding: Spacing.three,
+    gap: Spacing.one,
+  },
+  inlineErrorText: { fontSize: 14, lineHeight: 20 },
+  inlineErrorAction: { fontSize: 14, fontWeight: '600' },
   footer: {
     borderTopWidth: 1,
     padding: Spacing.three,
     paddingBottom: Spacing.four,
     alignItems: 'center',
   },
-  footerContent: { width: '100%', maxWidth: 560 },
+  footerContent: { width: '100%', maxWidth: 560, gap: Spacing.two },
   actionStack: { gap: Spacing.two },
-  unassigned: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    padding: Spacing.three,
-    gap: Spacing.one,
-  },
-  unassignedTitle: { fontSize: 16, fontWeight: '600', lineHeight: 22 },
-  unassignedBody: { fontSize: 14, lineHeight: 20 },
-  notFound: { flex: 1, justifyContent: 'center', padding: Spacing.four, gap: Spacing.two },
 });

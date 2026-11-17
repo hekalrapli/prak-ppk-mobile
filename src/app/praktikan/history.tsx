@@ -1,96 +1,125 @@
 // src/app/praktikan/history.tsx
-import { Redirect, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AttendanceRecordItem } from '@/components/attendance/attendance-record-item';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState, LoadingState } from '@/components/ui/screen-state';
 import { Radius, Spacing } from '@/constants/theme';
+import { useAttendanceHistory, useLeaveHistory } from '@/hooks/use-history';
+import { usePracticumFeed } from '@/hooks/use-practicum-feed';
 import { useTheme } from '@/hooks/use-theme';
-import { useDemoData } from '@/store/demo-data-context';
-import { AttendanceRecord, LeaveRequest, Practicum, Session } from '@/types/attendance';
-import { subscribeOwnLeaveRequests } from '@/services/leaveService';
+import { formatTimestampToTime } from '@/services/attendanceService';
+import { useAuth } from '@/store/auth-context';
+import type {
+  AttendanceDoc,
+  LeaveRequest,
+  Practicum,
+  Session,
+} from '@/types/attendance';
 
 interface HistoryEntry {
-  record: AttendanceRecord;
+  record: AttendanceDoc;
   session: Session;
   practicum: Practicum;
+}
+
+interface LeaveEntry {
+  request: LeaveRequest;
+  session?: Session;
+  practicum?: Practicum;
 }
 
 export default function PraktikanHistoryScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { state } = useDemoData();
+  const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<'attendance' | 'leave'>('attendance');
-  const [leaveList, setLeaveList] = useState<LeaveRequest[]>([]);
 
-  const user = state.users.find((candidate) => candidate.id === state.activeUserId);
+  const feed = usePracticumFeed('praktikan', profile?.uid);
+  const attendance = useAttendanceHistory(profile?.uid);
+  const leave = useLeaveHistory(profile?.uid);
 
-  useEffect(() => {
-    if (!user) return;
+  const sessionsById = useMemo(
+    () => new Map(feed.sessions.map((session) => [session.id, session])),
+    [feed.sessions]
+  );
+  const practicumsById = useMemo(
+    () => new Map(feed.practicums.map((practicum) => [practicum.id, practicum])),
+    [feed.practicums]
+  );
 
-    const targets = state.sessions.map((session) => ({
-      practicumId: session.practicumId,
-      sessionId: session.id,
-    }));
-
-    const unsubscribe = subscribeOwnLeaveRequests(
-      targets,
-      user.id,
-      (data) => {
-        setLeaveList(data);
-      },
-      () => {
-        // Fallback local demo state
-        const local = (state.leaveRequests || []).filter(
-          (lr) => lr.praktikanId === user.id
+  const entries = useMemo<HistoryEntry[]>(
+    () =>
+      attendance.records.flatMap((record) => {
+        const session = sessionsById.get(record.sessionId ?? '');
+        const practicum = practicumsById.get(
+          record.practicumId ?? session?.practicumId ?? ''
         );
-        setLeaveList(local);
-      }
-    );
 
-    return () => unsubscribe();
-  }, [user, state.sessions, state.leaveRequests]);
+        return session && practicum ? [{ record, session, practicum }] : [];
+      }),
+    [attendance.records, sessionsById, practicumsById]
+  );
 
-  if (!user) {
-    return <Redirect href="/" />;
-  }
+  const leaveEntries = useMemo<LeaveEntry[]>(
+    () =>
+      leave.requests.map((request) => {
+        const session = request.sessionId
+          ? sessionsById.get(request.sessionId)
+          : undefined;
+        const practicum = request.practicumId
+          ? practicumsById.get(request.practicumId)
+          : session
+            ? practicumsById.get(session.practicumId)
+            : undefined;
 
-  if (state.activeRole !== 'praktikan' || user.role !== 'praktikan') {
-    return <Redirect href={state.activeRole === 'asisten' ? '/asisten' : '/'} />;
-  }
+        return { request, session, practicum };
+      }),
+    [leave.requests, sessionsById, practicumsById]
+  );
 
-  const entries: HistoryEntry[] = state.attendanceRecords
-    .filter((record) => record.praktikanId === user.id)
-    .map((record) => {
-      const session = state.sessions.find((candidate) => candidate.id === record.sessionId);
-      const practicum = session
-        ? state.practicums.find((candidate) => candidate.id === session.practicumId)
-        : undefined;
+  const loading =
+    feed.loading || (activeTab === 'attendance' ? attendance.loading : leave.loading);
+  const error =
+    feed.error ?? (activeTab === 'attendance' ? attendance.error : leave.error);
 
-      return { record, session, practicum };
-    })
-    .filter((entry): entry is HistoryEntry => Boolean(entry.session && entry.practicum))
-    .reverse();
+  const retry = () => {
+    feed.retry();
+    if (activeTab === 'attendance') {
+      attendance.retry();
+    } else {
+      leave.retry();
+    }
+  };
 
   const renderHeader = () => (
     <View style={styles.header}>
-      {/* Tab Switcher */}
-      <View style={[styles.tabBar, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]}>
+      <View
+        style={[
+          styles.tabBar,
+          { backgroundColor: theme.surfaceSubtle, borderColor: theme.border },
+        ]}>
         <TouchableOpacity
+          accessibilityRole="button"
           style={[styles.tabBtn, activeTab === 'attendance' && { backgroundColor: theme.surface }]}
           onPress={() => setActiveTab('attendance')}>
           <Text
             style={[
               styles.tabBtnText,
-              { color: activeTab === 'attendance' ? theme.textPrimary : theme.textSecondary },
+              {
+                color:
+                  activeTab === 'attendance' ? theme.textPrimary : theme.textSecondary,
+              },
             ]}>
             Kehadiran ({entries.length})
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
+          accessibilityRole="button"
           style={[styles.tabBtn, activeTab === 'leave' && { backgroundColor: theme.surface }]}
           onPress={() => setActiveTab('leave')}>
           <Text
@@ -98,7 +127,7 @@ export default function PraktikanHistoryScreen() {
               styles.tabBtnText,
               { color: activeTab === 'leave' ? theme.textPrimary : theme.textSecondary },
             ]}>
-            Izin Saya ({leaveList.length})
+            Izin Saya ({leaveEntries.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -111,6 +140,26 @@ export default function PraktikanHistoryScreen() {
     </View>
   );
 
+  if (loading) {
+    return (
+      <SafeAreaView
+        edges={['bottom']}
+        style={[styles.container, { backgroundColor: theme.background }]}>
+        <LoadingState label="Memuat riwayat…" />
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView
+        edges={['bottom']}
+        style={[styles.container, { backgroundColor: theme.background }]}>
+        <ErrorState message={error} onRetry={retry} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView
       edges={['bottom']}
@@ -118,7 +167,7 @@ export default function PraktikanHistoryScreen() {
       {activeTab === 'attendance' ? (
         <FlatList
           data={entries}
-          keyExtractor={(item) => item.record.id}
+          keyExtractor={(item) => `${item.record.practicumId}-${item.record.sessionId}`}
           contentContainerStyle={styles.content}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={
@@ -143,11 +192,14 @@ export default function PraktikanHistoryScreen() {
                 <AttendanceRecordItem
                   name={item.practicum.name}
                   meta={item.session.date}
-                  recordedAt={item.record.recordedAt}
+                  recordedAt={formatTimestampToTime(item.record.recordedAt)}
                   onPress={() =>
                     router.push({
                       pathname: '/praktikan/session/[sessionId]',
-                      params: { sessionId: item.session.id },
+                      params: {
+                        sessionId: item.session.id,
+                        practicumId: item.practicum.id,
+                      },
                     })
                   }
                 />
@@ -157,8 +209,8 @@ export default function PraktikanHistoryScreen() {
         />
       ) : (
         <FlatList
-          data={leaveList}
-          keyExtractor={(item) => item.id || item.sessionId || String(Math.random())}
+          data={leaveEntries}
+          keyExtractor={(item) => `${item.request.practicumId}-${item.request.sessionId}`}
           contentContainerStyle={styles.content}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={
@@ -168,13 +220,8 @@ export default function PraktikanHistoryScreen() {
             />
           }
           renderItem={({ item }) => {
-            const session = state.sessions.find((s) => s.id === item.sessionId);
-            const practicum = session
-              ? state.practicums.find((p) => p.id === session.practicumId)
-              : undefined;
-
-            const isPending = item.status === 'pending';
-            const isApproved = item.status === 'approved';
+            const isPending = item.request.status === 'pending';
+            const isApproved = item.request.status === 'approved';
 
             return (
               <View
@@ -184,7 +231,7 @@ export default function PraktikanHistoryScreen() {
                 ]}>
                 <View style={styles.leaveHeader}>
                   <Text style={[styles.leaveTitle, { color: theme.textPrimary }]}>
-                    {practicum?.name || item.practicumName || 'Praktikum'}
+                    {item.practicum?.name ?? 'Praktikum'}
                   </Text>
                   <View
                     style={[
@@ -193,8 +240,8 @@ export default function PraktikanHistoryScreen() {
                         backgroundColor: isPending
                           ? '#fef3c7'
                           : isApproved
-                          ? '#dcfce7'
-                          : '#fee2e2',
+                            ? '#dcfce7'
+                            : '#fee2e2',
                       },
                     ]}>
                     <Text
@@ -204,8 +251,8 @@ export default function PraktikanHistoryScreen() {
                           color: isPending
                             ? '#92400e'
                             : isApproved
-                            ? '#166534'
-                            : '#991b1b',
+                              ? '#166534'
+                              : '#991b1b',
                         },
                       ]}>
                       {isPending ? 'Menunggu' : isApproved ? 'Diterima' : 'Ditolak'}
@@ -213,23 +260,23 @@ export default function PraktikanHistoryScreen() {
                   </View>
                 </View>
 
-                {session?.date ? (
+                {item.session?.date ? (
                   <Text style={[styles.leaveMeta, { color: theme.textSecondary }]}>
-                    {session.date} ({session.startTime}–{session.endTime})
+                    {item.session.date} ({item.session.startTime}–{item.session.endTime})
                   </Text>
                 ) : null}
 
                 <Text style={[styles.reasonText, { color: theme.textPrimary }]}>
-                  “{item.reason}”
+                  “{item.request.reason}”
                 </Text>
 
-                {item.reviewNote ? (
+                {item.request.reviewNote ? (
                   <View style={[styles.noteBox, { backgroundColor: theme.surfaceSubtle }]}>
                     <Text style={[styles.noteLabel, { color: theme.textSecondary }]}>
                       Catatan Asisten:
                     </Text>
                     <Text style={[styles.noteContent, { color: theme.textPrimary }]}>
-                      {item.reviewNote}
+                      {item.request.reviewNote}
                     </Text>
                   </View>
                 ) : null}

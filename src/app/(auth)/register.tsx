@@ -18,7 +18,6 @@ import { useToast } from '@/components/ui/toast-provider';
 import { Spacing, Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth-context';
-import { useDemoData } from '@/store/demo-data-context';
 import { UserRole } from '@/types/attendance';
 
 type FieldKey =
@@ -87,7 +86,6 @@ export default function RegisterScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { register } = useAuth();
-  const { dispatch } = useDemoData();
   const { showToast } = useToast();
 
   const [role, setRole] = useState<UserRole>('praktikan');
@@ -146,19 +144,6 @@ export default function RegisterScreen() {
         password,
         role,
         inviteCode: role === 'asisten' ? inviteCode : undefined,
-      });
-
-      // Jembatan sementara agar layar demo Sprint 1 mengenali pengguna baru.
-      dispatch({
-        type: 'REGISTER_IDENTITY',
-        payload: {
-          user: {
-            id: profile.uid,
-            name: profile.name,
-            identifier: profile.identifier,
-            role: profile.role,
-          },
-        },
       });
 
       showToast('Akun berhasil dibuat. Selamat datang!', 'success');

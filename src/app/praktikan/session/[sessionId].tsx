@@ -1,20 +1,77 @@
-import { Redirect, useLocalSearchParams } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SessionDetail } from '@/components/attendance/session-detail';
-import { useDemoData } from '@/store/demo-data-context';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState, LoadingState } from '@/components/ui/screen-state';
+import { Spacing } from '@/constants/theme';
+import { useSessionDetail } from '@/hooks/use-session-detail';
+import { useTheme } from '@/hooks/use-theme';
+import { useAuth } from '@/store/auth-context';
 
 export default function PraktikanSessionScreen() {
-  const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
-  const { state } = useDemoData();
-  const user = state.users.find((candidate) => candidate.id === state.activeUserId);
+  const router = useRouter();
+  const theme = useTheme();
+  const { profile } = useAuth();
+  const { sessionId, practicumId } = useLocalSearchParams<{
+    sessionId: string;
+    practicumId?: string;
+  }>();
 
-  if (!user) {
-    return <Redirect href="/" />;
+  const { practicum, session, loading, error, retry } = useSessionDetail(
+    practicumId,
+    sessionId
+  );
+
+  const renderFallback = () => (
+    <SafeAreaView
+      edges={['bottom']}
+      style={[styles.container, { backgroundColor: theme.background }]}>
+      <EmptyState
+        title="Sesi tidak ditemukan"
+        description="Sesi yang Anda cari tidak tersedia. Kembali ke jadwal untuk memilih sesi lain."
+        actionLabel="Kembali ke jadwal"
+        onAction={() => router.replace('/praktikan')}
+      />
+    </SafeAreaView>
+  );
+
+  if (!practicumId) {
+    return renderFallback();
   }
 
-  if (state.activeRole !== 'praktikan' || user.role !== 'praktikan') {
-    return <Redirect href={state.activeRole === 'asisten' ? '/asisten' : '/'} />;
+  if (loading) {
+    return (
+      <SafeAreaView
+        edges={['bottom']}
+        style={[styles.container, { backgroundColor: theme.background }]}>
+        <LoadingState label="Memuat sesi…" />
+      </SafeAreaView>
+    );
   }
 
-  return <SessionDetail role="praktikan" sessionId={sessionId} />;
+  if (error) {
+    return (
+      <SafeAreaView
+        edges={['bottom']}
+        style={[styles.container, { backgroundColor: theme.background }]}>
+        <ErrorState message={error} onRetry={retry} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!practicum || !session) {
+    return renderFallback();
+  }
+
+  // Authorisasi: praktikan hanya boleh membuka sesi praktikum yang diikutinya.
+  if (!profile || !practicum.studentIds?.includes(profile.uid)) {
+    return <Redirect href="/praktikan" />;
+  }
+
+  return <SessionDetail role="praktikan" practicum={practicum} session={session} />;
 }
+
+const styles = {
+  container: { flex: 1, justifyContent: 'center' as const, padding: Spacing.three },
+};

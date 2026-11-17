@@ -1,19 +1,20 @@
 // src/components/attendance/attendance-recap.tsx
-import { useRouter } from 'expo-router';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Radius, Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/use-theme';
-import { useDemoData } from '../../store/demo-data-context';
-import { EmptyState } from '../ui/empty-state';
-import { StatusBadge } from '../ui/status-badge';
-import { useSessionAttendance } from '../../hooks/use-session-attendance';
-import { useSessionLeave } from '../../hooks/use-session-leave';
-import { formatTimestampToTime } from '../../services/attendanceService';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState, LoadingState } from '@/components/ui/screen-state';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { Radius, Spacing } from '@/constants/theme';
+import { useSessionAttendance } from '@/hooks/use-session-attendance';
+import { useSessionLeave } from '@/hooks/use-session-leave';
+import { useTheme } from '@/hooks/use-theme';
+import { formatTimestampToTime } from '@/services/attendanceService';
+import type { Practicum, Session } from '@/types/attendance';
 
 interface AttendanceRecapProps {
-  sessionId: string;
+  practicum: Practicum;
+  session: Session;
 }
 
 interface UnifiedRecapEntry {
@@ -24,91 +25,91 @@ interface UnifiedRecapEntry {
   timeDisplay: string;
 }
 
-export function AttendanceRecap({ sessionId }: AttendanceRecapProps) {
-  const router = useRouter();
+export function AttendanceRecap({ practicum, session }: AttendanceRecapProps) {
   const theme = useTheme();
-  const { state } = useDemoData();
 
-  const session = state.sessions.find((candidate) => candidate.id === sessionId);
-  const practicum = session
-    ? state.practicums.find((candidate) => candidate.id === session.practicumId)
-    : undefined;
+  const {
+    records,
+    loading: attendanceLoading,
+    error: attendanceError,
+    retry: retryAttendance,
+  } = useSessionAttendance(practicum.id, session.id, { role: 'asisten' });
 
-  const { records: realTimeRecords } = useSessionAttendance(
-    practicum?.id || '',
-    sessionId
-  );
-  const { leaveRequests: realTimeLeaves } = useSessionLeave(
-    practicum?.id || '',
-    sessionId
-  );
+  const {
+    leaveRequests,
+    loading: leaveLoading,
+    error: leaveError,
+    retry: retryLeave,
+  } = useSessionLeave({
+    practicumId: practicum.id,
+    sessionId: session.id,
+    isAsisten: true,
+    loadClassifications: false,
+  });
 
-  if (!session || !practicum) {
+  if (attendanceLoading || leaveLoading) {
     return (
       <SafeAreaView
         edges={['bottom']}
         style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={styles.notFound}>
-          <EmptyState
-            title="Sesi tidak ditemukan"
-            description="Sesi yang Anda cari tidak tersedia. Kembali ke jadwal untuk memilih sesi lain."
-            actionLabel="Kembali ke jadwal"
-            onAction={() => router.replace('/asisten')}
-          />
-        </View>
+        <LoadingState label="Memuat rekap kehadiran…" />
       </SafeAreaView>
     );
   }
 
-  // Gabungkan data presensi real-time dan demo state
+  const loadError = attendanceError ?? leaveError;
+
+  if (loadError) {
+    return (
+      <SafeAreaView
+        edges={['bottom']}
+        style={[styles.container, { backgroundColor: theme.background }]}>
+        <ErrorState
+          message={loadError}
+          onRetry={() => {
+            retryAttendance();
+            retryLeave();
+          }}
+        />
+      </SafeAreaView>
+    );
+  }
+
   const attendanceMap = new Map<string, UnifiedRecapEntry>();
 
-  // 1. Dari demo store
-  state.attendanceRecords
-    .filter((record) => record.sessionId === sessionId)
-    .forEach((record) => {
-      const user = state.users.find((u) => u.id === record.praktikanId);
-      if (user) {
-        attendanceMap.set(user.id, {
-          id: record.id,
-          name: user.name,
-          identifier: user.identifier,
-          statusLabel: 'Hadir',
-          timeDisplay: record.recordedAt,
-        });
-      }
-    });
-
-  // 2. Dari listener real-time Firestore (FR-15)
-  realTimeRecords.forEach((record) => {
-    const user = state.users.find((u) => u.id === record.praktikanId);
+  records.forEach((record) => {
     attendanceMap.set(record.praktikanId, {
-      id: record.id || `att-${record.praktikanId}`,
-      name: user?.name || record.praktikanName,
-      identifier: user?.identifier || record.praktikanNim,
+      id: `attendance-${record.praktikanId}`,
+      name: record.praktikanName,
+      identifier: record.praktikanNim,
       statusLabel: 'Hadir',
       timeDisplay: formatTimestampToTime(record.recordedAt),
     });
   });
 
-  // 3. Izin yang disetujui (FR-16 & FR-19)
-  realTimeLeaves
-    .filter((l) => l.status === 'approved')
-    .forEach((l) => {
-      const user = state.users.find((u) => u.id === l.praktikanId);
-      attendanceMap.set(l.praktikanId, {
-        id: `leave-${l.praktikanId}`,
-        name: user?.name || l.praktikanName,
-        identifier: user?.identifier || l.praktikanNim,
+  // Izin yang disetujui hanya mengisi praktikan yang belum tercatat hadir.
+  leaveRequests
+    .filter((request) => request.status === 'approved')
+    .forEach((request) => {
+      if (attendanceMap.has(request.praktikanId)) {
+        return;
+      }
+
+      attendanceMap.set(request.praktikanId, {
+        id: `leave-${request.praktikanId}`,
+        name: request.praktikanName,
+        identifier: request.praktikanNim,
         statusLabel: 'Izin',
-        timeDisplay: formatTimestampToTime(l.decidedAt || l.createdAt),
+        timeDisplay: formatTimestampToTime(request.decidedAt ?? request.createdAt),
       });
     });
 
-  const entries: UnifiedRecapEntry[] = Array.from(attendanceMap.values());
+  const entries: UnifiedRecapEntry[] = Array.from(attendanceMap.values()).sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
 
-  const hadirCount = entries.filter((e) => e.statusLabel === 'Hadir').length;
-  const izinCount = entries.filter((e) => e.statusLabel === 'Izin').length;
+  const hadirCount = entries.filter((entry) => entry.statusLabel === 'Hadir').length;
+  const izinCount = entries.filter((entry) => entry.statusLabel === 'Izin').length;
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -118,9 +119,7 @@ export function AttendanceRecap({ sessionId }: AttendanceRecapProps) {
           { backgroundColor: theme.surface, borderColor: theme.border },
         ]}>
         <View style={styles.rowBetween}>
-          <Text style={[styles.title, { color: theme.textPrimary }]}>
-            {practicum.name}
-          </Text>
+          <Text style={[styles.title, { color: theme.textPrimary }]}>{practicum.name}</Text>
           <StatusBadge status={session.status} />
         </View>
         <Text style={[styles.meta, { color: theme.textSecondary }]}>
@@ -165,7 +164,7 @@ export function AttendanceRecap({ sessionId }: AttendanceRecapProps) {
                 !isLast && styles.groupDivider,
               ]}>
               <View style={styles.itemRow}>
-                <View style={{ flex: 1 }}>
+                <View style={styles.itemInfo}>
                   <Text style={[styles.itemName, { color: theme.textPrimary }]}>
                     {item.name}
                   </Text>
@@ -249,12 +248,12 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: Radius.lg,
   },
   groupDivider: { borderBottomWidth: 1 },
-  notFound: { flex: 1, justifyContent: 'center', padding: Spacing.three },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  itemInfo: { flex: 1, minWidth: 0 },
   itemName: {
     fontSize: 15,
     fontWeight: '600',

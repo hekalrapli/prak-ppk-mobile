@@ -1,47 +1,79 @@
-import { Redirect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScheduleListItem, StatusLegend } from '@/components/attendance/schedule-list-item';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState, LoadingState } from '@/components/ui/screen-state';
 import { Spacing } from '@/constants/theme';
+import { usePracticumFeed } from '@/hooks/use-practicum-feed';
 import { useTheme } from '@/hooks/use-theme';
-import { useDemoData } from '@/store/demo-data-context';
+import { useAuth } from '@/store/auth-context';
 
 export default function PraktikanScheduleScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { state } = useDemoData();
-  const activeUser = state.users.find((user) => user.id === state.activeUserId);
+  const { profile } = useAuth();
+  const { practicums, sessions, loading, error, retry } = usePracticumFeed(
+    'praktikan',
+    profile?.uid
+  );
 
-  if (!activeUser) {
-    return <Redirect href="/" />;
+  const practicumById = useMemo(
+    () => new Map(practicums.map((practicum) => [practicum.id, practicum])),
+    [practicums]
+  );
+
+  const rows = useMemo(
+    () =>
+      sessions.flatMap((session) => {
+        const practicum = practicumById.get(session.practicumId);
+        return practicum ? [{ session, practicum }] : [];
+      }),
+    [sessions, practicumById]
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView
+        edges={['bottom']}
+        style={[styles.container, { backgroundColor: theme.background }]}>
+        <LoadingState label="Memuat jadwal praktikum…" />
+      </SafeAreaView>
+    );
   }
 
-  if (state.activeRole !== 'praktikan' || activeUser.role !== 'praktikan') {
-    return <Redirect href={state.activeRole === 'asisten' ? '/asisten' : '/'} />;
+  if (error) {
+    return (
+      <SafeAreaView
+        edges={['bottom']}
+        style={[styles.container, { backgroundColor: theme.background }]}>
+        <ErrorState message={error} onRetry={retry} />
+      </SafeAreaView>
+    );
   }
 
   const renderHeader = () => (
     <View style={styles.header}>
       <Text style={[styles.greeting, { color: theme.textPrimary }]}>
-        Halo, {activeUser.name}
+        Halo, {profile?.name ?? 'Praktikan'}
       </Text>
       <Text style={[styles.userMeta, { color: theme.textSecondary }]}>
-        {activeUser.identifier}
-        {activeUser.className ? ` · ${activeUser.className}` : ''}
+        {profile?.identifier ?? '—'}
       </Text>
 
       <View style={styles.sectionRow}>
         <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
           Jadwal Praktikum{' '}
           <Text style={[styles.count, { color: theme.textSecondary }]}>
-            ({state.sessions.length} sesi)
+            ({rows.length} sesi)
           </Text>
         </Text>
         <Pressable
           accessibilityRole="button"
           onPress={() => router.push('/praktikan/history')}
-          style={({ pressed }) => pressed && styles.pressed}>
+          style={({ pressed }) => (pressed ? styles.pressed : undefined)}>
           <Text style={[styles.link, { color: theme.primary }]}>Riwayat</Text>
         </Pressable>
       </View>
@@ -49,48 +81,37 @@ export default function PraktikanScheduleScreen() {
   );
 
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      edges={['bottom']}
+      style={[styles.container, { backgroundColor: theme.background }]}>
       <FlatList
-        data={state.sessions}
-        keyExtractor={(item) => item.id}
+        data={rows}
+        keyExtractor={(item) => item.session.id}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={renderHeader}
-        ListFooterComponent={<StatusLegend />}
+        ListFooterComponent={rows.length > 0 ? <StatusLegend /> : undefined}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
-              Belum ada jadwal
-            </Text>
-            <Text style={[styles.emptyBody, { color: theme.textSecondary }]}>
-              Jadwal praktikum akan muncul di sini.
-            </Text>
-          </View>
+          <EmptyState
+            title="Belum ada jadwal"
+            description="Belum ada sesi untuk praktikum yang Anda ikuti. Pastikan Anda sudah terdaftar sebagai peserta dan jadwal sesi sudah dibuat."
+          />
         }
-        renderItem={({ item }) => {
-          const practicum = state.practicums.find((candidate) => candidate.id === item.practicumId);
-
-          if (!practicum) {
-            return null;
-          }
-
-          const assistant = state.users.find(
-            (candidate) => candidate.id === practicum.assistantId
-          );
-
-          return (
-            <ScheduleListItem
-              session={item}
-              practicum={practicum}
-              assistantName={assistant?.name}
-              onPress={() =>
-                router.push({
-                  pathname: '/praktikan/session/[sessionId]',
-                  params: { sessionId: item.id },
-                })
-              }
-            />
-          );
-        }}
+        renderItem={({ item }) => (
+          <ScheduleListItem
+            session={item.session}
+            practicum={item.practicum}
+            assistantName={item.practicum.assistantName}
+            onPress={() =>
+              router.push({
+                pathname: '/praktikan/session/[sessionId]',
+                params: {
+                  sessionId: item.session.id,
+                  practicumId: item.practicum.id,
+                },
+              })
+            }
+          />
+        )}
       />
     </SafeAreaView>
   );
@@ -119,7 +140,4 @@ const styles = StyleSheet.create({
   count: { fontSize: 14, fontWeight: '400' },
   link: { fontSize: 14, fontWeight: '600', paddingVertical: Spacing.two },
   pressed: { opacity: 0.6 },
-  empty: { paddingVertical: Spacing.five, alignItems: 'center', gap: Spacing.two },
-  emptyTitle: { fontSize: 18, fontWeight: '600' },
-  emptyBody: { fontSize: 16, textAlign: 'center' },
 });

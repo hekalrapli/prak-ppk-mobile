@@ -1,90 +1,114 @@
-import { Redirect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScheduleListItem, StatusLegend } from '@/components/attendance/schedule-list-item';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState, LoadingState } from '@/components/ui/screen-state';
 import { Spacing } from '@/constants/theme';
+import { usePracticumFeed } from '@/hooks/use-practicum-feed';
 import { useTheme } from '@/hooks/use-theme';
-import { useDemoData } from '@/store/demo-data-context';
+import { useAuth } from '@/store/auth-context';
 
 export default function AsistenScheduleScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { state } = useDemoData();
-  const activeUser = state.users.find((user) => user.id === state.activeUserId);
+  const { profile } = useAuth();
+  const { practicums, sessions, loading, error, retry } = usePracticumFeed(
+    'asisten',
+    profile?.uid
+  );
 
-  if (!activeUser) {
-    return <Redirect href="/" />;
+  const practicumById = useMemo(
+    () => new Map(practicums.map((practicum) => [practicum.id, practicum])),
+    [practicums]
+  );
+
+  const rows = useMemo(
+    () =>
+      sessions.flatMap((session) => {
+        const practicum = practicumById.get(session.practicumId);
+        return practicum ? [{ session, practicum }] : [];
+      }),
+    [sessions, practicumById]
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView
+        edges={['bottom']}
+        style={[styles.container, { backgroundColor: theme.background }]}>
+        <LoadingState label="Memuat jadwal praktikum…" />
+      </SafeAreaView>
+    );
   }
 
-  if (state.activeRole !== 'asisten' || activeUser.role !== 'asisten') {
-    return <Redirect href={state.activeRole === 'praktikan' ? '/praktikan' : '/'} />;
+  if (error) {
+    return (
+      <SafeAreaView
+        edges={['bottom']}
+        style={[styles.container, { backgroundColor: theme.background }]}>
+        <ErrorState message={error} onRetry={retry} />
+      </SafeAreaView>
+    );
   }
 
   const renderHeader = () => (
     <View style={styles.header}>
       <Text style={[styles.greeting, { color: theme.textPrimary }]}>
-        Halo, {activeUser.name}
+        Halo, {profile?.name ?? 'Asisten'}
       </Text>
       <Text style={[styles.userMeta, { color: theme.textSecondary }]}>
-        Asisten · {activeUser.identifier}
+        Asisten · {profile?.identifier ?? '—'}
       </Text>
 
       <View style={styles.sectionRow}>
         <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
           Sesi Praktikum{' '}
           <Text style={[styles.count, { color: theme.textSecondary }]}>
-            ({state.sessions.length} sesi)
+            ({rows.length} sesi)
           </Text>
         </Text>
       </View>
+      <Text style={[styles.sectionHint, { color: theme.textSecondary }]}>
+        Hanya praktikum yang Anda ampu sebagai asisten pengampu.
+      </Text>
     </View>
   );
 
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      edges={['bottom']}
+      style={[styles.container, { backgroundColor: theme.background }]}>
       <FlatList
-        data={state.sessions}
-        keyExtractor={(item) => item.id}
+        data={rows}
+        keyExtractor={(item) => item.session.id}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={renderHeader}
-        ListFooterComponent={<StatusLegend />}
+        ListFooterComponent={rows.length > 0 ? <StatusLegend /> : undefined}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
-              Belum ada jadwal
-            </Text>
-            <Text style={[styles.emptyBody, { color: theme.textSecondary }]}>
-              Jadwal praktikum akan muncul di sini.
-            </Text>
-          </View>
+          <EmptyState
+            title="Belum ada jadwal"
+            description="Belum ada sesi untuk praktikum yang Anda ampu. Pastikan penugasan asisten dan jadwal sesi sudah dibuat."
+          />
         }
-        renderItem={({ item }) => {
-          const practicum = state.practicums.find((candidate) => candidate.id === item.practicumId);
-
-          if (!practicum) {
-            return null;
-          }
-
-          const assistant = state.users.find(
-            (candidate) => candidate.id === practicum.assistantId
-          );
-
-          return (
-            <ScheduleListItem
-              session={item}
-              practicum={practicum}
-              assistantName={assistant?.name}
-              isAssignedToActiveUser={practicum.assistantId === activeUser.id}
-              onPress={() =>
-                router.push({
-                  pathname: '/asisten/session/[sessionId]',
-                  params: { sessionId: item.id },
-                })
-              }
-            />
-          );
-        }}
+        renderItem={({ item }) => (
+          <ScheduleListItem
+            session={item.session}
+            practicum={item.practicum}
+            assistantName={item.practicum.assistantName ?? profile?.name}
+            onPress={() =>
+              router.push({
+                pathname: '/asisten/session/[sessionId]',
+                params: {
+                  sessionId: item.session.id,
+                  practicumId: item.practicum.id,
+                },
+              })
+            }
+          />
+        )}
       />
     </SafeAreaView>
   );
@@ -102,10 +126,8 @@ const styles = StyleSheet.create({
   header: { marginBottom: Spacing.three },
   greeting: { fontSize: 24, fontWeight: '700', lineHeight: 32, marginBottom: Spacing.one },
   userMeta: { fontSize: 14, lineHeight: 20, marginBottom: Spacing.four },
-  sectionRow: { marginBottom: Spacing.two },
+  sectionRow: { marginBottom: Spacing.one },
   sectionTitle: { fontSize: 18, fontWeight: '600', lineHeight: 26 },
   count: { fontSize: 14, fontWeight: '400' },
-  empty: { paddingVertical: Spacing.five, alignItems: 'center', gap: Spacing.two },
-  emptyTitle: { fontSize: 18, fontWeight: '600' },
-  emptyBody: { fontSize: 16, textAlign: 'center' },
+  sectionHint: { fontSize: 13, lineHeight: 18, marginBottom: Spacing.two },
 });

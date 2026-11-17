@@ -1,5 +1,5 @@
 // src/components/leave/asisten-leave-review-panel.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { LeaveRequest } from '../../types/attendance';
 import { Radius, Spacing } from '../../constants/theme';
@@ -9,20 +9,20 @@ import { AICategoryBadge } from './ai-category-badge';
 interface AsistenLeaveReviewPanelProps {
   leaveRequests: LeaveRequest[];
   canManage: boolean;
-  asistenId: string;
   onDecide: (
     praktikanId: string,
     decision: 'approved' | 'rejected',
     reviewNote?: string
   ) => Promise<void>;
-  onRetryAI?: (praktikanId: string, reason: string) => Promise<void>;
+  /** Klasifikasi AI dipicu asisten pengampu (FR-18). */
+  onClassify: (praktikanId: string, reason: string) => Promise<void>;
 }
 
 export function AsistenLeaveReviewPanel({
   leaveRequests,
   canManage,
   onDecide,
-  onRetryAI,
+  onClassify,
 }: AsistenLeaveReviewPanelProps) {
   const theme = useTheme();
 
@@ -31,6 +31,36 @@ export function AsistenLeaveReviewPanel({
   const [reviewNote, setReviewNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
+  const autoClassifiedRef = useRef<Set<string>>(new Set());
+  const classifyQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  // Jalankan klasifikasi sekali untuk setiap pengajuan pending yang belum
+  // memiliki hasil AI. Proses diantrekan agar inferensi on-device tidak
+  // dijalankan serentak. Kegagalan tidak diulang otomatis; asisten tetap dapat
+  // memicunya manual dari badge.
+  useEffect(() => {
+    if (!canManage) {
+      return;
+    }
+
+    for (const request of leaveRequests) {
+      if (request.status !== 'pending' || request.ai) {
+        continue;
+      }
+
+      const key = `${request.praktikanId}|${request.reason}`;
+      if (autoClassifiedRef.current.has(key)) {
+        continue;
+      }
+
+      autoClassifiedRef.current.add(key);
+      const praktikanId = request.praktikanId;
+      const reason = request.reason;
+      classifyQueueRef.current = classifyQueueRef.current
+        .then(() => onClassify(praktikanId, reason))
+        .catch(() => undefined);
+    }
+  }, [canManage, leaveRequests, onClassify]);
 
   if (leaveRequests.length === 0) {
     return null; // Tidak perlu tampil jika tidak ada permohonan izin
@@ -127,9 +157,9 @@ export function AsistenLeaveReviewPanel({
             {/* AI Classification Chip (FR-18) */}
             <AICategoryBadge
               ai={req.ai}
-              onRetry={
-                onRetryAI ? () => onRetryAI(req.praktikanId, req.reason) : undefined
-              }
+              onRetry={() => {
+                onClassify(req.praktikanId, req.reason).catch(() => undefined);
+              }}
             />
 
             {req.reviewNote ? (
