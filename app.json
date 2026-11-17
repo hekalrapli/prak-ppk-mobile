@@ -17,7 +17,6 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "googleServicesFile": "./google-services.json",
       "package": "com.revanssss.prakppkmobile"
     },
     "web": {
@@ -37,7 +36,10 @@
             "image": "./assets/images/splash-icon.png"
           }
         }
-      ]
+      ],
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
