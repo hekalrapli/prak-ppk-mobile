@@ -109,7 +109,7 @@ export function LeaveRequestModal({
             </View>
           </View>
 
-          <Text style={[styles.infoText, { color: theme.textTertiary }]}>
+          <Text style={[styles.infoText, { color: theme.textSecondary }]}>
             Alasan Anda akan dianalisis otomatis oleh AI sebagai informasi pendukung. Hasil analisis hanya dapat dilihat oleh asisten.
           </Text>
 
