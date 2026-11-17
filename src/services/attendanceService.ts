@@ -13,13 +13,13 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { AttendanceDoc } from '../types/attendance';
+import { AttendanceDoc, FirestoreTimestamp } from '../types/attendance';
 import { getHumanReadableErrorMessage } from './errorHandler';
 
 /**
  * Format server timestamp atau Date menjadi format HH:mm WIB
  */
-export function formatTimestampToTime(ts: any): string {
+export function formatTimestampToTime(ts: unknown): string {
   if (!ts) return '--:--';
   let date: Date;
   if (ts instanceof Timestamp) {
@@ -31,8 +31,18 @@ export function formatTimestampToTime(ts: any): string {
   } else if (typeof ts === 'string') {
     if (ts.includes(':') && ts.length <= 5) return ts; // sudah HH:mm
     date = new Date(ts);
-  } else if (ts && typeof ts.toDate === 'function') {
-    date = ts.toDate();
+  } else if (
+    typeof ts === 'object' &&
+    'toDate' in ts &&
+    typeof (ts as { toDate?: unknown }).toDate === 'function'
+  ) {
+    date = (ts as { toDate: () => Date }).toDate();
+  } else if (
+    typeof ts === 'object' &&
+    'seconds' in ts &&
+    typeof (ts as { seconds?: unknown }).seconds === 'number'
+  ) {
+    date = new Date((ts as { seconds: number }).seconds * 1000);
   } else {
     return '--:--';
   }
@@ -42,6 +52,28 @@ export function formatTimestampToTime(ts: any): string {
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
+}
+
+function parseTimestampValue(value: unknown): FirestoreTimestamp {
+  if (
+    value === null ||
+    value === undefined ||
+    value instanceof Timestamp ||
+    value instanceof Date ||
+    typeof value === 'number' ||
+    typeof value === 'string'
+  ) {
+    return value ?? null;
+  }
+  if (typeof value === 'object') {
+    if ('toDate' in value && typeof (value as { toDate?: unknown }).toDate === 'function') {
+      return value as Timestamp;
+    }
+    if ('seconds' in value && typeof (value as { seconds?: unknown }).seconds === 'number') {
+      return value as { seconds: number; nanoseconds?: number };
+    }
+  }
+  return null;
 }
 
 /**
@@ -82,7 +114,7 @@ function mapAttendanceDoc(
     praktikanName: String(data.praktikanName ?? 'Praktikan'),
     praktikanNim: String(data.praktikanNim ?? ''),
     status: 'present',
-    recordedAt: data.recordedAt,
+    recordedAt: parseTimestampValue(data.recordedAt),
     sessionId,
     practicumId,
   };

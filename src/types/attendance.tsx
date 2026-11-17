@@ -1,9 +1,18 @@
 // src/types/attendance.tsx
+import type { FieldValue, Timestamp } from 'firebase/firestore';
 
 export type UserRole = 'praktikan' | 'asisten';
 export type SessionStatus = 'upcoming' | 'open' | 'closed';
 export type AttendanceStatus = 'present';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
+export type FirestoreTimestamp =
+  | Timestamp
+  | FieldValue
+  | Date
+  | number
+  | string
+  | { seconds: number; nanoseconds?: number }
+  | null;
 
 export interface LeaveClassification {
   category: string; // kategori izin: positif / netral / negatif
@@ -26,9 +35,9 @@ export interface LeaveRequest {
   reason: string;
   status: LeaveStatus;
   ai?: LeaveClassification;
-  createdAt: any;
+  createdAt: FirestoreTimestamp;
   decidedBy?: string;
-  decidedAt?: any;
+  decidedAt?: FirestoreTimestamp;
   reviewNote?: string;
   sessionId?: string;
   practicumId?: string;
@@ -42,7 +51,7 @@ export interface AttendanceDoc {
   praktikanName: string;
   praktikanNim: string;
   status: AttendanceStatus;
-  recordedAt: any;
+  recordedAt: FirestoreTimestamp;
   sessionId?: string;
   practicumId?: string;
   practicumName?: string;
