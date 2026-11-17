@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
-import { Radius, Spacing } from '../../constants/theme';
+import { Radius, Shadow, Spacing, Typography } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
 
 type ToastType = 'success' | 'error';
@@ -88,7 +88,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               styles.toast,
               {
                 backgroundColor: theme.surface,
-                borderColor: accentColor,
                 opacity,
               },
             ]}>
@@ -134,13 +133,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    borderWidth: 1,
-    borderRadius: Radius.md,
+    borderRadius: Radius.card,
     padding: Spacing.three,
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    ...Shadow.soft,
   },
   icon: {
     width: 32,
@@ -150,5 +145,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconLabel: { fontSize: 18, fontWeight: '700', lineHeight: 22 },
-  message: { flex: 1, fontSize: 16, fontWeight: '600', lineHeight: 22 },
+  message: { flex: 1, ...Typography.bodyStrong, lineHeight: 22 },
 });

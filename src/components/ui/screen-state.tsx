@@ -1,7 +1,7 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/use-theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { AppButton } from './app-button';
 
 interface LoadingStateProps {
@@ -58,11 +58,10 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     padding: Spacing.four,
   },
-  label: { fontSize: 15, lineHeight: 22 },
-  title: { fontSize: 19, fontWeight: '600', lineHeight: 27, textAlign: 'center' },
+  label: { ...Typography.label, fontWeight: '400' },
+  title: { ...Typography.sectionTitle, textAlign: 'center' },
   message: {
-    fontSize: 16,
-    lineHeight: 24,
+    ...Typography.body,
     textAlign: 'center',
     maxWidth: 420,
   },

@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
-import { Radius, Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/use-theme';
+import { Radius, Shadow, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 interface SkeletonListProps {
   count?: number;
 }
 
 /**
- * Placeholder kartu saat data pertama kali dimuat. Memakai pulse opacity
- * sederhana agar tidak perlu dependensi animasi tambahan.
+ * Placeholder kartu saat data pertama kali dimuat. Pulse opacity sederhana,
+ * tanpa dependensi animasi tambahan.
  */
 export function SkeletonCardList({ count = 4 }: SkeletonListProps) {
   const theme = useTheme();
@@ -35,10 +35,7 @@ export function SkeletonCardList({ count = 4 }: SkeletonListProps) {
       {Array.from({ length: count }).map((_, index) => (
         <View
           key={index}
-          style={[
-            styles.card,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}>
+          style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
           <View style={styles.rowBetween}>
             <View style={[styles.line, styles.lineShort, { backgroundColor: theme.surfaceSubtle }]} />
             <View style={[styles.line, styles.lineTiny, { backgroundColor: theme.surfaceSubtle }]} />
@@ -61,8 +58,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   card: {
-    borderWidth: 1,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.card,
     padding: Spacing.three,
     gap: Spacing.two,
   },

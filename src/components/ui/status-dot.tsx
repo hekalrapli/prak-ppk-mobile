@@ -1,13 +1,15 @@
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/use-theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 export type StatusTone = 'neutral' | 'muted' | 'success' | 'warning' | 'error' | 'primary';
 
 interface StatusDotProps {
   label: string;
   tone?: StatusTone;
+  /** Warna teks; dipakai saat label berada di atas kartu pastel/koral. */
+  labelColor?: string;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -15,7 +17,7 @@ interface StatusDotProps {
  * Status tanpa chip warna: satu titik kecil berwarna + teks netral.
  * Warna hanya dipakai sebagai isyarat, bukan blok latar yang menyilaukan.
  */
-export function StatusDot({ label, tone = 'neutral', style }: StatusDotProps) {
+export function StatusDot({ label, tone = 'neutral', labelColor, style }: StatusDotProps) {
   const theme = useTheme();
 
   const color = {
@@ -30,7 +32,9 @@ export function StatusDot({ label, tone = 'neutral', style }: StatusDotProps) {
   return (
     <View style={[styles.container, style]}>
       <View style={[styles.dot, { backgroundColor: color }]} />
-      <Text style={[styles.label, { color: theme.textSecondary }]}>{label}</Text>
+      <Text style={[styles.label, { color: labelColor ?? theme.textSecondary }]}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -42,6 +46,6 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     maxWidth: '100%',
   },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  label: { fontSize: 13, fontWeight: '600', lineHeight: 18, flexShrink: 1 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  label: { ...Typography.caption, fontWeight: '600', flexShrink: 1 },
 });

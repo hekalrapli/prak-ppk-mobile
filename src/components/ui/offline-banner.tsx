@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 
-import { Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/use-theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 export function OfflineBanner() {
   const theme = useTheme();
@@ -33,10 +33,7 @@ export function OfflineBanner() {
   return (
     <View
       accessibilityRole="alert"
-      style={[
-        styles.banner,
-        { backgroundColor: theme.errorSoft, borderBottomColor: theme.error },
-      ]}>
+      style={[styles.banner, { backgroundColor: theme.errorSoft }]}>
       <Text style={[styles.text, { color: theme.error }]}>
         Anda sedang offline. Data cache tetap ditampilkan.
       </Text>
@@ -50,11 +47,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: 1,
     zIndex: 9999,
   },
   text: {
-    fontSize: 14,
+    ...Typography.caption,
     fontWeight: '600',
     textAlign: 'center',
   },

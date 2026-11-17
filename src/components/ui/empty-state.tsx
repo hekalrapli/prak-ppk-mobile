@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/use-theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { AppButton } from './app-button';
 
 interface EmptyStateProps {
@@ -21,8 +21,13 @@ export function EmptyState({
 
   return (
     <View style={styles.container}>
+      <View style={[styles.badge, { backgroundColor: theme.surfaceSubtle }]}>
+        <View style={[styles.badgeDot, { backgroundColor: theme.accent }]} />
+      </View>
       <Text style={[styles.title, { color: theme.textPrimary }]}>{title}</Text>
-      <Text style={[styles.description, { color: theme.textSecondary }]}>{description}</Text>
+      <Text style={[styles.description, { color: theme.textSecondary }]}>
+        {description}
+      </Text>
       {actionLabel && onAction ? (
         <View style={styles.action}>
           <AppButton label={actionLabel} onPress={onAction} />
@@ -39,10 +44,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
   },
-  title: { fontSize: 19, fontWeight: '600', lineHeight: 27, textAlign: 'center' },
+  badge: {
+    width: 56,
+    height: 56,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.two,
+  },
+  badgeDot: { width: 14, height: 14, borderRadius: 7 },
+  title: { ...Typography.sectionTitle, textAlign: 'center' },
   description: {
-    fontSize: 16,
-    lineHeight: 24,
+    ...Typography.body,
     textAlign: 'center',
     maxWidth: 420,
   },
