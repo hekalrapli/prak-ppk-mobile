@@ -1,8 +1,7 @@
-// src/components/attendance/attendance-recap.tsx
 import { useMemo } from 'react';
-import { StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
 
+import { Radius } from '@/constants/theme';
 import { useSessionAttendance } from '@/hooks/use-session-attendance';
 import { useSessionLeave } from '@/hooks/use-session-leave';
 import { useTheme } from '@/hooks/use-theme';
@@ -32,9 +31,7 @@ export function AttendanceRecap({ practicum, session }: AttendanceRecapProps) {
   );
 
   return (
-    <SafeAreaView
-      edges={['bottom']}
-      style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.sheet, { backgroundColor: theme.background }]}>
       <SessionRecapList
         practicum={practicum}
         session={session}
@@ -46,10 +43,16 @@ export function AttendanceRecap({ practicum, session }: AttendanceRecapProps) {
           leave.retry();
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  sheet: {
+    flex: 1,
+    marginTop: -24,
+    borderTopLeftRadius: Radius.sheet,
+    borderTopRightRadius: Radius.sheet,
+    overflow: 'hidden',
+  },
 });

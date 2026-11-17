@@ -1,17 +1,16 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
 
 import { AttendanceRecap } from '@/components/attendance/attendance-recap';
+import { DetailScreen } from '@/components/ui/detail-screen';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState, LoadingState } from '@/components/ui/screen-state';
 import { Spacing } from '@/constants/theme';
 import { useSessionDetail } from '@/hooks/use-session-detail';
-import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth-context';
 
 export default function AsistenRecapScreen() {
   const router = useRouter();
-  const theme = useTheme();
   const { profile } = useAuth();
   const { sessionId, practicumId } = useLocalSearchParams<{
     sessionId: string;
@@ -24,16 +23,16 @@ export default function AsistenRecapScreen() {
   );
 
   const renderFallback = () => (
-    <SafeAreaView
-      edges={['bottom']}
-      style={[styles.container, { backgroundColor: theme.background }]}>
-      <EmptyState
-        title="Sesi tidak ditemukan"
-        description="Rekap hanya dapat dibuka dari sesi yang Anda ampu."
-        actionLabel="Kembali ke jadwal"
-        onAction={() => router.replace('/asisten')}
-      />
-    </SafeAreaView>
+    <DetailScreen title="Rekap Kehadiran">
+      <View style={styles.fallback}>
+        <EmptyState
+          title="Sesi tidak ditemukan"
+          description="Rekap hanya dapat dibuka dari sesi yang Anda ampu."
+          actionLabel="Kembali ke jadwal"
+          onAction={() => router.replace('/asisten')}
+        />
+      </View>
+    </DetailScreen>
   );
 
   if (!practicumId) {
@@ -42,21 +41,21 @@ export default function AsistenRecapScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView
-        edges={['bottom']}
-        style={[styles.container, { backgroundColor: theme.background }]}>
-        <LoadingState label="Memuat rekap kehadiran…" />
-      </SafeAreaView>
+      <DetailScreen title="Rekap Kehadiran">
+        <View style={styles.fallback}>
+          <LoadingState label="Memuat rekap kehadiran…" />
+        </View>
+      </DetailScreen>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView
-        edges={['bottom']}
-        style={[styles.container, { backgroundColor: theme.background }]}>
-        <ErrorState message={error} onRetry={retry} />
-      </SafeAreaView>
+      <DetailScreen title="Rekap Kehadiran">
+        <View style={styles.fallback}>
+          <ErrorState message={error} onRetry={retry} />
+        </View>
+      </DetailScreen>
     );
   }
 
@@ -69,9 +68,13 @@ export default function AsistenRecapScreen() {
     return <Redirect href="/asisten" />;
   }
 
-  return <AttendanceRecap practicum={practicum} session={session} />;
+  return (
+    <DetailScreen title="Rekap Kehadiran">
+      <AttendanceRecap practicum={practicum} session={session} />
+    </DetailScreen>
+  );
 }
 
-const styles = {
-  container: { flex: 1, justifyContent: 'center' as const, padding: Spacing.three },
-};
+const styles = StyleSheet.create({
+  fallback: { flex: 1, justifyContent: 'center', padding: Spacing.three },
+});

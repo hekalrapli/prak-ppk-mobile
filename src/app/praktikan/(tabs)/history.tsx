@@ -1,8 +1,6 @@
-// src/app/praktikan/history.tsx
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AttendanceRecordItem } from '@/components/attendance/attendance-record-item';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -10,7 +8,8 @@ import { ErrorState } from '@/components/ui/screen-state';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { SkeletonCardList } from '@/components/ui/skeleton';
 import { StatusDot } from '@/components/ui/status-dot';
-import { Radius, Spacing } from '@/constants/theme';
+import { TabScreen } from '@/components/ui/tab-screen';
+import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useAttendanceHistory, useLeaveHistory } from '@/hooks/use-history';
 import { usePracticumFeed } from '@/hooks/use-practicum-feed';
 import { useTheme } from '@/hooks/use-theme';
@@ -113,36 +112,31 @@ export default function PraktikanHistoryScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView
-        edges={['bottom']}
-        style={[styles.container, { backgroundColor: theme.background }]}>
+      <TabScreen title="Riwayat">
         <SkeletonCardList count={4} />
-      </SafeAreaView>
+      </TabScreen>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView
-        edges={['bottom']}
-        style={[styles.container, { backgroundColor: theme.background }]}>
+      <TabScreen title="Riwayat">
         <ErrorState message={error} onRetry={retry} />
-      </SafeAreaView>
+      </TabScreen>
     );
   }
 
   return (
-    <SafeAreaView
-      edges={['bottom']}
-      style={[styles.container, { backgroundColor: theme.background }]}>
+    <TabScreen title="Riwayat">
       {activeTab === 'attendance' ? (
         <FlatList
           data={entries}
           keyExtractor={(item) => `${item.record.practicumId}-${item.record.sessionId}`}
+          style={styles.list}
           contentContainerStyle={styles.content}
           refreshControl={
             <RefreshControl
-              colors={[theme.textPrimary]}
+              colors={[theme.primary]}
               onRefresh={feed.refresh}
               refreshing={feed.refreshing}
               tintColor={theme.textSecondary}
@@ -155,45 +149,34 @@ export default function PraktikanHistoryScreen() {
               description="Catat kehadiran untuk melihat riwayat."
             />
           }
-          renderItem={({ item, index }) => {
-            const isFirst = index === 0;
-            const isLast = index === entries.length - 1;
-
-            return (
-              <View
-                style={[
-                  styles.groupItem,
-                  { backgroundColor: theme.surface, borderColor: theme.border },
-                  isFirst && styles.groupFirst,
-                  isLast && styles.groupLast,
-                  !isLast && styles.groupDivider,
-                ]}>
-                <AttendanceRecordItem
-                  name={item.practicum.name}
-                  meta={item.session.date}
-                  recordedAt={formatTimestampToTime(item.record.recordedAt)}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/praktikan/session/[sessionId]',
-                      params: {
-                        sessionId: item.session.id,
-                        practicumId: item.practicum.id,
-                      },
-                    })
-                  }
-                />
-              </View>
-            );
-          }}
+          renderItem={({ item }) => (
+            <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
+              <AttendanceRecordItem
+                meta={item.session.date}
+                name={item.practicum.name}
+                onPress={() =>
+                  router.push({
+                    pathname: '/praktikan/session/[sessionId]',
+                    params: {
+                      sessionId: item.session.id,
+                      practicumId: item.practicum.id,
+                    },
+                  })
+                }
+                recordedAt={formatTimestampToTime(item.record.recordedAt)}
+              />
+            </View>
+          )}
         />
       ) : (
         <FlatList
           data={leaveEntries}
           keyExtractor={(item) => `${item.request.practicumId}-${item.request.sessionId}`}
+          style={styles.list}
           contentContainerStyle={styles.content}
           refreshControl={
             <RefreshControl
-              colors={[theme.textPrimary]}
+              colors={[theme.primary]}
               onRefresh={feed.refresh}
               refreshing={feed.refreshing}
               tintColor={theme.textSecondary}
@@ -211,11 +194,7 @@ export default function PraktikanHistoryScreen() {
             const isApproved = item.request.status === 'approved';
 
             return (
-              <View
-                style={[
-                  styles.leaveCard,
-                  { backgroundColor: theme.surface, borderColor: theme.border },
-                ]}>
+              <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
                 <View style={styles.leaveHeader}>
                   <Text style={[styles.leaveTitle, { color: theme.textPrimary }]}>
                     {item.practicum?.name ?? 'Praktikum'}
@@ -251,37 +230,25 @@ export default function PraktikanHistoryScreen() {
           }}
         />
       )}
-    </SafeAreaView>
+    </TabScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  list: { flex: 1 },
   content: {
     padding: Spacing.three,
     paddingBottom: Spacing.five,
+    gap: Spacing.two,
     maxWidth: 560,
     alignSelf: 'center',
     width: '100%',
   },
-  header: { gap: Spacing.two, marginBottom: Spacing.three },
-  groupItem: { borderLeftWidth: 1, borderRightWidth: 1 },
-  groupFirst: {
-    borderTopWidth: 1,
-    borderTopLeftRadius: Radius.lg,
-    borderTopRightRadius: Radius.lg,
-  },
-  groupLast: {
-    borderBottomWidth: 1,
-    borderBottomLeftRadius: Radius.lg,
-    borderBottomRightRadius: Radius.lg,
-  },
-  groupDivider: { borderBottomWidth: 1 },
-  leaveCard: {
-    borderWidth: 1,
-    borderRadius: Radius.lg,
+  header: { gap: Spacing.two, marginTop: Spacing.two, marginBottom: Spacing.two },
+  card: {
+    borderRadius: Radius.card,
     padding: Spacing.three,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two,
   },
   leaveHeader: {
     flexDirection: 'row',
@@ -290,32 +257,32 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   leaveTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...Typography.cardTitle,
     flex: 1,
+    minWidth: 0,
   },
   leaveMeta: {
-    fontSize: 13,
+    ...Typography.caption,
     marginTop: 2,
     marginBottom: 4,
   },
   reasonText: {
-    fontSize: 15,
+    ...Typography.body,
     fontStyle: 'italic',
     marginTop: 4,
     marginBottom: 4,
   },
   noteBox: {
     padding: Spacing.two,
-    borderRadius: Radius.sm,
+    borderRadius: Radius.md,
     marginTop: Spacing.two,
   },
   noteLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...Typography.caption,
+    fontWeight: '700',
   },
   noteContent: {
-    fontSize: 13,
+    ...Typography.caption,
     marginTop: 2,
   },
 });

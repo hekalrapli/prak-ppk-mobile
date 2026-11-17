@@ -63,7 +63,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView
       edges={['bottom']}
-      style={[styles.container, { backgroundColor: theme.background }]}>
+      style={[styles.container, { backgroundColor: theme.surfaceWarm }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}>
@@ -131,7 +131,7 @@ export default function LoginScreen() {
         <View
           style={[
             styles.footer,
-            { backgroundColor: theme.background, borderTopColor: theme.border },
+            { backgroundColor: theme.surfaceWarm, borderTopColor: theme.border },
           ]}>
           <View style={styles.footerContent}>
             <AppButton
@@ -162,8 +162,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 30, fontWeight: '700', lineHeight: 38 },
   fields: { gap: Spacing.three },
   errorPanel: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     padding: Spacing.three,
   },
   errorText: { fontSize: 15, lineHeight: 22 },
