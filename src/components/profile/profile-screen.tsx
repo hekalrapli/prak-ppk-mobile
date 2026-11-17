@@ -4,15 +4,23 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui/app-button';
+import { SegmentedControl, SegmentOption } from '@/components/ui/segmented-control';
 import { Radius, Spacing } from '@/constants/theme';
 import { usePracticumFeed } from '@/hooks/use-practicum-feed';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth-context';
+import { useThemeMode, type ThemeMode } from '@/store/theme-context';
 import type { UserRole } from '@/types/attendance';
 
 interface ProfileScreenProps {
   role: UserRole;
 }
+
+const THEME_OPTIONS: SegmentOption<ThemeMode>[] = [
+  { value: 'system', label: 'Sistem' },
+  { value: 'light', label: 'Terang' },
+  { value: 'dark', label: 'Gelap' },
+];
 
 function initialsOf(name: string) {
   return name
@@ -26,6 +34,7 @@ function initialsOf(name: string) {
 export function ProfileScreen({ role }: ProfileScreenProps) {
   const theme = useTheme();
   const { profile, logout } = useAuth();
+  const { mode, setMode } = useThemeMode();
   const { practicums, loading, error } = usePracticumFeed(role, profile?.uid);
   const [leaving, setLeaving] = useState(false);
 
@@ -130,6 +139,24 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
           )}
         </View>
 
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}>
+          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
+            Tampilan aplikasi
+          </Text>
+          <Text style={[styles.helperText, { color: theme.textSecondary }]}>
+            Pilih tema terang, gelap, atau ikuti pengaturan perangkat.
+          </Text>
+          <SegmentedControl<ThemeMode>
+            options={THEME_OPTIONS}
+            value={mode}
+            onChange={setMode}
+          />
+        </View>
+
         <View style={styles.actions}>
           <AppButton
             label={leaving ? 'Keluar…' : 'Keluar dari akun'}
@@ -204,6 +231,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   sectionTitle: { fontSize: 15, fontWeight: '700', lineHeight: 22 },
+  helperText: { fontSize: 13, lineHeight: 18 },
   emptyText: { fontSize: 14, lineHeight: 20 },
   practicumRow: {
     flexDirection: 'row',

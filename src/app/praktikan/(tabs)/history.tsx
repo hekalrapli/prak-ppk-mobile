@@ -1,19 +1,13 @@
 // src/app/praktikan/history.tsx
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import {
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AttendanceRecordItem } from '@/components/attendance/attendance-record-item';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/screen-state';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { SkeletonCardList } from '@/components/ui/skeleton';
 import { StatusDot } from '@/components/ui/status-dot';
 import { Radius, Spacing } from '@/constants/theme';
@@ -106,40 +100,14 @@ export default function PraktikanHistoryScreen() {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <View
-        style={[
-          styles.tabBar,
-          { backgroundColor: theme.surfaceSubtle, borderColor: theme.border },
-        ]}>
-        <TouchableOpacity
-          accessibilityRole="button"
-          style={[styles.tabBtn, activeTab === 'attendance' && { backgroundColor: theme.surface }]}
-          onPress={() => setActiveTab('attendance')}>
-          <Text
-            style={[
-              styles.tabBtnText,
-              {
-                color:
-                  activeTab === 'attendance' ? theme.textPrimary : theme.textSecondary,
-              },
-            ]}>
-            Kehadiran ({entries.length})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          accessibilityRole="button"
-          style={[styles.tabBtn, activeTab === 'leave' && { backgroundColor: theme.surface }]}
-          onPress={() => setActiveTab('leave')}>
-          <Text
-            style={[
-              styles.tabBtnText,
-              { color: activeTab === 'leave' ? theme.textPrimary : theme.textSecondary },
-            ]}>
-            Izin Saya ({leaveEntries.length})
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <SegmentedControl<'attendance' | 'leave'>
+        options={[
+          { value: 'attendance', label: 'Kehadiran', count: entries.length },
+          { value: 'leave', label: 'Izin Saya', count: leaveEntries.length },
+        ]}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
 
       <Text style={[styles.caption, { color: theme.textSecondary }]}>
         {activeTab === 'attendance'
@@ -303,23 +271,6 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   header: { gap: Spacing.two, marginBottom: Spacing.three },
-  tabBar: {
-    flexDirection: 'row',
-    borderRadius: Radius.md,
-    padding: 3,
-    borderWidth: 1,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: Spacing.two,
-    borderRadius: Radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
   caption: { fontSize: 13, lineHeight: 18, marginTop: 2 },
   groupItem: { borderLeftWidth: 1, borderRightWidth: 1 },
   groupFirst: {
