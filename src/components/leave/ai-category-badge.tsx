@@ -64,32 +64,42 @@ export function AICategoryBadge({ ai, onRetry, isRetrying }: AICategoryBadgeProp
     : `Kategori AI: ${CATEGORY_LABEL[ai.category] ?? 'Netral'}${confidencePercent}`;
 
   return (
-    <View style={styles.container}>
-      <StatusDot label={label} tone={tone} />
-      {isFailed && onRetry ? (
-        <TouchableOpacity disabled={isRetrying} hitSlop={8} onPress={onRetry}>
-          <Text style={[styles.action, { color: theme.primary }]}>
-            {isRetrying ? 'Mencoba…' : 'Coba ulang'}
-          </Text>
-        </TouchableOpacity>
-      ) : null}
+    <View style={styles.block}>
+      <View style={styles.container}>
+        <StatusDot label={label} tone={tone} />
+        {isFailed && onRetry ? (
+          <TouchableOpacity disabled={isRetrying} hitSlop={8} onPress={onRetry}>
+            <Text style={[styles.action, { color: theme.primary }]}>
+              {isRetrying ? 'Mencoba…' : 'Coba ulang'}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      <Text style={[styles.disclaimer, { color: theme.textSecondary }]}>
+        Prediksi otomatis, bukan keputusan.
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  block: {
+    marginTop: Spacing.two,
+    gap: Spacing.half,
+  },
   container: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: Spacing.two,
-    marginTop: Spacing.two,
-    paddingVertical: Spacing.half,
   },
   action: {
     ...Typography.caption,
     fontWeight: '700',
     textDecorationLine: 'underline',
+  },
+  disclaimer: {
+    ...Typography.caption,
   },
 });

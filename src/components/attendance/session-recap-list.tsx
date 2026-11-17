@@ -61,6 +61,7 @@ export function SessionRecapList({
     <FlatList
       data={entries}
       keyExtractor={(item) => item.id}
+      style={styles.list}
       contentContainerStyle={styles.content}
       ListHeaderComponent={renderHeader}
       ListEmptyComponent={
@@ -98,6 +99,7 @@ export function SessionRecapList({
 }
 
 const styles = StyleSheet.create({
+  list: { flex: 1 },
   content: {
     padding: Spacing.three,
     paddingBottom: Spacing.five,

@@ -150,7 +150,7 @@ export default function PraktikanHistoryScreen() {
             />
           }
           renderItem={({ item }) => (
-            <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
+            <View style={[styles.recordCard, Shadow.soft, { backgroundColor: theme.surface }]}>
               <AttendanceRecordItem
                 meta={item.session.date}
                 name={item.practicum.name}
@@ -194,7 +194,7 @@ export default function PraktikanHistoryScreen() {
             const isApproved = item.request.status === 'approved';
 
             return (
-              <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
+              <View style={[styles.leaveCard, Shadow.soft, { backgroundColor: theme.surface }]}>
                 <View style={styles.leaveHeader}>
                   <Text style={[styles.leaveTitle, { color: theme.textPrimary }]}>
                     {item.practicum?.name ?? 'Praktikum'}
@@ -245,10 +245,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   header: { gap: Spacing.two, marginTop: Spacing.two, marginBottom: Spacing.two },
-  card: {
+  recordCard: {
+    borderRadius: Radius.card,
+  },
+  leaveCard: {
     borderRadius: Radius.card,
     padding: Spacing.three,
-    marginBottom: Spacing.two,
   },
   leaveHeader: {
     flexDirection: 'row',
