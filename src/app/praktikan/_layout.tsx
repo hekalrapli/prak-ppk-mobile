@@ -17,7 +17,10 @@ export default function PraktikanLayout() {
           contentStyle: { backgroundColor: theme.background },
         }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="session/[sessionId]" options={{ title: 'Detail Sesi' }} />
+        <Stack.Screen
+          name="session/[sessionId]"
+          options={{ headerShown: false }}
+        />
       </Stack>
     </RoleGuard>
   );

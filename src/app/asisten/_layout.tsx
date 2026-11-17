@@ -17,8 +17,14 @@ export default function AsistenLayout() {
           contentStyle: { backgroundColor: theme.background },
         }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="session/[sessionId]/index" options={{ title: 'Kelola Sesi' }} />
-        <Stack.Screen name="session/[sessionId]/recap" options={{ title: 'Rekap Kehadiran' }} />
+        <Stack.Screen
+          name="session/[sessionId]/index"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="session/[sessionId]/recap"
+          options={{ headerShown: false }}
+        />
       </Stack>
     </RoleGuard>
   );
