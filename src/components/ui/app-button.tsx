@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   text: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
   },
 });

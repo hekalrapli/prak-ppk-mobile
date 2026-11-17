@@ -121,11 +121,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   cardTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
   },
   reasonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontStyle: 'italic',
     marginTop: 2,
     marginBottom: Spacing.two,
@@ -136,11 +136,11 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
   },
   reviewNoteTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   reviewNoteText: {
-    fontSize: 13,
+    fontSize: 14,
     marginTop: 2,
   },
   actionRow: {
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
   },
   smallBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
 });

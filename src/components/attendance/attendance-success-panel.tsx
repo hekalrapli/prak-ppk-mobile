@@ -49,6 +49,6 @@ const styles = StyleSheet.create({
   },
   checkLabel: { fontSize: 18, fontWeight: '700', lineHeight: 22 },
   body: { flex: 1, gap: Spacing.half },
-  title: { fontSize: 16, fontWeight: '600', lineHeight: 22 },
-  time: { fontSize: 16, fontWeight: '600', lineHeight: 24, fontVariant: ['tabular-nums'] },
+  title: { fontSize: 17, fontWeight: '600', lineHeight: 24 },
+  time: { fontSize: 17, fontWeight: '600', lineHeight: 24, fontVariant: ['tabular-nums'] },
 });

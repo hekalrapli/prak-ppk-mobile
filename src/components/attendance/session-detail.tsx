@@ -255,7 +255,6 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
           <StatusGuidance
             role={role}
             status={session.status}
-            sessionName={practicum.name}
             openedAt={session.openedAt}
             closedAt={session.closedAt}
             hasAttended={Boolean(attendanceRecord)}
@@ -284,10 +283,6 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
 
       {visibleTab === 'izin' ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-          <Text style={[styles.caption, { color: theme.textSecondary }]}>
-            Pengajuan izin untuk {practicum.name} · {session.date}
-          </Text>
-
           {leaveError ? <InlineError message={leaveError} onRetry={retryLeave} /> : null}
 
           {leaveLoading ? (
@@ -296,7 +291,7 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
             leaveRequests.length === 0 ? (
               <EmptyState
                 title="Belum ada pengajuan izin"
-                description="Pengajuan izin dari praktikan pada sesi ini akan muncul di sini."
+                description="Pengajuan izin praktikan akan muncul di sini."
               />
             ) : (
               <AsistenLeaveReviewPanel
@@ -347,8 +342,8 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
               title="Belum ada pengajuan izin"
               description={
                 session.status === 'closed'
-                  ? 'Sesi telah ditutup sehingga izin tidak dapat diajukan lagi.'
-                  : 'Ajukan izin bila Anda tidak dapat mengikuti sesi ini.'
+                  ? 'Sesi sudah ditutup.'
+                  : 'Ajukan izin bila berhalangan hadir.'
               }
               actionLabel={session.status === 'closed' ? undefined : 'Ajukan izin'}
               onAction={
@@ -507,14 +502,12 @@ function InlineError({ message, onRetry }: { message: string; onRetry: () => voi
 function StatusGuidance({
   role,
   status,
-  sessionName,
   openedAt,
   closedAt,
   hasAttended,
 }: {
   role: UserRole;
   status: SessionStatus;
-  sessionName: string;
   openedAt?: string;
   closedAt?: string;
   hasAttended: boolean;
@@ -532,16 +525,10 @@ function StatusGuidance({
           Sesi sedang dibuka
         </Text>
         <Text style={[styles.body, { color: theme.textSecondary }]}>
-          {role === 'praktikan' && hasAttended
-            ? `Kehadiran Anda pada ${sessionName} sudah tercatat.`
-            : `Presensi ${sessionName} tersedia sampai asisten menutup sesi.`}
-          {openedAt ? ` Dibuka pukul ${openedAt}.` : ''}
+          {hasAttended
+            ? `Kehadiran Anda sudah tercatat${openedAt ? ` pukul ${openedAt}` : ''}.`
+            : 'Presensi tersedia sampai asisten menutup sesi.'}
         </Text>
-        {role === 'asisten' ? (
-          <Text style={[styles.body, { color: theme.textSecondary }]}>
-            Tutup sesi setelah periode presensi selesai.
-          </Text>
-        ) : null}
       </View>
     );
   }
@@ -557,16 +544,9 @@ function StatusGuidance({
           Sesi telah ditutup
         </Text>
         <Text style={[styles.body, { color: theme.textSecondary }]}>
-          {role === 'praktikan' && hasAttended
-            ? `Kehadiran Anda pada ${sessionName} tetap tercatat meskipun sesi telah ditutup.`
-            : `Presensi ${sessionName} tidak lagi diterima.`}
+          {hasAttended ? 'Kehadiran Anda tetap tercatat.' : 'Presensi tidak lagi diterima.'}
           {closedAt ? ` Ditutup pukul ${closedAt}.` : ''}
         </Text>
-        {role === 'asisten' ? (
-          <Text style={[styles.body, { color: theme.textSecondary }]}>
-            Sesi yang sudah ditutup tidak dapat dibuka kembali.
-          </Text>
-        ) : null}
       </View>
     );
   }
@@ -582,14 +562,9 @@ function StatusGuidance({
       </Text>
       <Text style={[styles.body, { color: theme.textSecondary }]}>
         {role === 'asisten'
-          ? 'Buka sesi agar status berubah menjadi Dibuka.'
-          : `Asisten belum membuka presensi untuk ${sessionName}.`}
+          ? 'Buka sesi agar presensi dapat dicatat.'
+          : 'Presensi tersedia setelah asisten membuka sesi.'}
       </Text>
-      {role === 'praktikan' ? (
-        <Text style={[styles.body, { color: theme.textSecondary }]}>
-          Presensi akan tersedia setelah asisten membuka sesi.
-        </Text>
-      ) : null}
     </View>
   );
 }
@@ -619,26 +594,25 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: Spacing.two,
   },
-  date: { flexShrink: 1, fontSize: 12, fontWeight: '500' },
-  title: { fontSize: 20, fontWeight: '700', lineHeight: 28 },
-  meta: { fontSize: 14, lineHeight: 20 },
-  time: { fontSize: 16, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  date: { flexShrink: 1, fontSize: 13, fontWeight: '500' },
+  title: { fontSize: 22, fontWeight: '700', lineHeight: 30 },
+  meta: { fontSize: 15, lineHeight: 22 },
+  time: { fontSize: 17, fontWeight: '600', fontVariant: ['tabular-nums'] },
   divider: { height: 1, marginVertical: Spacing.one },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },
-  detailLabel: { fontSize: 14 },
-  detailValue: { flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'right' },
+  detailLabel: { fontSize: 15 },
+  detailValue: { flexShrink: 1, fontSize: 15, fontWeight: '600', textAlign: 'right' },
   guidance: { borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.three, gap: Spacing.two },
-  guidanceTitle: { fontSize: 18, fontWeight: '600', lineHeight: 26 },
-  body: { fontSize: 16, lineHeight: 24 },
-  caption: { fontSize: 13, lineHeight: 18 },
+  guidanceTitle: { fontSize: 20, fontWeight: '600', lineHeight: 28 },
+  body: { fontSize: 17, lineHeight: 25 },
   inlineError: {
     borderWidth: 1,
     borderRadius: Radius.md,
     padding: Spacing.three,
     gap: Spacing.one,
   },
-  inlineErrorText: { fontSize: 14, lineHeight: 20 },
-  inlineErrorAction: { fontSize: 14, fontWeight: '600' },
+  inlineErrorText: { fontSize: 15, lineHeight: 22 },
+  inlineErrorAction: { fontSize: 15, fontWeight: '600' },
   footer: {
     borderTopWidth: 1,
     padding: Spacing.three,

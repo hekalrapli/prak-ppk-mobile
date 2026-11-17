@@ -13,7 +13,7 @@ export default function PraktikanLayout() {
           headerStyle: { backgroundColor: theme.background },
           headerShadowVisible: false,
           headerTintColor: theme.textPrimary,
-          headerTitleStyle: { fontSize: 18, fontWeight: '600' },
+          headerTitleStyle: { fontSize: 19, fontWeight: '600' },
           contentStyle: { backgroundColor: theme.background },
         }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

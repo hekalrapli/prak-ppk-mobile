@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
   },
-  title: { fontSize: 18, fontWeight: '600', lineHeight: 26, textAlign: 'center' },
+  title: { fontSize: 19, fontWeight: '600', lineHeight: 27, textAlign: 'center' },
   description: {
     fontSize: 16,
     lineHeight: 24,

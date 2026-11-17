@@ -4,7 +4,6 @@ import { Session, Practicum } from '../../types/attendance';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
 import { StatusBadge } from '../ui/status-badge';
-import { StatusDot } from '../ui/status-dot';
 
 interface ScheduleListItemProps {
   session: Session;
@@ -54,33 +53,12 @@ export const ScheduleListItem: React.FC<ScheduleListItemProps> = ({
   );
 };
 
-// Komponen Legend (Penjelasan Status)
-export const StatusLegend = () => {
-  return (
-    <View style={styles.legendContainer}>
-      <StatusDot
-        label="Belum dibuka — asisten belum membuka presensi"
-        tone="muted"
-      />
-      <StatusDot
-        label="Dibuka — presensi dapat dicatat sampai sesi ditutup"
-        tone="success"
-      />
-      <StatusDot
-        label="Ditutup — sesi selesai, presensi tidak tersedia"
-        tone="neutral"
-      />
-    </View>
-  );
-};
-
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.three, marginBottom: Spacing.two },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.two },
-  date: { fontSize: 12, fontWeight: '500' },
-  title: { fontSize: 16, fontWeight: '600', marginBottom: Spacing.one },
-  meta: { fontSize: 14, marginBottom: Spacing.one },
-  assistant: { fontSize: 14, lineHeight: 20, marginBottom: Spacing.one },
-  time: { fontSize: 16, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  legendContainer: { marginTop: Spacing.three, paddingHorizontal: Spacing.one, gap: Spacing.two },
+  date: { fontSize: 13, fontWeight: '500' },
+  title: { fontSize: 17, fontWeight: '600', marginBottom: Spacing.one },
+  meta: { fontSize: 15, marginBottom: Spacing.one },
+  assistant: { fontSize: 15, lineHeight: 22, marginBottom: Spacing.one },
+  time: { fontSize: 17, fontWeight: '600', fontVariant: ['tabular-nums'] },
 });

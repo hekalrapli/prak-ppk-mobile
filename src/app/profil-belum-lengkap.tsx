@@ -35,7 +35,7 @@ export default function ProfileMissingScreen() {
       <View style={styles.content}>
         <EmptyState
           actionLabel={leaving ? 'Keluar…' : 'Keluar'}
-          description="Akun ini berhasil login, tetapi dokumen profil users/{uid} belum ada atau belum berisi peran. Hubungi pengelola untuk melengkapi profil, lalu masuk kembali."
+          description="Dokumen profil akun Anda belum lengkap. Hubungi pengelola, lalu masuk kembali."
           onAction={handleLogout}
           title="Profil pengguna belum lengkap"
         />

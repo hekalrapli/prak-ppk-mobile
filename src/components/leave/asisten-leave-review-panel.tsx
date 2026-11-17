@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.four,
   },
   title: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     marginBottom: Spacing.three,
   },
@@ -270,20 +270,20 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.one,
   },
   studentName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
   },
   studentNim: {
-    fontSize: 12,
+    fontSize: 13,
   },
   reasonText: {
-    fontSize: 13,
+    fontSize: 14,
     fontStyle: 'italic',
     marginTop: 2,
     marginBottom: 4,
   },
   noteText: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 4,
   },
   actionRow: {
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   btnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   modalOverlay: {
@@ -320,19 +320,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
     marginBottom: 4,
   },
   modalDesc: {
-    fontSize: 13,
+    fontSize: 14,
     marginBottom: Spacing.three,
   },
   noteInputContainer: {
     marginBottom: Spacing.three,
   },
   inputLabel: {
-    fontSize: 12,
+    fontSize: 13,
     marginBottom: 4,
   },
   noteInput: {
@@ -341,10 +341,10 @@ const styles = StyleSheet.create({
     padding: Spacing.two,
     height: 70,
     textAlignVertical: 'top',
-    fontSize: 13,
+    fontSize: 14,
   },
   errorText: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 4,
   },
   modalActions: {

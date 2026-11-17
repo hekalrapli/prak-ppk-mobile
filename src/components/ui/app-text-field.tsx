@@ -80,15 +80,15 @@ export function AppTextField({
 
 const styles = StyleSheet.create({
   container: { gap: Spacing.two },
-  label: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  label: { fontSize: 15, fontWeight: '600', lineHeight: 22 },
   input: {
     minHeight: 52,
     borderWidth: 1,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 17,
+    lineHeight: 24,
   },
-  caption: { fontSize: 12, lineHeight: 16 },
+  caption: { fontSize: 13, lineHeight: 18 },
 });

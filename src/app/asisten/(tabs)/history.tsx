@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScheduleListItem } from '@/components/attendance/schedule-list-item';
@@ -73,19 +73,10 @@ export default function AsistenHistoryScreen() {
             tintColor={theme.textSecondary}
           />
         }
-        ListHeaderComponent={
-          rows.length > 0 ? (
-            <View style={styles.header}>
-              <Text style={[styles.caption, { color: theme.textSecondary }]}>
-                Sesi yang sudah ditutup. Buka kartu untuk melihat rekap kehadiran.
-              </Text>
-            </View>
-          ) : undefined
-        }
         ListEmptyComponent={
           <EmptyState
             title="Belum ada riwayat"
-            description="Sesi yang telah Anda tutup akan muncul di sini beserta rekap kehadirannya."
+            description="Sesi yang telah Anda tutup akan muncul di sini."
           />
         }
         renderItem={({ item }) => (
@@ -118,6 +109,4 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
   },
-  header: { marginBottom: Spacing.three },
-  caption: { fontSize: 13, lineHeight: 18 },
 });

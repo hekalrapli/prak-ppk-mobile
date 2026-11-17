@@ -41,6 +41,6 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     justifyContent: 'center',
   },
-  roleTitle: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
-  roleDesc: { fontSize: 14 },
+  roleTitle: { fontSize: 17, fontWeight: '600', marginBottom: 4 },
+  roleDesc: { fontSize: 15 },
 });

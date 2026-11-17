@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ScheduleListItem, StatusLegend } from '@/components/attendance/schedule-list-item';
+import { ScheduleListItem } from '@/components/attendance/schedule-list-item';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/screen-state';
 import { SkeletonCardList } from '@/components/ui/skeleton';
@@ -90,11 +90,10 @@ export default function PraktikanScheduleScreen() {
           />
         }
         ListHeaderComponent={renderHeader}
-        ListFooterComponent={rows.length > 0 ? <StatusLegend /> : undefined}
         ListEmptyComponent={
           <EmptyState
             title="Belum ada jadwal"
-            description="Belum ada sesi untuk praktikum yang Anda ikuti. Pastikan Anda sudah terdaftar sebagai peserta dan jadwal sesi sudah dibuat."
+            description="Belum ada sesi untuk praktikum yang Anda ikuti."
           />
         }
         renderItem={({ item }) => (
@@ -128,11 +127,11 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   header: { marginBottom: Spacing.three },
-  greeting: { fontSize: 24, fontWeight: '700', lineHeight: 32, marginBottom: Spacing.one },
-  userMeta: { fontSize: 14, lineHeight: 20, marginBottom: Spacing.four },
+  greeting: { fontSize: 26, fontWeight: '700', lineHeight: 34, marginBottom: Spacing.one },
+  userMeta: { fontSize: 15, lineHeight: 22, marginBottom: Spacing.four },
   sectionRow: {
     marginBottom: Spacing.two,
   },
-  sectionTitle: { flex: 1, fontSize: 18, fontWeight: '600', lineHeight: 26 },
-  count: { fontSize: 14, fontWeight: '400' },
+  sectionTitle: { flex: 1, fontSize: 19, fontWeight: '600', lineHeight: 27 },
+  count: { fontSize: 15, fontWeight: '400' },
 });

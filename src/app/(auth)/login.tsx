@@ -72,10 +72,6 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.textPrimary }]}>PrakPresensi</Text>
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              Masuk dengan akun praktikum Anda. Peran praktikan atau asisten dikenali
-              otomatis.
-            </Text>
           </View>
 
           <View style={styles.fields}>
@@ -164,22 +160,21 @@ const styles = StyleSheet.create({
   },
   header: { gap: Spacing.two, marginTop: Spacing.four },
   title: { fontSize: 30, fontWeight: '700', lineHeight: 38 },
-  subtitle: { fontSize: 16, lineHeight: 24 },
   fields: { gap: Spacing.three },
   errorPanel: {
     borderWidth: 1,
     borderRadius: Radius.md,
     padding: Spacing.three,
   },
-  errorText: { fontSize: 14, lineHeight: 20 },
+  errorText: { fontSize: 15, lineHeight: 22 },
   registerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: Spacing.two,
   },
-  registerPrompt: { fontSize: 14, lineHeight: 20 },
-  registerLink: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  registerPrompt: { fontSize: 15, lineHeight: 22 },
+  registerLink: { fontSize: 15, fontWeight: '600', lineHeight: 22 },
   footer: {
     borderTopWidth: 1,
     padding: Spacing.three,

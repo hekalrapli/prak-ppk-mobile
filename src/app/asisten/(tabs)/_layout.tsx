@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function AsistenTabsLayout() {
@@ -12,7 +13,8 @@ export default function AsistenTabsLayout() {
         headerStyle: { backgroundColor: theme.background },
         headerShadowVisible: false,
         headerTintColor: theme.textPrimary,
-        headerTitleStyle: { fontSize: 18, fontWeight: '600' },
+        headerTitleStyle: { fontSize: 19, fontWeight: '600' },
+        headerRight: () => <ThemeToggle />,
         sceneStyle: { backgroundColor: theme.background },
         tabBarStyle: {
           backgroundColor: theme.surface,
@@ -20,7 +22,7 @@ export default function AsistenTabsLayout() {
         },
         tabBarActiveTintColor: theme.textPrimary,
         tabBarInactiveTintColor: theme.textTertiary,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
       }}>
       <Tabs.Screen
         name="index"

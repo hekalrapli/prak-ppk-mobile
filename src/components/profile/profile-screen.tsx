@@ -4,23 +4,15 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui/app-button';
-import { SegmentedControl, SegmentOption } from '@/components/ui/segmented-control';
 import { Radius, Spacing } from '@/constants/theme';
 import { usePracticumFeed } from '@/hooks/use-practicum-feed';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth-context';
-import { useThemeMode, type ThemeMode } from '@/store/theme-context';
 import type { UserRole } from '@/types/attendance';
 
 interface ProfileScreenProps {
   role: UserRole;
 }
-
-const THEME_OPTIONS: SegmentOption<ThemeMode>[] = [
-  { value: 'system', label: 'Sistem' },
-  { value: 'light', label: 'Terang' },
-  { value: 'dark', label: 'Gelap' },
-];
 
 function initialsOf(name: string) {
   return name
@@ -34,7 +26,6 @@ function initialsOf(name: string) {
 export function ProfileScreen({ role }: ProfileScreenProps) {
   const theme = useTheme();
   const { profile, logout } = useAuth();
-  const { mode, setMode } = useThemeMode();
   const { practicums, loading, error } = usePracticumFeed(role, profile?.uid);
   const [leaving, setLeaving] = useState(false);
 
@@ -139,30 +130,12 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
           )}
         </View>
 
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}>
-          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-            Tampilan aplikasi
-          </Text>
-          <Text style={[styles.helperText, { color: theme.textSecondary }]}>
-            Pilih tema terang, gelap, atau ikuti pengaturan perangkat.
-          </Text>
-          <SegmentedControl<ThemeMode>
-            options={THEME_OPTIONS}
-            value={mode}
-            onChange={setMode}
-          />
-        </View>
-
         <View style={styles.actions}>
           <AppButton
             label={leaving ? 'Keluar…' : 'Keluar dari akun'}
             loading={leaving}
             onPress={handleLogout}
-            variant="secondary"
+            variant="destructive"
           />
         </View>
 
@@ -213,26 +186,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarLabel: { fontSize: 18, fontWeight: '700' },
+  avatarLabel: { fontSize: 20, fontWeight: '700' },
   identityInfo: { flex: 1, gap: Spacing.half },
-  name: { fontSize: 18, fontWeight: '700', lineHeight: 24 },
-  meta: { fontSize: 14, lineHeight: 20 },
+  name: { fontSize: 19, fontWeight: '700', lineHeight: 26 },
+  meta: { fontSize: 15, lineHeight: 22 },
   divider: { height: 1, marginVertical: Spacing.one },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: Spacing.three,
   },
-  detailLabel: { fontSize: 14 },
+  detailLabel: { fontSize: 15 },
   detailValue: {
     flexShrink: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     textAlign: 'right',
   },
-  sectionTitle: { fontSize: 15, fontWeight: '700', lineHeight: 22 },
-  helperText: { fontSize: 13, lineHeight: 18 },
-  emptyText: { fontSize: 14, lineHeight: 20 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', lineHeight: 24 },
+  emptyText: { fontSize: 15, lineHeight: 22 },
   practicumRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -241,8 +213,8 @@ const styles = StyleSheet.create({
   },
   dot: { width: 6, height: 6, borderRadius: 3, marginTop: 8 },
   practicumInfo: { flex: 1, gap: 2 },
-  practicumName: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
-  practicumMeta: { fontSize: 12, lineHeight: 16 },
+  practicumName: { fontSize: 15, fontWeight: '600', lineHeight: 22 },
+  practicumMeta: { fontSize: 13, lineHeight: 18 },
   actions: { marginTop: Spacing.one },
-  version: { fontSize: 12, textAlign: 'center' },
+  version: { fontSize: 13, textAlign: 'center' },
 });

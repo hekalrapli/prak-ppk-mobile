@@ -72,7 +72,7 @@ export function SessionRecapList({
       ListEmptyComponent={
         <EmptyState
           title="Belum ada kehadiran"
-          description="Kehadiran dan izin yang dicatat akan muncul di sini secara real-time."
+          description="Kehadiran dan izin akan muncul di sini."
         />
       }
       renderItem={({ item, index }) => {
@@ -136,14 +136,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: Spacing.two,
   },
-  title: { flex: 1, minWidth: 0, fontSize: 18, fontWeight: '700', lineHeight: 26 },
-  meta: { fontSize: 14, lineHeight: 20 },
+  title: { flex: 1, minWidth: 0, fontSize: 19, fontWeight: '700', lineHeight: 27 },
+  meta: { fontSize: 15, lineHeight: 22 },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  count: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  count: { fontSize: 15, fontWeight: '600', lineHeight: 22 },
   groupItem: { borderLeftWidth: 1, borderRightWidth: 1, padding: Spacing.three },
   groupFirst: {
     borderTopWidth: 1,
@@ -163,11 +163,11 @@ const styles = StyleSheet.create({
   },
   itemInfo: { flex: 1, minWidth: 0 },
   itemName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
   },
   itemMeta: {
-    fontSize: 13,
+    fontSize: 14,
     marginTop: 2,
   },
   badgeContainer: {
@@ -175,6 +175,6 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   timeText: {
-    fontSize: 12,
+    fontSize: 13,
   },
 });

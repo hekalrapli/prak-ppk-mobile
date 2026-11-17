@@ -27,5 +27,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.three,
   },
-  label: { fontSize: 14, lineHeight: 20 },
+  label: { fontSize: 15, lineHeight: 22 },
 });

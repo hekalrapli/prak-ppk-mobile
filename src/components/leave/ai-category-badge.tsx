@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.half,
   },
   action: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },

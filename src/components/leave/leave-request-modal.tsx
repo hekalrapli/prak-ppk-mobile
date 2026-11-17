@@ -110,7 +110,7 @@ export function LeaveRequestModal({
           </View>
 
           <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-            Alasan Anda akan dianalisis otomatis oleh AI sebagai informasi pendukung. Hasil analisis hanya dapat dilihat oleh asisten.
+            Alasan dianalisis otomatis. Hasil hanya terlihat oleh asisten.
           </Text>
 
           <View style={styles.actions}>
@@ -163,12 +163,12 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   title: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '700',
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 15,
     marginBottom: Spacing.three,
   },
   inputContainer: {
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     height: 110,
     textAlignVertical: 'top',
-    fontSize: 14,
+    fontSize: 15,
   },
   charCountRow: {
     flexDirection: 'row',
@@ -188,16 +188,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   counter: {
-    fontSize: 12,
+    fontSize: 13,
   },
   errorText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
   },
   infoText: {
-    fontSize: 12,
+    fontSize: 13,
     marginBottom: Spacing.four,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   actions: {
     flexDirection: 'row',
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   buttonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
 });

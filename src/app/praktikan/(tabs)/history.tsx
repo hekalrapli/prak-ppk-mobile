@@ -108,12 +108,6 @@ export default function PraktikanHistoryScreen() {
         value={activeTab}
         onChange={setActiveTab}
       />
-
-      <Text style={[styles.caption, { color: theme.textSecondary }]}>
-        {activeTab === 'attendance'
-          ? 'Hanya menampilkan data kehadiran Anda.'
-          : 'Daftar pengajuan izin dan status verifikasi oleh asisten.'}
-      </Text>
     </View>
   );
 
@@ -158,7 +152,7 @@ export default function PraktikanHistoryScreen() {
           ListEmptyComponent={
             <EmptyState
               title="Belum ada riwayat kehadiran"
-              description="Catat kehadiran pada sesi yang dibuka untuk melihat riwayat."
+              description="Catat kehadiran untuk melihat riwayat."
             />
           }
           renderItem={({ item, index }) => {
@@ -209,7 +203,7 @@ export default function PraktikanHistoryScreen() {
           ListEmptyComponent={
             <EmptyState
               title="Belum ada pengajuan izin"
-              description="Ajukan izin melalui halaman detail sesi yang tidak dapat Anda ikuti."
+              description="Ajukan izin dari halaman detail sesi."
             />
           }
           renderItem={({ item }) => {
@@ -271,7 +265,6 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   header: { gap: Spacing.two, marginBottom: Spacing.three },
-  caption: { fontSize: 13, lineHeight: 18, marginTop: 2 },
   groupItem: { borderLeftWidth: 1, borderRightWidth: 1 },
   groupFirst: {
     borderTopWidth: 1,
@@ -297,17 +290,17 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   leaveTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     flex: 1,
   },
   leaveMeta: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 2,
     marginBottom: 4,
   },
   reasonText: {
-    fontSize: 13,
+    fontSize: 15,
     fontStyle: 'italic',
     marginTop: 4,
     marginBottom: 4,
@@ -318,11 +311,11 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
   },
   noteLabel: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
   },
   noteContent: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 2,
   },
 });

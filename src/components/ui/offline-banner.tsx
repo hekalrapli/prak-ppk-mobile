@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   text: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
   },

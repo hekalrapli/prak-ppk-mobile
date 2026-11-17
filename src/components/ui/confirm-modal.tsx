@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     gap: Spacing.three,
   },
-  title: { fontSize: 18, fontWeight: '700', lineHeight: 26 },
+  title: { fontSize: 19, fontWeight: '700', lineHeight: 27 },
   message: { fontSize: 16, lineHeight: 24 },
   actions: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.two },
   action: { flex: 1 },

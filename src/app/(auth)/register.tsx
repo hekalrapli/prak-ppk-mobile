@@ -171,9 +171,6 @@ export default function RegisterScreen() {
             <Text style={[styles.title, { color: theme.textPrimary }]}>
               Buat akun PrakPresensi
             </Text>
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              Isi data berikut untuk mendaftar sebagai praktikan atau asisten.
-            </Text>
           </View>
 
           <View style={styles.section}>
@@ -337,10 +334,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   header: { gap: Spacing.two, marginTop: Spacing.two },
-  title: { fontSize: 24, fontWeight: '700', lineHeight: 32 },
-  subtitle: { fontSize: 16, lineHeight: 24 },
+  title: { fontSize: 26, fontWeight: '700', lineHeight: 34 },
   section: { gap: Spacing.three },
-  sectionTitle: { fontSize: 18, fontWeight: '600', lineHeight: 26 },
+  sectionTitle: { fontSize: 19, fontWeight: '600', lineHeight: 27 },
   roleContainer: { flexDirection: 'row', gap: Spacing.three },
   fields: { gap: Spacing.three },
   errorPanel: {
@@ -348,15 +344,15 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.three,
   },
-  errorText: { fontSize: 14, lineHeight: 20 },
+  errorText: { fontSize: 15, lineHeight: 22 },
   loginRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: Spacing.two,
   },
-  loginPrompt: { fontSize: 14, lineHeight: 20 },
-  loginLink: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  loginPrompt: { fontSize: 15, lineHeight: 22 },
+  loginLink: { fontSize: 15, fontWeight: '600', lineHeight: 22 },
   footer: {
     borderTopWidth: 1,
     padding: Spacing.three,

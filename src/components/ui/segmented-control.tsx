@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   label: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
 });
