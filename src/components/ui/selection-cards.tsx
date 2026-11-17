@@ -32,7 +32,7 @@ export const RoleCard: React.FC<RoleCardProps> = ({ role, selected, onSelect }) 
       <Text
         style={[
           styles.roleTitle,
-          { color: selected ? theme.primary : theme.textPrimary },
+          { color: theme.textPrimary },
         ]}>
         {title}
       </Text>

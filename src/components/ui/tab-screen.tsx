@@ -33,7 +33,7 @@ export function TabScreen({ title, children }: { title: string; children: ReactN
             accessible
             accessibilityLabel={profile?.name ?? 'Pengguna'}
             style={[styles.avatar, { backgroundColor: theme.primarySoft }]}>
-            <Text style={[styles.initials, { color: theme.primary }]}>
+            <Text style={[styles.initials, { color: theme.textPrimary }]}>
               {initialsOf(profile?.name ?? '') || '—'}
             </Text>
           </View>

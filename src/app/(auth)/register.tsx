@@ -298,7 +298,7 @@ export default function RegisterScreen() {
               accessibilityRole="button"
               hitSlop={8}
               onPress={() => router.replace('/login')}>
-              <Text style={[styles.loginLink, { color: theme.primary }]}>Masuk</Text>
+              <Text style={[styles.loginLink, { color: theme.link }]}>Masuk</Text>
             </Pressable>
           </View>
         </ScrollView>

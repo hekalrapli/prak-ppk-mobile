@@ -36,7 +36,7 @@ export function AICategoryBadge({ ai, onRetry, isRetrying }: AICategoryBadgeProp
         <StatusDot label="Klasifikasi AI belum tersedia" tone="muted" />
         {onRetry ? (
           <TouchableOpacity disabled={isRetrying} hitSlop={8} onPress={onRetry}>
-            <Text style={[styles.action, { color: theme.primary }]}>
+            <Text style={[styles.action, { color: theme.link }]}>
               {isRetrying ? 'Mencoba…' : 'Klasifikasi sekarang'}
             </Text>
           </TouchableOpacity>
@@ -69,7 +69,7 @@ export function AICategoryBadge({ ai, onRetry, isRetrying }: AICategoryBadgeProp
         <StatusDot label={label} tone={tone} />
         {isFailed && onRetry ? (
           <TouchableOpacity disabled={isRetrying} hitSlop={8} onPress={onRetry}>
-            <Text style={[styles.action, { color: theme.primary }]}>
+            <Text style={[styles.action, { color: theme.link }]}>
               {isRetrying ? 'Mencoba…' : 'Coba ulang'}
             </Text>
           </TouchableOpacity>

@@ -123,7 +123,7 @@ export default function LoginScreen() {
               accessibilityRole="button"
               hitSlop={8}
               onPress={() => router.push('/register')}>
-              <Text style={[styles.registerLink, { color: theme.primary }]}>Daftar</Text>
+              <Text style={[styles.registerLink, { color: theme.link }]}>Daftar</Text>
             </Pressable>
           </View>
         </ScrollView>

@@ -49,7 +49,7 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
       <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
         <View style={styles.identityRow}>
           <View style={[styles.avatar, { backgroundColor: theme.primarySoft }]}>
-            <Text style={[styles.avatarLabel, { color: theme.primary }]}>
+            <Text style={[styles.avatarLabel, { color: theme.textPrimary }]}>
               {initialsOf(profile?.name ?? '') || '—'}
             </Text>
           </View>

@@ -233,7 +233,16 @@ export function AsistenLeaveReviewPanel({
                 ]}
                 onPress={handleConfirmDecision}
                 disabled={submitting}>
-                <Text style={[styles.btnText, { color: theme.onPrimary }]}>
+                <Text
+                  style={[
+                    styles.btnText,
+                    {
+                      color:
+                        decisionType === 'approved'
+                          ? theme.onPrimary
+                          : theme.background,
+                    },
+                  ]}>
                   {submitting ? 'Menyimpan...' : 'Konfirmasi'}
                 </Text>
               </TouchableOpacity>

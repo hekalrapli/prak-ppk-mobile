@@ -15,7 +15,7 @@ export function AttendanceSuccessPanel({ recordedAt }: AttendanceSuccessPanelPro
       accessibilityLabel={`Kehadiran sudah dicatat pukul ${recordedAt}`}
       style={[styles.panel, { backgroundColor: theme.successSoft }]}>
       <View style={[styles.check, { backgroundColor: theme.success }]}>
-        <Text style={[styles.checkLabel, { color: theme.onPrimary }]}>✓</Text>
+        <Text style={[styles.checkLabel, { color: theme.background }]}>✓</Text>
       </View>
       <View style={styles.body}>
         <Text style={[styles.title, { color: theme.success }]}>

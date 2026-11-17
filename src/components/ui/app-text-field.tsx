@@ -37,7 +37,7 @@ export function AppTextField({
   const borderColor = error
     ? theme.error
     : focused
-      ? theme.primary
+      ? theme.link
       : theme.border;
 
   return (

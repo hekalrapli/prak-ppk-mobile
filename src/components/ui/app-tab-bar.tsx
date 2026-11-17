@@ -16,8 +16,8 @@ const ICONS: Record<string, SymbolViewProps['name']> = {
 
 /**
  * Bottom navigation berupa pill koral melayang.
- * Tab aktif memakai pill putih di dalamnya sehingga status tidak hanya
- * dibedakan oleh warna; label teks tetap tampil untuk aksesibilitas.
+ * Tab aktif ditandai garis bawah terang dan label tebal; tidak ada pill
+ * hitam di dalamnya. Label teks tetap tampil untuk aksesibilitas.
  */
 export function AppTabBar({ state, descriptors, navigateToTab, insets }: TabBarProps) {
   const theme = useTheme();
@@ -39,7 +39,6 @@ export function AppTabBar({ state, descriptors, navigateToTab, insets }: TabBarP
               ? options.title
               : route.name;
           const focused = state.index === index;
-          const color = focused ? theme.primary : theme.onAccent;
 
           return (
             <Pressable
@@ -49,11 +48,7 @@ export function AppTabBar({ state, descriptors, navigateToTab, insets }: TabBarP
               accessibilityState={{ selected: focused }}
               onPress={() => navigateToTab(route.key)}
               style={styles.item}>
-              <View
-                style={[
-                  styles.itemInner,
-                  focused && { backgroundColor: theme.surface },
-                ]}>
+              <View style={styles.itemInner}>
                 <SymbolView
                   name={
                     ICONS[route.name] ?? {
@@ -63,11 +58,25 @@ export function AppTabBar({ state, descriptors, navigateToTab, insets }: TabBarP
                     }
                   }
                   size={20}
-                  tintColor={color}
+                  tintColor={theme.onAccent}
                 />
-                <Text style={[styles.label, { color }]} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.label,
+                    {
+                      color: theme.onAccent,
+                      fontWeight: focused ? '700' : '600',
+                    },
+                  ]}
+                  numberOfLines={1}>
                   {label}
                 </Text>
+                <View
+                  style={[
+                    styles.indicator,
+                    focused && { backgroundColor: theme.onAccent },
+                  ]}
+                />
               </View>
             </Pressable>
           );
@@ -106,6 +115,12 @@ const styles = StyleSheet.create({
   label: {
     ...Typography.caption,
     fontSize: 11,
-    fontWeight: '700',
+  },
+  indicator: {
+    width: 18,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'transparent',
+    marginTop: 1,
   },
 });

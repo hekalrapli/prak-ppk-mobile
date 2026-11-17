@@ -57,15 +57,16 @@ Semantic tokens only; screens must not import raw hex values.
 | `textTertiary` | `#8A7E78` | `#A1938B` | Placeholders and low-emphasis hints |
 | `border` | `#F0E5DE` | `#332B27` | Hairline borders/dividers |
 | `borderStrong` | `#DCCBC1` | `#4A3E38` | Timeline rail, handle, emphasized line |
-| `primary` | `#C9492B` | `#FF8A68` | Primary button, links, coral header |
-| `primaryPressed` | `#B03E24` | `#FFA184` | Pressed primary |
+| `primary` | `#C9492B` | `#C9492B` | Primary button, coral header, accent fill |
+| `primaryPressed` | `#B03E24` | `#B03E24` | Pressed primary |
 | `primarySoft` | `#FFE9D6` | `#3A2018` | Avatar chip, selected role card |
-| `onPrimary` | `#FFFFFF` | `#2A1A14` | Text/icons on `primary` |
-| `accent` | `#FF8A68` | `#FF8A68` | Highlight card, bottom nav pill, accents |
-| `accentPressed` | `#F27452` | `#FFA184` | Pressed accent surface |
+| `onPrimary` | `#FFFFFF` | `#FFFFFF` | Text/icons on `primary` |
+| `accent` | `#FF8A68` | `#C9492B` | Highlight card, bottom nav pill, accents |
+| `accentPressed` | `#F27452` | `#B03E24` | Pressed accent surface |
 | `accentSoft` | `#FFE9D6` | `#3A2018` | Soft accent background |
-| `onAccent` | `#2A1A14` | `#2A1A14` | Text/icons on `accent` |
+| `onAccent` | `#2A1A14` | `#FFFFFF` | Text/icons on `accent` |
 | `secondary` | `#5B4C45` | `#C3B6AE` | Neutral secondary emphasis |
+| `link` | `#C9492B` | `#FF8A68` | Text links on normal surfaces |
 | `success` | `#177A57` | `#7ED3A6` | Open session, success |
 | `successSoft` | `#E8F7EF` | `#12231B` | Success panel |
 | `warning` | `#8A6A12` | `#E3C06A` | Pending / caution |
@@ -79,8 +80,13 @@ Semantic tokens only; screens must not import raw hex values.
 
 Rules:
 
-- Text on `accent` uses `onAccent` (7.2:1), never white.
-- Buttons/links with white text use `primary` (4.7:1 in light mode).
+- Text on `accent` uses `onAccent` (7.2:1 in light, 4.7:1 in dark). In dark
+  mode the coral surface is deepened so light text stays accessible.
+- Buttons with white text use `primary` (4.7:1 in both modes).
+- Text links use `link`: deep coral on light surfaces, light coral on dark
+  surfaces.
+- Destructive buttons use `error` fill with `background`-colored label for
+  contrast in both modes.
 - Status never relies on color alone; the label is always written.
 - Do not use raw hex values in screen files.
 
@@ -191,15 +197,17 @@ No hamburger menu and no notification bell are added.
   radius `pill`, `Shadow.floating`.
 - Three items: Jadwal, Riwayat, Profil, with Material Symbols on Android/web
   and SF Symbols on iOS (confirmed supported by `expo-symbols` SDK 58).
-- Active item: white/surface inner pill, coral icon and label, bold label.
-- Inactive item: transparent, dark ink icon and label on coral (7.2:1).
+- Active item: `onAccent` icon and bold label with a 3 px underline indicator.
+  No dark inner pill.
+- Inactive item: transparent, `onAccent` icon and label (dark ink in light,
+  white in dark).
 - Labels are always visible; status is not communicated by color alone.
 - The bar reserves layout height, so list content is never hidden behind it.
 - Hidden while a keyboard is open.
 
 ### 3.4 Detail header (`DetailHeader` + `DetailScreen`)
 
-- Background `primary` (deep coral in light, light coral in dark).
+- Background `primary` (deep coral in both light and dark).
 - 42 px circular back button with `onPrimary` border/icon, plus two faint ring
   decorations.
 - Centered title (`cardTitle`, `onPrimary`), one line.
@@ -437,8 +445,8 @@ asisten review panel, with the disclaimer above.
 ## 7. Accessibility and Platform Notes
 
 - Text pairs meet WCAG AA: body text ≥4.5:1, icons/UI ≥3:1. Verified pairs:
-  primary/onPrimary 4.70:1 (light), onAccent/accent 7.23:1, pastel labels
-  4.88–5.07:1 (light) and 8.86–10.21:1 (dark).
+  primary/onPrimary 4.70:1 (both modes), onAccent/accent 7.23:1 (light) and
+  4.70:1 (dark), pastel labels 4.88–5.07:1 (light) and 8.86–10.21:1 (dark).
 - Touch targets: 44×44 minimum (CircleButton, tabs, secondary buttons).
 - Status always includes a text label; color is supplementary.
 - Text uses `numberOfLines` only for titles, never for status/time.

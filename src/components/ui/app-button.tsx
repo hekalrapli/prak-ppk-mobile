@@ -26,7 +26,9 @@ export const AppButton: React.FC<AppButtonProps> = ({
     ? theme.disabledText
     : variant === 'secondary'
       ? theme.textPrimary
-      : theme.onPrimary;
+      : variant === 'destructive'
+        ? theme.background
+        : theme.onPrimary;
 
   return (
     <Pressable
