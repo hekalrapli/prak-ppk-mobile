@@ -935,7 +935,7 @@ Penomoran FR melanjutkan Sprint 1 (FR-01..FR-10). FR Sprint 1 yang berubah dicat
 
 - Rekap per sesi memakai listener pada subkoleksi `attendance` + data peserta, menampilkan: nama, NIM, status (**Hadir** / **Izin** / **Belum hadir**), waktu.
 - Ringkasan angka: hadir, izin, belum hadir dari total peserta.
-- Praktikan hanya dapat membaca dokumen presensi miliknya (riwayat pribadi memakai collection group query `attendance` dengan `praktikanId == uid`).
+- Praktikan hanya dapat membaca dokumen presensi miliknya; riwayat pribadi memakai listener dokumen per sesi (bukan query koleksi) agar sesuai dengan Security Rules.
 
 **Acceptance criteria**
 - [ ] Rekap menampilkan peserta yang belum presensi sebagai **Belum hadir** setelah sesi ditutup.
@@ -949,7 +949,7 @@ Penomoran FR melanjutkan Sprint 1 (FR-01..FR-10). FR Sprint 1 yang berubah dicat
 
 - Dari detail sesi (status `upcoming` atau `open`), praktikan memilih **Ajukan izin**, mengisi alasan (10–500 karakter), lalu mengirim.
 - Disimpan di `practicums/{pid}/sessions/{sid}/leaveRequests/{uid}` (satu pengajuan per praktikan per sesi; ID = UID).
-- Field: `praktikanId`, `praktikanName`, `praktikanNim`, `reason`, `status` (`pending`/`approved`/`rejected`), `ai` (objek hasil klasifikasi, §7.7), `createdAt`, `decidedBy`, `decidedAt`, `reviewNote`.
+- Field: `praktikanId`, `praktikanName`, `praktikanNim`, `reason`, `status` (`pending`/`approved`/`rejected`), `createdAt`, `decidedBy`, `decidedAt`, `reviewNote`. Hasil klasifikasi AI **tidak** disimpan di dokumen ini, melainkan di subkoleksi `leaveClassifications/{uid}` yang hanya dapat dibaca asisten (§7.7).
 - Praktikan dapat mengubah alasan atau membatalkan selama status masih `pending`; setelah diputuskan, dokumen read-only baginya.
 - Daftar **Izin Saya** menampilkan semua pengajuan beserta status dan catatan asisten, update real-time.
 
@@ -960,23 +960,24 @@ Penomoran FR melanjutkan Sprint 1 (FR-01..FR-10). FR Sprint 1 yang berubah dicat
 - [ ] Praktikan tidak dapat mengajukan izin pada sesi `closed`.
 - [ ] Pengajuan tersimpan walaupun layanan AI gagal (lihat FR-18).
 
-### FR-18 — Klasifikasi alasan izin oleh model AI
+### FR-18 — Klasifikasi alasan izin oleh AI
 | Role | Sistem (dipicu praktikan) |
 | --- | --- |
 | Priority | Must Have |
-| Catatan | Menggantikan kebutuhan #6 pada soal (API AI pengajar) dengan model dari repo yang diberikan |
+| Catatan | Menggantikan kebutuhan #6 pada soal (API AI pengajar) dengan kombinasi model dari repo + analyzer izin on-device |
 
-- Setelah praktikan mengirim izin, aplikasi memanggil layanan model AI dengan teks alasan dan menerima prediksi kategori (mis. sakit, keluarga, akademik, dll. — **daftar kategori mengikuti model**).
-- Hasil disimpan pada field `ai` di dokumen izin: `category`, `confidence` (jika tersedia), `model` (nama/versi), `classifiedAt`, `state` (`success` | `failed` | `timeout`).
-- Hasil ditampilkan ke asisten sebagai **label informasi pendukung** (mis. chip "Kategori AI: Sakit") dengan teks "Prediksi otomatis, bukan keputusan".
+- Setelah praktikan mengirim izin, aplikasi menganalisis alasan **on-device** dalam dua lapisan: (1) **analyzer izin** berbasis kata kunci (`src/services/izinAnalyzer.ts`) menentukan kategori `positif`/`netral`/`negatif` sesuai kriteria alasan izin; (2) **model-edom** dijalankan sebagai sinyal sentimen sekunder (`ai.sentiment`) dan tidak ditampilkan.
+- Alasan memakai analyzer: kosakata model-edom berasal dari review EDOM sehingga tidak mengenali istilah izin ("sakit", "demam", "keluarga", "mager") dan salah mengklasifikasi alasan sah (mis. "dirawat di rumah sakit" → negatif).
+- Hasil klasifikasi disimpan di subkoleksi `leaveClassifications/{uid}` (field `ai`) yang **hanya dapat dibaca asisten**; praktikan hanya boleh menulis (write-only) selama izinnya pending. Dokumen `leaveRequests` tidak memuat data AI.
+- Hasil ditampilkan ke asisten sebagai **label informasi pendukung** (mis. chip "Kategori AI: Positif (75%)") dengan teks "Prediksi otomatis, bukan keputusan". Praktikan tidak melihat hasil klasifikasi.
 - **Hasil AI tidak pernah mengubah `status`.** Tidak ada logika `if category == ... then approve/reject` di kode klien maupun Rules.
-- Timeout 10 detik, 1x retry otomatis. Bila gagal: izin tetap tersimpan dengan `ai.state = "failed"`, asisten melihat "Klasifikasi tidak tersedia", dan tersedia tombol **Coba klasifikasi ulang** (asisten atau pemilik izin).
+- Klasifikasi berjalan lokal (pure JS), tanpa server dan tanpa network call. Bila gagal: izin tetap tersimpan dengan `ai.state = "failed"`, asisten melihat "Klasifikasi AI tidak tersedia", dan tersedia tombol **Coba klasifikasi ulang** (asisten).
 
 **Acceptance criteria**
-- [ ] Alasan terkirim ke layanan AI dan kategori muncul pada kartu izin asisten.
-- [ ] Layanan mati / timeout / respons tidak valid → pengajuan tetap tersimpan, pesan jelas, tidak ada crash.
+- [ ] Alasan diklasifikasi on-device dan kategori izin muncul pada kartu izin asisten.
+- [ ] Contoh: "sakit demam tinggi" → positif; "ada keperluan keluarga" → netral; "mager, gak niat datang" → negatif.
+- [ ] Kegagalan klasifikasi tidak menggagalkan pengajuan; pesan jelas, tidak ada crash.
 - [ ] Kategori apa pun (termasuk yang tampak "layak") tidak mengubah status otomatis.
-- [ ] URL layanan AI disimpan sebagai konfigurasi environment, bukan hard-code di komponen.
 
 ### FR-19 — Pemeriksaan izin oleh asisten
 | Role | Asisten pengampu |
@@ -1068,7 +1069,7 @@ practicums/{pid}                        { name, className, assistantId, studentI
 Alasan desain: ID dokumen presensi/izin = UID menjamin "satu per praktikan per sesi" tanpa query tambahan; subkoleksi memudahkan Rules memeriksa status sesi dan kepesertaan lewat `get()`.
 
 Catatan teknis:
-- Riwayat pribadi & daftar izin lintas sesi memakai **collection group query** (`attendance`, `leaveRequests` dengan `praktikanId == uid`); butuh aturan `match /{path=**}/attendance/{id}` dan indeks collection group (Firestore akan memberi tautan pembuatan indeks saat pertama kali query dijalankan).
+- Riwayat pribadi & daftar izin lintas sesi memakai **listener dokumen per sesi** (`leaveRequests/{uid}`), bukan collection-group query. Alasannya: Security Rules praktikan bergantung pada ID dokumen dan collection-group query tanpa index khusus akan ditolak. Aturan `match /{path=**}/leaveRequests/{uid}` tetap tersedia untuk masa depan (butuh index collection-group bila dipakai).
 - Praktikan menampilkan praktikum dengan `where('studentIds', 'array-contains', uid)`.
 - Batas query `in` 30: tidak dipakai; sesi dibaca per praktikum.
 
@@ -1081,35 +1082,39 @@ Catatan teknis:
 
 ---
 
-## 7.7 Integrasi Model AI (menggantikan API AI pengajar)
+## 7.7 Integrasi AI (analyzer izin + model-edom, on-device)
 
-**Status: kontrak API belum final — menunggu detail dari repo model.** Bagian ini dibuat sebagai adapter agar sisa aplikasi tidak bergantung pada bentuk layanan.
+**Status: terintegrasi.** Kategori izin ditentukan oleh analyzer izin on-device; model-edom dari repo tetap dijalankan sebagai sinyal sentimen sekunder. Tanpa server.
+
+### Bentuk pipeline
+- **Analyzer izin** (`src/services/izinAnalyzer.ts`): normalisasi teks (huruf kecil, buang tanda baca, ekspansi kata gaul seperti `mager→malas`, `ga→tidak`, `rs→rumah sakit`), pencocokan frasa kuat/menghindar/netral, lalu keputusan deterministik.
+- **model-edom** (`src/lib/model-edom/`): LinearSVC 3 kelas (`negatif`, `netral`, `positif`) dari dataset review EDOM, diekspor ke JSON dan diinferensi pure JS. Hasilnya disimpan di `ai.sentiment`, **tidak** menentukan kategori dan tidak ditampilkan.
+
+### Makna kategori (kualitas alasan izin, bukan vonis)
+| Kategori | Arti | Contoh alasan | Panduan asisten |
+| --- | --- | --- | --- |
+| Positif | Alasan kuat, spesifik, dapat diverifikasi | "Dirawat di rumah sakit karena demam berdarah", "anggota keluarga meninggal", "mewakili kampus lomba", "rumah kena banjir" | Prioritaskan / mudah disetujui |
+| Netral | Alasan umum/ambigu | "Ada keperluan keluarga", "acara keluarga", "urusan mendadak", "kurang sehat" | Perlu klarifikasi |
+| Negatif | Terindikasi menghindar | "mager, gak niat datang", "malas, mau bolos", "nongkrong", "main game sampai malam" | Tinjau lebih ketat |
+
+Aturan keputusan: kata kuat tanpa kata menghindar → positif; kata menghindar tanpa kata kuat → negatif; keduanya muncul → netral (ambigu); tidak ada yang cocok → netral. Confidence (45–95%) mencerminkan banyaknya bukti kata kunci, bukan probabilitas statistik.
 
 ### Antarmuka di klien
 ```ts
 // src/services/leaveClassifier.ts
-export interface LeaveClassification {
-  category: string;          // label dari model
-  confidence?: number;       // 0..1 jika model menyediakan
-  model: string;             // nama/versi model
-  classifiedAt: number;      // epoch ms
-  state: 'success' | 'failed' | 'timeout';
-}
 export async function classifyLeaveReason(reason: string): Promise<LeaveClassification>;
 ```
-Hanya file ini yang mengetahui URL, format request/response, dan pemetaan label. Konfigurasi lewat `EXPO_PUBLIC_AI_API_URL`.
+- `category`: kategori izin (`positif`/`netral`/`negatif`), `confidence`: 0..1 dari analyzer, `model`: `"model-edom+izin-analyzer"`, `sentiment`: hasil model-edom (opsional, tidak ditampilkan).
+- Kegagalan tak terduga → `state: 'failed'` tanpa melempar error; pengajuan tetap tersimpan (FR-18).
 
-### Hal yang harus diputuskan setelah repo model diperiksa
-| Pertanyaan | Dampak |
-| --- | --- |
-| Bentuk model: sudah punya server (FastAPI/Flask), atau hanya script/notebook/model file? | Menentukan perlu dibuat wrapper HTTP atau tidak |
-| Format request/response dan daftar label kategori | Isi adapter, tampilan chip kategori |
-| Tempat hosting (laptop+tunnel, Render/HF Spaces/Cloud Run, dsb.) | HP fisik tidak bisa mengakses `localhost`; butuh URL publik atau IP LAN |
-| Bahasa input (Indonesia?) dan batas panjang teks | Validasi panjang alasan |
-| Autentikasi API (API key?) | Kunci tidak boleh disimpan di klien jika bersifat rahasia |
+### Penyimpanan hasil
+- `practicums/{pid}/sessions/{sid}/leaveRequests/{uid}`: data izin tanpa AI (praktikan & asisten dapat membaca sesuai aturan).
+- `practicums/{pid}/sessions/{sid}/leaveClassifications/{uid}`: field `ai` + `updatedAt`; **read hanya untuk asisten**, praktikan boleh create/update selama izin pending (write-only), asisten pengampu boleh retry kapan pun.
 
 ### Risiko yang diakui
-- Karena panggilan AI dilakukan dari klien, praktikan yang memodifikasi klien dapat memalsukan field `ai`. Dampaknya terbatas karena AI hanya informasi pendukung dan tidak menentukan keputusan; hal ini didokumentasikan sebagai batasan. Perbaikan yang lebih kuat (Cloud Function/server yang menulis hasil) berada di luar Sprint ini.
+- Karena klasifikasi dilakukan on-device, praktikan yang memodifikasi klien dapat memalsukan isi `leaveClassifications` (mis. menulis kategori `positif`). Dampaknya terbatas karena AI hanya informasi pendukung dan tidak menentukan keputusan; hasil AI juga tidak dapat dibaca praktikan. Perbaikan yang lebih kuat (Cloud Function/server yang menulis hasil) berada di luar Sprint ini.
+- Analyzer izin adalah sistem berbasis aturan kata kunci, bukan model yang dilatih pada data izin nyata. Ia transparan dan deterministik, tetapi bisa salah pada kalimat yang sangat tidak baku atau sarkastis. Confidence mencerminkan bukti kata kunci, bukan probabilitas.
+- model-edom tidak dipakai untuk kategori karena domainnya review EDOM; hasil sentimennya hanya sinyal sekunder yang disimpan untuk transparansi.
 
 ---
 
@@ -1122,7 +1127,7 @@ Hanya file ini yang mengetahui URL, format request/response, dan pemetaan label.
 | Akun Auth ada tetapi dokumen `users` tidak ada | Tampilkan error + opsi logout (jangan crash) |
 | Daftar praktikum/sesi/izin kosong | State kosong dengan teks bantuan |
 | Offline | Banner offline; data cache tampil; aksi tulis diberi tahu "akan disinkron saat online" atau ditolak dengan pesan jelas |
-| Layanan AI tidak merespons | Izin tersimpan, `ai.state = failed`, tombol coba ulang |
+| Klasifikasi AI gagal / alasan tak dikenali model | Izin tersimpan, `ai.state = failed`, tombol coba ulang |
 | Sesi ditutup saat praktikan menekan presensi | Rules menolak; UI menampilkan "Sesi telah ditutup" |
 | Praktikan sudah punya izin `approved` untuk sesi | Presensi dinonaktifkan dengan penjelasan "Izin Anda sudah diterima" |
 | Dua asisten mengubah sesi bersamaan | Rules/transisi menolak transisi tidak valid; UI refresh dari listener |
@@ -1193,7 +1198,7 @@ Saran pembagian: (A) Auth + navigasi + Rules; (B) CRUD asisten + sesi; (C) prese
 - [ ] `firestore.rules` terpasang, diuji dengan skenario di FR-20.
 - [ ] `npx tsc --noEmit` dan lint lulus.
 - [ ] Tidak ada rahasia di repository; `.env.example` tersedia.
-- [ ] README berisi cara setup Firebase, menjalankan layanan AI, dan langkah demo.
+- [ ] README berisi cara setup Firebase, penjelasan klasifikasi AI on-device (analyzer izin + model-edom), dan langkah demo.
 
 ---
 
@@ -1201,7 +1206,7 @@ Saran pembagian: (A) Auth + navigasi + Rules; (B) CRUD asisten + sesi; (C) prese
 1. Autentikasi memakai email/password (Google Sign-In tidak diwajibkan pada soal ini).
 2. Aplikasi memakai Firebase JS SDK (modular) sehingga berjalan di Expo Go tanpa EAS build.
 3. Tidak ada backend/Cloud Functions; paket Firebase Spark (gratis).
-4. Kategori izin mengikuti label model dari repo AI.
+4. Kategori izin (`positif`/`netral`/`negatif`) ditentukan analyzer izin on-device; model-edom dari repo dipakai sebagai sinyal sentimen sekunder.
 5. Waktu presensi memakai waktu server Firestore, ditampilkan dalam WIB.
 6. Bahasa UI Indonesia; kode dan dokumentasi teknis berbahasa Inggris.
 

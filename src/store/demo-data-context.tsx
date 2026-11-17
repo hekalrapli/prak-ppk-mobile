@@ -51,7 +51,7 @@ type Action =
     }
   | { type: 'ADD_LEAVE_REQUEST'; payload: LeaveRequest }
   | { type: 'UPDATE_LEAVE_REQUEST'; payload: { sessionId: string; praktikanId: string; reason: string } }
-  | { type: 'CANCEL_LEAVE_REQUEST'; payload: { sessionId: string; praktikanId: string } };
+  | { type: 'CANCEL_LEAVE_REQUEST'; payload: { sessionId: string; praktikanId: string } }
   | { type: 'REGISTER_IDENTITY'; payload: { user: DemoUser } }
   | { type: 'RESET_IDENTITY' };
 

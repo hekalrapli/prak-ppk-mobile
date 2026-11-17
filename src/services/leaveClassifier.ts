@@ -1,104 +1,100 @@
 // src/services/leaveClassifier.ts
 import { LeaveClassification } from '../types/attendance';
+import {
+  createSentimentClassifier,
+  EdomClassifyFn,
+  EdomSentimentLabel,
+} from '../lib/model-edom/sentiment';
+import modelEdom from '../lib/model-edom/model';
+import { analyzeIzinReason } from './izinAnalyzer';
 
 export { LeaveClassification };
 
-const TIMEOUT_MS = 10000;
+/** Kategori yang dikenali analyzer izin. */
+export const LEAVE_CATEGORIES: readonly EdomSentimentLabel[] = ['positif', 'netral', 'negatif'];
 
-async function fetchWithTimeout(url: string, options: RequestInit, timeout: number): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
+/** Nama pipeline yang disimpan ke field `ai.model` di Firestore. */
+export const LEAVE_MODEL_NAME = 'model-edom+izin-analyzer';
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    return response;
-  } finally {
-    clearTimeout(timer);
+// Inferensi dijalankan on-device (pure JS, tanpa network call).
+// Classifier dibuat satu kali lalu dipakai ulang (bobot model cukup besar).
+let classifier: EdomClassifyFn | null = null;
+
+function getClassifier(): EdomClassifyFn {
+  if (!classifier) {
+    classifier = createSentimentClassifier(modelEdom);
   }
+  return classifier;
+}
+
+// exp() selalu > 0 untuk skor berhingga, sehingga total selalu > 0.
+function toConfidence(scores: number[]): number {
+  const max = Math.max(...scores);
+  const exps = scores.map((score) => Math.exp(score - max));
+  const total = exps.reduce((sum, exp) => sum + exp, 0);
+  const bestIndex = scores.indexOf(max);
+  return exps[bestIndex] / total;
 }
 
 /**
- * Memanggil layanan model AI untuk mengklasifikasikan alasan izin.
- * Menerapkan timeout 10 detik dan 1x retry otomatis jika gagal.
- * Jika AI gagal / timeout, mengembalikan objek dengan state 'failed' atau 'timeout'
- * tanpa melempar error agar pengajuan izin tetap dapat tersimpan (FR-18).
+ * Mengklasifikasikan alasan izin secara on-device.
+ *
+ * Kategori (`positif`/`netral`/`negatif`) ditentukan oleh analyzer izin
+ * berbasis kata kunci (lihat izinAnalyzer.ts) karena kosakata model-edom
+ * berasal dari review EDOM dan tidak mengenali istilah izin seperti "sakit",
+ * "demam", "keluarga", atau "mager". Model-edom tetap dijalankan sebagai
+ * sinyal sentimen sekunder yang disimpan di `ai.sentiment` (tidak ditampilkan).
+ *
+ * Kategori adalah informasi pendukung asisten, bukan vonis terima/tolak
+ * (FR-18). Kegagalan tidak melempar error agar pengajuan izin tetap dapat
+ * tersimpan.
  */
 export async function classifyLeaveReason(reason: string): Promise<LeaveClassification> {
-  const apiUrl = process.env.EXPO_PUBLIC_AI_API_URL?.trim();
   const now = Date.now();
+  const text = typeof reason === 'string' ? reason.trim() : '';
 
-  // Jika URL AI belum dikonfigurasi di .env
-  if (!apiUrl) {
+  if (!text) {
     return {
-      category: 'Klasifikasi belum dikonfigurasi',
-      model: 'none',
+      category: 'Alasan kosong, tidak dapat diklasifikasikan',
+      model: LEAVE_MODEL_NAME,
       classifiedAt: now,
       state: 'failed',
     };
   }
 
-  const payload = JSON.stringify({ reason: reason.trim() });
-  const requestOptions: RequestInit = {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: payload,
-  };
+  try {
+    const analysis = analyzeIzinReason(text);
 
-  // Mencoba pemanggilan pertama dan 1x retry jika gagal
-  for (let attempt = 1; attempt <= 2; attempt++) {
+    // Sinyal sentimen sekunder dari model-edom. Gagal di sini tidak
+    // memengaruhi kategori izin.
+    let sentiment: LeaveClassification['sentiment'];
     try {
-      const response = await fetchWithTimeout(apiUrl, requestOptions, TIMEOUT_MS);
-
-      if (!response.ok) {
-        if (attempt === 1) continue; // retry 1x
-        return {
-          category: 'Tidak tersedia',
-          model: 'external-model',
-          classifiedAt: Date.now(),
-          state: 'failed',
+      const result = getClassifier()(text);
+      if (result.label && result.scores) {
+        sentiment = {
+          category: result.label,
+          confidence: toConfidence(result.scores),
         };
       }
-
-      const data = await response.json();
-      // Format respon fleksibel: { category, confidence, model } atau { label, score }
-      const category = data.category || data.label || data.prediction || 'Lainnya';
-      const confidence = typeof data.confidence === 'number' ? data.confidence : typeof data.score === 'number' ? data.score : undefined;
-      const model = data.model || 'ai-classifier-v1';
-
-      return {
-        category: String(category),
-        confidence,
-        model: String(model),
-        classifiedAt: Date.now(),
-        state: 'success',
-      };
-    } catch (err: any) {
-      const isTimeout = err?.name === 'AbortError' || err?.message?.includes('aborted');
-      if (attempt === 1) {
-        // Coba lagi 1x sebelum menyerah
-        continue;
-      }
-
-      return {
-        category: isTimeout ? 'Batas waktu habis' : 'Tidak tersedia',
-        model: 'ai-classifier',
-        classifiedAt: Date.now(),
-        state: isTimeout ? 'timeout' : 'failed',
-      };
+    } catch {
+      sentiment = undefined;
     }
+
+    return {
+      category: analysis.category,
+      confidence: analysis.confidence,
+      model: LEAVE_MODEL_NAME,
+      // Jangan sertakan field undefined: Firestore menolak nilai undefined.
+      ...(sentiment ? { sentiment } : {}),
+      classifiedAt: now,
+      state: 'success',
+    };
+  } catch {
+    return {
+      category: 'Gagal menjalankan analisis AI',
+      model: LEAVE_MODEL_NAME,
+      classifiedAt: Date.now(),
+      state: 'failed',
+    };
   }
-
-  return {
-    category: 'Tidak tersedia',
-    model: 'ai-classifier',
-    classifiedAt: Date.now(),
-    state: 'failed',
-  };
 }
-

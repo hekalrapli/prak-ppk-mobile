@@ -4,7 +4,6 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { LeaveRequest } from '../../types/attendance';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
-import { AICategoryBadge } from './ai-category-badge';
 import { LeaveRequestModal } from './leave-request-modal';
 
 interface LeaveStatusCardProps {
@@ -12,7 +11,6 @@ interface LeaveStatusCardProps {
   sessionTitle: string;
   onUpdateReason: (newReason: string) => Promise<void>;
   onCancelLeave: () => Promise<void>;
-  onRetryAI: () => Promise<void>;
 }
 
 export function LeaveStatusCard({
@@ -20,11 +18,9 @@ export function LeaveStatusCard({
   sessionTitle,
   onUpdateReason,
   onCancelLeave,
-  onRetryAI,
 }: LeaveStatusCardProps) {
   const theme = useTheme();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isRetryingAI, setIsRetryingAI] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
   const statusColors = {
@@ -34,15 +30,6 @@ export function LeaveStatusCard({
   };
 
   const currentStatus = statusColors[leaveRequest.status] || statusColors.pending;
-
-  const handleRetryAI = async () => {
-    try {
-      setIsRetryingAI(true);
-      await onRetryAI();
-    } finally {
-      setIsRetryingAI(false);
-    }
-  };
 
   const handleConfirmCancel = () => {
     Alert.alert(
@@ -77,15 +64,7 @@ export function LeaveStatusCard({
         </View>
       </View>
 
-      <Text style={[styles.reasonLabel, { color: theme.textSecondary }]}>Alasan yang diajukan:</Text>
-      <Text style={[styles.reasonText, { color: theme.textPrimary }]}>"{leaveRequest.reason}"</Text>
-
-      {/* AI Category Chip (FR-18) */}
-      <AICategoryBadge
-        ai={leaveRequest.ai}
-        onRetry={handleRetryAI}
-        isRetrying={isRetryingAI}
-      />
+      <Text style={[styles.reasonText, { color: theme.textPrimary }]}>“{leaveRequest.reason}”</Text>
 
       {/* Catatan Asisten jika ada */}
       {leaveRequest.reviewNote ? (
@@ -118,6 +97,8 @@ export function LeaveStatusCard({
       ) : null}
 
       <LeaveRequestModal
+        // Remount saat modal dibuka agar isian selalu memakai alasan terbaru.
+        key={isEditModalOpen ? 'edit-open' : 'edit-closed'}
         visible={isEditModalOpen}
         sessionTitle={sessionTitle}
         initialReason={leaveRequest.reason}
@@ -154,10 +135,6 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '700',
-  },
-  reasonLabel: {
-    fontSize: 12,
-    marginTop: Spacing.one,
   },
   reasonText: {
     fontSize: 14,

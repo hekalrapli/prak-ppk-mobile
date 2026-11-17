@@ -43,7 +43,7 @@ The AI result is **supporting information only**. It never approves or rejects a
 | Database | Cloud Firestore (real-time `onSnapshot` listeners) |
 | Local session storage | `@react-native-async-storage/async-storage` |
 | Access control | Firestore Security Rules (`firestore.rules`) |
-| AI | Leave-reason classifier served over HTTP (URL set in `EXPO_PUBLIC_AI_API_URL`) |
+| AI | Leave-reason classifier `model-edom` (LinearSVC 3 kelas), berjalan on-device via pure JS di `src/lib/model-edom/` |
 | Animation / icons / images | `react-native-reanimated`, `expo-symbols`, `expo-image` |
 | Development build | `expo-dev-client` |
 | Linting | ESLint + `eslint-config-expo` |
@@ -106,6 +106,7 @@ Full step-by-step instructions are in [`docs/FIREBASE_SETUP.md`](./docs/FIREBASE
 4. Paste the contents of `firestore.rules` into Firestore → **Rules** and **Publish**. The file in the repository is not applied automatically.
 5. Create the document `config/registration` with the string field `asistenCode` (the invitation code required to register as asisten).
 6. Create the Firestore composite/collection-group indexes when the console prompts for them (open the link in the first error message).
+7. Seed the demo practice sessions so Security Rules can resolve `practicums/{pid}` and `sessions/{sid}` (see below). Without this, attendance and leave submissions are rejected with `permission-denied`.
 
 ## Installation and Setup (developers)
 
@@ -116,7 +117,13 @@ npm install
 # 2. Create your local environment file
 cp .env.example .env      # then fill in the values provided by the project owner
 
-# 3. Start the dev server (clear cache so .env is read)
+# 3. Seed demo data (once, requires a service account key)
+#    Creates users/{uid} for the dummy accounts and practicums/sessions
+#    required by the Firestore Security Rules.
+npm run seed:dummy -- --key secrets/service-account.json
+npm run seed:demo -- --key secrets/service-account.json
+
+# 4. Start the dev server (clear cache so .env is read)
 npx expo start -c
 ```
 
@@ -129,7 +136,6 @@ EXPO_PUBLIC_FIREBASE_PROJECT_ID=
 EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 EXPO_PUBLIC_FIREBASE_APP_ID=
-EXPO_PUBLIC_AI_API_URL=
 ```
 
 - `.env` is git-ignored. Do not commit it.
@@ -187,12 +193,19 @@ Rules enforce identity (`request.auth.uid`), role (from `users/{uid}`), session 
 
 ## AI Leave-Reason Classification
 
-- When a praktikan submits a leave request, the app sends the reason text to the classifier at `EXPO_PUBLIC_AI_API_URL` and stores the result in the request's `ai` field (`category`, `confidence`, `model`, `classifiedAt`, `state`).
-- Timeout is 10 seconds with one automatic retry. If the service fails, the request is still saved with `ai.state = "failed"` and can be reclassified later.
-- The result is displayed as "Prediksi otomatis, bukan keputusan". The decision (`approved` / `rejected`) is made only by the assigned asisten.
-- All request/response details live in `src/services/leaveClassifier.ts`.
+- When a praktikan submits a leave request, the reason is analyzed **on-device** in two layers:
+  1. **Izin analyzer** (`src/services/izinAnalyzer.ts`) — rule-based keyword analysis of the *leave reason itself*; determines the category `positif` / `netral` / `negatif` (strong/verifiable reason, ambiguous reason, avoidance).
+  2. **model-edom** (`src/lib/model-edom/`) — LinearSVC sentiment model trained on the public EDOM review dataset; kept as a **secondary sentiment signal** (`ai.sentiment`), not shown in the UI.
+- The classification is stored in `practicums/{pid}/sessions/{sid}/leaveClassifications/{uid}` (`ai` object) — a document that only asisten can read. The leave request document itself contains no AI data.
+- Category meaning (leave-reason quality, supporting info only):
+  - **Positif** — strong, specific, verifiable reason: "dirawat di rumah sakit karena demam berdarah", "anggota keluarga meninggal", "mewakili kampus lomba", "rumah kena banjir".
+  - **Netral** — generic/ambiguous reason: "ada keperluan keluarga", "ada acara keluarga", "urusan mendadak", "kurang sehat".
+  - **Negatif** — indicates avoidance: "mager, gak niat datang", "malas, mau bolos", "nongkrong", "main game sampai malam", "gak mood".
+- Decision logic: strong keyword without avoidance → `positif`; avoidance keyword without strong reason → `negatif`; both → `netral` (ambiguous); neither → `netral`. Confidence reflects the amount of keyword evidence, not a probability.
+- The result is displayed as "Prediksi otomatis, bukan keputusan". The decision (`approved` / `rejected`) is made only by the assigned asisten — no code path changes the status based on the AI category.
+- All classification details live in `src/services/leaveClassifier.ts`.
 
-> The classifier is served from the AI model repository provided for this project. Its API contract and hosting URL are configured through `EXPO_PUBLIC_AI_API_URL`.
+> Why model-edom alone is not used for the category: its vocabulary comes from EDOM lecturer-evaluation comments, so leave-reason words like "sakit", "demam", "keluarga", "mager" are unknown, and valid reasons were misclassified (e.g. "dirawat di rumah sakit" → negative). model-edom still runs and its sentiment is stored as a secondary signal for transparency.
 
 ## Demonstrating the Main Flows
 
@@ -207,13 +220,14 @@ Rules enforce identity (`request.auth.uid`), role (from `users/{uid}`), session 
 **Flow 2 — Leave request**
 
 1. Login as **Praktikan**, open a session, tap **Ajukan izin**, enter a reason, and submit.
-2. The AI category appears on the request; the status is **Menunggu**.
+2. The request is stored with status **Menunggu**. The AI result is **not shown to the praktikan** — only the asisten can see it.
 3. Login as **Asisten**, open **Izin Masuk**, review the reason and AI category, then **Terima** or **Tolak** with a note.
 4. The praktikan sees the decision and note in **Izin Saya** in real time.
 
 ## Current Limitations
 
-- Calls to the AI service are made from the client, so the stored `ai` field is informational and not tamper-proof. It never influences the decision.
+- Classification runs entirely in the client (on-device), so the stored `ai` result is informational. It never influences the decision.
+- The `ai` result lives in a separate `leaveClassifications/{uid}` document readable **only by asisten**; praktikan writes it without being able to read it back. It is still tamper-able by a modified client because the write happens client-side.
 - No Cloud Functions or custom backend (Firebase Spark plan); all logic runs in the client and Security Rules.
 - No push notifications, export, analytics, or Google sign-in.
 - Session status is managed manually and is not derived from the clock.

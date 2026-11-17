@@ -11,41 +11,91 @@ interface AICategoryBadgeProps {
   isRetrying?: boolean;
 }
 
+/**
+ * Kategori kualitas alasan izin (informasi pendukung, bukan vonis):
+ * - positif: alasan kuat & spesifik (sakit/rumah sakit, keluarga meninggal,
+ *   lomba/seminar resmi, bencana) — dapat diverifikasi.
+ * - netral: alasan umum/ambigu (keperluan/acara keluarga, urusan mendadak) —
+ *   perlu klarifikasi.
+ * - negatif: terindikasi menghindar (mager, malas, bolos, nongkrong, main game).
+ * Kategori berasal dari analyzer izin; model-edom hanya sinyal sentimen sekunder.
+ */
+const CATEGORY_META: Record<
+  string,
+  { displayName: string; backgroundColor: string; borderColor: string; textColor: string }
+> = {
+  positif: {
+    displayName: 'Positif',
+    backgroundColor: '#dcfce7',
+    borderColor: '#86efac',
+    textColor: '#166534',
+  },
+  netral: {
+    displayName: 'Netral',
+    backgroundColor: '#e0f2fe',
+    borderColor: '#7dd3fc',
+    textColor: '#075985',
+  },
+  negatif: {
+    displayName: 'Negatif',
+    backgroundColor: '#fef3c7',
+    borderColor: '#fcd34d',
+    textColor: '#92400e',
+  },
+};
+
+const FAILED_META = {
+  displayName: 'Tidak tersedia',
+  backgroundColor: '#fef2f2',
+  borderColor: '#fca5a5',
+  textColor: '#991b1b',
+};
+
 export function AICategoryBadge({ ai, onRetry, isRetrying }: AICategoryBadgeProps) {
   const theme = useTheme();
 
   if (!ai) {
     return (
       <View style={[styles.container, { backgroundColor: theme.surfaceSubtle }]}>
-        <Text style={[styles.disclaimer, { color: theme.textSecondary }]}>
-          Klasifikasi AI: Memproses...
-        </Text>
+        <View style={styles.badgeRow}>
+          <Text style={[styles.chipText, { color: theme.textSecondary }]}>
+            Klasifikasi AI belum tersedia
+          </Text>
+          {onRetry ? (
+            <TouchableOpacity
+              style={styles.retryNeutralButton}
+              onPress={onRetry}
+              disabled={isRetrying}>
+              <Text style={styles.retryNeutralText}>
+                {isRetrying ? 'Mencoba...' : 'Klasifikasi sekarang'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
     );
   }
 
   const isFailed = ai.state === 'failed' || ai.state === 'timeout';
-  const categoryLabel = ai.category || 'Tidak tersedia';
+  const meta = isFailed ? FAILED_META : CATEGORY_META[ai.category] ?? CATEGORY_META.netral;
   const confidencePercent =
-    typeof ai.confidence === 'number' ? ` (${Math.round(ai.confidence * 100)}%)` : '';
+    !isFailed && typeof ai.confidence === 'number' ? ` (${Math.round(ai.confidence * 100)}%)` : '';
 
   return (
     <View
       style={[
         styles.container,
         {
-          backgroundColor: isFailed ? '#fef2f2' : '#f0fdf4',
-          borderColor: isFailed ? '#fca5a5' : '#86efac',
+          backgroundColor: meta.backgroundColor,
+          borderColor: meta.borderColor,
         },
       ]}>
       <View style={styles.badgeRow}>
         <View style={styles.chip}>
-          <Text
-            style={[
-              styles.chipText,
-              { color: isFailed ? '#991b1b' : '#166534' },
-            ]}>
-            {isFailed ? '⚠️ Klasifikasi AI tidak tersedia' : `🤖 Kategori AI: ${categoryLabel}${confidencePercent}`}
+          <Text style={[styles.chipText, { color: meta.textColor }]}>
+            {isFailed
+              ? '⚠️ Klasifikasi AI tidak tersedia'
+              : `🤖 Kategori AI: ${meta.displayName}${confidencePercent}`}
           </Text>
         </View>
 
@@ -60,10 +110,6 @@ export function AICategoryBadge({ ai, onRetry, isRetrying }: AICategoryBadgeProp
           </TouchableOpacity>
         )}
       </View>
-
-      <Text style={[styles.disclaimer, { color: theme.textTertiary }]}>
-        Prediksi otomatis sebagai informasi pendukung, bukan keputusan.
-      </Text>
     </View>
   );
 }
@@ -101,9 +147,15 @@ const styles = StyleSheet.create({
     color: '#991b1b',
     fontWeight: '600',
   },
-  disclaimer: {
-    fontSize: 11,
-    marginTop: 4,
-    fontStyle: 'italic',
+  retryNeutralButton: {
+    backgroundColor: '#e5e7eb',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+  },
+  retryNeutralText: {
+    fontSize: 12,
+    color: '#374151',
+    fontWeight: '600',
   },
 });

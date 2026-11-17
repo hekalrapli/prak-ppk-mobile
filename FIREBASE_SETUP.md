@@ -52,7 +52,6 @@ EXPO_PUBLIC_FIREBASE_PROJECT_ID=
 EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 EXPO_PUBLIC_FIREBASE_APP_ID=
-EXPO_PUBLIC_AI_API_URL=
 ```
 
 Tambahkan `.env` ke `.gitignore`.
@@ -93,15 +92,29 @@ npx expo start -c
 ```
 
 ## 9. Indeks Firestore
-Query collection group (`attendance`/`leaveRequests` dengan `praktikanId == uid`) akan menampilkan error berisi **tautan pembuatan indeks** saat pertama dijalankan. Klik tautannya → **Create index** → tunggu status *Enabled*.
+Tidak ada indeks collection-group yang wajib untuk fitur praktikan: izin dan riwayat memakai listener **dokumen per sesi** (`leaveRequests/{uid}`), sehingga tidak memerlukan index khusus. Jika nanti menambahkan query collection group, ikuti tautan **Create index** yang muncul di pesan error.
+
+## 9b. Siapkan data demo (practicums & sessions)
+Security Rules memeriksa `practicums/{pid}.studentIds` dan `sessions/{sid}.status`. Tanpa dokumen ini, presensi dan pengajuan izin **selalu ditolak** (`permission-denied`).
+
+1. Unduh service account: **Project settings → Service accounts → Generate new private key**, simpan di `secrets/` (sudah di-gitignore).
+2. Jalankan:
+
+```bash
+npm run seed:dummy -- --key secrets/service-account.json   # akun Auth + users/{uid}
+npm run seed:demo  -- --key secrets/service-account.json   # practicums + sessions
+```
+
+`seed:demo` memasukkan semua user dengan role `praktikan` ke `studentIds` semua praktikum demo. Jalankan ulang setelah mendaftarkan akun praktikan baru.
 
 ## 10. Uji cepat
-1. Daftar satu akun praktikan dan satu akun asisten (dengan kode undangan) di aplikasi.
+1. Daftar satu akun praktikan dan satu akun asisten (dengan kode undangan) di aplikasi, atau pakai akun dummy hasil `seed:dummy`.
 2. Cek di **Authentication → Users** dan **Firestore → users** (dokumen berisi `role`).
-3. Gunakan dua perangkat/jendela untuk uji real-time.
+3. Lakukan `seed:demo` agar praktikum/sesi tersedia untuk validasi Rules.
+4. Gunakan dua perangkat/jendela untuk uji real-time.
 
-## 11. Layanan model AI
-Menunggu repo model (lihat PRD §7.7). Yang perlu dipastikan: cara menjalankan, format request/response, dan URL yang bisa diakses HP (bukan `localhost`).
+## 11. Model AI
+Model AI (`model-edom`) sudah terintegrasi dan berjalan **on-device** di aplikasi (pure JS) — tidak perlu server, URL, atau koneksi jaringan. Lihat README bagian *AI Leave-Reason Classification*.
 
 ## Batasan paket gratis (Spark)
 Tidak ada Cloud Functions. Seluruh logika berjalan di klien + Security Rules. Kuota baca/tulis harian Firestore cukup untuk demo kelas.

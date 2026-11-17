@@ -66,15 +66,18 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
     sessionId
   );
 
+  const isAsisten = role === 'asisten';
+
   const {
     leaveRequests,
     myLeaveRequest,
+    loading: leaveLoading,
     handleSubmitLeave,
     handleUpdateLeave,
     handleCancelLeave,
     handleRetryClassification,
     handleDecideLeave,
-  } = useSessionLeave(practicum?.id || '', sessionId, activeUser?.id);
+  } = useSessionLeave(practicum?.id || '', sessionId, activeUser?.id, isAsisten);
 
   useEffect(() => {
     return () => {
@@ -103,7 +106,6 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
     );
   }
 
-  const isAsisten = role === 'asisten';
   const canManage = isAsisten && canManageSession(state, sessionId);
 
   const handleConfirm = () => {
@@ -246,11 +248,6 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
               await handleCancelLeave(activeUser.id);
               showToast('Pengajuan izin berhasil dibatalkan', 'success');
             }}
-            onRetryAI={async () => {
-              if (!activeUser) return;
-              await handleRetryClassification(activeUser.id, myLeaveRequest.reason);
-              showToast('Klasifikasi AI berhasil diulang', 'success');
-            }}
           />
         ) : null}
 
@@ -331,10 +328,17 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
                 onPress={handleRecordAttendance}
                 loading={isSaving}
               />
-              {!myLeaveRequest ? (
+              {!myLeaveRequest && !leaveLoading ? (
                 <AppButton
                   label="Ajukan izin"
                   onPress={() => setIsLeaveModalVisible(true)}
+                  variant="secondary"
+                />
+              ) : !myLeaveRequest && leaveLoading ? (
+                <AppButton
+                  label="Memuat status izin..."
+                  onPress={() => undefined}
+                  disabled
                   variant="secondary"
                 />
               ) : null}
@@ -348,10 +352,17 @@ export function SessionDetail({ role, sessionId }: SessionDetailProps) {
                 onPress={() => undefined}
                 disabled
               />
-              {!myLeaveRequest ? (
+              {!myLeaveRequest && !leaveLoading ? (
                 <AppButton
                   label="Ajukan izin"
                   onPress={() => setIsLeaveModalVisible(true)}
+                  variant="secondary"
+                />
+              ) : !myLeaveRequest && leaveLoading ? (
+                <AppButton
+                  label="Memuat status izin..."
+                  onPress={() => undefined}
+                  disabled
                   variant="secondary"
                 />
               ) : null}
