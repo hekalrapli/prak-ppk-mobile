@@ -1,7 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { Radius, Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/use-theme';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 interface AppButtonProps {
   label: string;
@@ -19,49 +20,57 @@ export const AppButton: React.FC<AppButtonProps> = ({
   loading = false,
 }) => {
   const theme = useTheme();
+  const isDisabled = disabled || loading;
 
-  const getContainerStyle = () => {
-    if (disabled) return [styles.container, { backgroundColor: theme.disabledBg }];
-    if (variant === 'secondary') return [styles.container, { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border }];
-    if (variant === 'destructive') return [styles.container, { backgroundColor: theme.error }];
-    return [styles.container, { backgroundColor: theme.primary }];
-  };
-
-  const getTextStyle = () => {
-    if (disabled) return [styles.text, { color: theme.disabledText }];
-    if (variant === 'secondary') return [styles.text, { color: theme.textPrimary }];
-    return [styles.text, { color: theme.onPrimary }];
-  };
+  const textColor = isDisabled
+    ? theme.disabledText
+    : variant === 'secondary'
+      ? theme.textPrimary
+      : variant === 'destructive'
+        ? theme.background
+        : theme.onPrimary;
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled || loading}
-      style={getContainerStyle()}
-      activeOpacity={0.8}
+    <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled: disabled || loading, busy: loading }}
-    >
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      disabled={isDisabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.container,
+        variant === 'primary' && {
+          backgroundColor: pressed ? theme.primaryPressed : theme.primary,
+        },
+        variant === 'secondary' && {
+          backgroundColor: pressed ? theme.surfacePressed : theme.surface,
+          borderWidth: 1,
+          borderColor: theme.border,
+        },
+        variant === 'destructive' && {
+          backgroundColor: theme.error,
+          opacity: pressed ? 0.88 : 1,
+        },
+        isDisabled && { backgroundColor: theme.disabledBg, borderWidth: 0 },
+      ]}>
       {loading ? (
-        <ActivityIndicator color={variant === 'secondary' ? theme.primary : theme.onPrimary} />
+        <ActivityIndicator color={textColor} />
       ) : (
-        <Text style={getTextStyle()}>{label}</Text>
+        <Text style={[styles.text, { color: textColor }]}>{label}</Text>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    height: 52,
-    borderRadius: Radius.md,
+    minHeight: 52,
+    borderRadius: Radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Spacing.four,
     flexDirection: 'row',
   },
   text: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...Typography.button,
   },
 });

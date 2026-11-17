@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Radius, Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/use-theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { StatusDot } from '../ui/status-dot';
 
 interface AttendanceRecordItemProps {
   name: string;
@@ -21,17 +22,13 @@ export function AttendanceRecordItem({
   const content = (
     <View style={styles.row}>
       <View style={styles.info}>
-        <Text
-          numberOfLines={2}
-          style={[styles.name, { color: theme.textPrimary }]}>
+        <Text numberOfLines={2} style={[styles.name, { color: theme.textPrimary }]}>
           {name}
         </Text>
         <Text style={[styles.meta, { color: theme.textSecondary }]}>{meta}</Text>
       </View>
       <View style={styles.end}>
-        <View style={[styles.badge, { backgroundColor: theme.successSoft }]}>
-          <Text style={[styles.badgeLabel, { color: theme.success }]}>Hadir</Text>
-        </View>
+        <StatusDot label="Hadir" tone="success" />
         <Text style={[styles.time, { color: theme.textPrimary }]}>{recordedAt}</Text>
       </View>
     </View>
@@ -64,19 +61,11 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   info: { flex: 1, minWidth: 0, gap: Spacing.half },
-  name: { fontSize: 16, fontWeight: '600', lineHeight: 22 },
-  meta: { fontSize: 12, lineHeight: 16 },
+  name: { ...Typography.cardTitle },
+  meta: { ...Typography.caption },
   end: { alignItems: 'flex-end', gap: Spacing.one },
-  badge: {
-    paddingVertical: Spacing.half,
-    paddingHorizontal: Spacing.two,
-    borderRadius: Radius.xs,
-  },
-  badgeLabel: { fontSize: 12, fontWeight: '600', lineHeight: 16 },
   time: {
-    fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 24,
+    ...Typography.bodyStrong,
     fontVariant: ['tabular-nums'],
   },
 });

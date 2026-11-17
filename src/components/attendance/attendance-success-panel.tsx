@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Radius, Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/use-theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 interface AttendanceSuccessPanelProps {
   recordedAt: string;
@@ -13,12 +13,9 @@ export function AttendanceSuccessPanel({ recordedAt }: AttendanceSuccessPanelPro
   return (
     <View
       accessibilityLabel={`Kehadiran sudah dicatat pukul ${recordedAt}`}
-      style={[
-        styles.panel,
-        { backgroundColor: theme.successSoft, borderColor: theme.success },
-      ]}>
+      style={[styles.panel, { backgroundColor: theme.successSoft }]}>
       <View style={[styles.check, { backgroundColor: theme.success }]}>
-        <Text style={[styles.checkLabel, { color: theme.onPrimary }]}>✓</Text>
+        <Text style={[styles.checkLabel, { color: theme.background }]}>✓</Text>
       </View>
       <View style={styles.body}>
         <Text style={[styles.title, { color: theme.success }]}>
@@ -33,8 +30,7 @@ export function AttendanceSuccessPanel({ recordedAt }: AttendanceSuccessPanelPro
 const styles = StyleSheet.create({
   panel: {
     width: '100%',
-    borderWidth: 1,
-    borderRadius: Radius.md,
+    borderRadius: Radius.card,
     padding: Spacing.three,
     flexDirection: 'row',
     alignItems: 'center',
@@ -49,6 +45,9 @@ const styles = StyleSheet.create({
   },
   checkLabel: { fontSize: 18, fontWeight: '700', lineHeight: 22 },
   body: { flex: 1, gap: Spacing.half },
-  title: { fontSize: 16, fontWeight: '600', lineHeight: 22 },
-  time: { fontSize: 16, fontWeight: '600', lineHeight: 24, fontVariant: ['tabular-nums'] },
+  title: { ...Typography.bodyStrong },
+  time: {
+    ...Typography.bodyStrong,
+    fontVariant: ['tabular-nums'],
+  },
 });

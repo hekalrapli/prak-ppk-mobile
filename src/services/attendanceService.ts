@@ -45,6 +45,50 @@ export function formatTimestampToTime(ts: any): string {
 }
 
 /**
+ * Mengubah Timestamp Firestore, Date, angka, atau string menjadi epoch ms
+ * agar daftar riwayat dapat diurutkan dengan benar.
+ */
+export function timestampToMillis(value: unknown): number {
+  if (!value) return 0;
+  if (value instanceof Timestamp) return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  if (typeof value === 'object' && value !== null && 'toMillis' in value) {
+    const toMillis = (value as { toMillis?: unknown }).toMillis;
+    if (typeof toMillis === 'function') {
+      return (toMillis as () => number).call(value);
+    }
+  }
+  if (typeof value === 'object' && value !== null && 'seconds' in value) {
+    const seconds = (value as { seconds?: unknown }).seconds;
+    if (typeof seconds === 'number') return seconds * 1000;
+  }
+  return 0;
+}
+
+function mapAttendanceDoc(
+  id: string,
+  data: Record<string, unknown>,
+  sessionId: string,
+  practicumId: string
+): AttendanceDoc {
+  return {
+    id,
+    praktikanId: String(data.praktikanId ?? id),
+    praktikanName: String(data.praktikanName ?? 'Praktikan'),
+    praktikanNim: String(data.praktikanNim ?? ''),
+    status: 'present',
+    recordedAt: data.recordedAt,
+    sessionId,
+    practicumId,
+  };
+}
+
+/**
  * FR-14: Presensi Terintegrasi
  * Menyimpan presensi di practicums/{pid}/sessions/{sid}/attendance/{uid}
  * ID dokumen = UID praktikan, mencegah duplikasi di level Firestore.
@@ -107,19 +151,53 @@ export function subscribeSessionAttendance(
       (snapshot) => {
         const records: AttendanceDoc[] = [];
         snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          records.push({
-            id: docSnap.id,
-            praktikanId: data.praktikanId,
-            praktikanName: data.praktikanName || 'Praktikan',
-            praktikanNim: data.praktikanNim || '',
-            status: data.status || 'present',
-            recordedAt: data.recordedAt,
-            sessionId,
-            practicumId,
-          });
+          records.push(
+            mapAttendanceDoc(docSnap.id, docSnap.data(), sessionId, practicumId)
+          );
         });
         onData(records);
+      },
+      (error) => {
+        if (onError) onError(new Error(getHumanReadableErrorMessage(error)));
+      }
+    );
+  } catch (err: any) {
+    if (onError) onError(new Error(getHumanReadableErrorMessage(err)));
+    return () => {};
+  }
+}
+
+/**
+ * FR-14 & FR-15: listener dokumen presensi milik praktikan sendiri.
+ * Praktikan hanya diizinkan membaca dokumennya sendiri oleh Security Rules,
+ * sehingga query koleksi (tanpa filter kepemilikan) tidak dapat dipakai.
+ */
+export function subscribeOwnAttendance(
+  practicumId: string,
+  sessionId: string,
+  praktikanId: string,
+  onData: (record: AttendanceDoc | null) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  try {
+    const docRef = doc(
+      db,
+      'practicums',
+      practicumId,
+      'sessions',
+      sessionId,
+      'attendance',
+      praktikanId
+    );
+
+    return onSnapshot(
+      docRef,
+      (docSnap) => {
+        if (!docSnap.exists()) {
+          onData(null);
+          return;
+        }
+        onData(mapAttendanceDoc(docSnap.id, docSnap.data(), sessionId, practicumId));
       },
       (error) => {
         if (onError) onError(new Error(getHumanReadableErrorMessage(error)));

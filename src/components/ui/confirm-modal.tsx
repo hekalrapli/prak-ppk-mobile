@@ -1,7 +1,7 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Radius, Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/use-theme';
+import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { AppButton } from './app-button';
 
 interface ConfirmModalProps {
@@ -31,7 +31,7 @@ export function ConfirmModal({
       onRequestClose={onCancel}
       transparent
       visible={visible}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
         <Pressable
           accessibilityLabel="Tutup dialog"
           onPress={onCancel}
@@ -39,7 +39,11 @@ export function ConfirmModal({
         />
         <View
           accessibilityViewIsModal
-          style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          style={[
+            styles.card,
+            Shadow.soft,
+            { backgroundColor: theme.surface },
+          ]}>
           <Text style={[styles.title, { color: theme.textPrimary }]}>{title}</Text>
           <Text style={[styles.message, { color: theme.textSecondary }]}>{message}</Text>
           <View style={styles.actions}>
@@ -65,19 +69,17 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.three,
-    backgroundColor: 'rgba(17, 24, 39, 0.48)',
+    padding: Spacing.four,
   },
   card: {
     width: '100%',
     maxWidth: 420,
-    borderWidth: 1,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.sheet,
     padding: Spacing.four,
     gap: Spacing.three,
   },
-  title: { fontSize: 18, fontWeight: '700', lineHeight: 26 },
-  message: { fontSize: 16, lineHeight: 24 },
+  title: { ...Typography.sectionTitle },
+  message: { ...Typography.body },
   actions: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.two },
   action: { flex: 1 },
 });

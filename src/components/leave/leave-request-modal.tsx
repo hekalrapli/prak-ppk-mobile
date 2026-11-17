@@ -11,7 +11,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { Radius, Spacing } from '../../constants/theme';
+import { Radius, Shadow, Spacing, Typography } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
 import { validateLeaveReason } from '../../services/errorHandler';
 
@@ -64,8 +64,8 @@ export function LeaveRequestModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}>
-        <View style={[styles.modalCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        style={[styles.overlay, { backgroundColor: theme.overlay }]}>
+        <View style={[styles.modalCard, Shadow.soft, { backgroundColor: theme.surface }]}>
           <Text style={[styles.title, { color: theme.textPrimary }]}>
             {isEditing ? 'Ubah Alasan Izin' : 'Pengajuan Izin Praktikum'}
           </Text>
@@ -80,7 +80,7 @@ export function LeaveRequestModal({
                 {
                   backgroundColor: theme.surfaceSubtle,
                   color: theme.textPrimary,
-                  borderColor: errorMsg ? '#ef4444' : theme.border,
+                  borderColor: errorMsg ? theme.error : theme.border,
                 },
               ]}
               placeholder="Tuliskan alasan izin Anda (10–500 karakter)..."
@@ -98,9 +98,9 @@ export function LeaveRequestModal({
 
             <View style={styles.charCountRow}>
               {errorMsg ? (
-                <Text style={styles.errorText}>{errorMsg}</Text>
+                <Text style={[styles.errorText, { color: theme.error }]}>{errorMsg}</Text>
               ) : (
-                <Text style={[styles.counter, { color: isValid ? theme.textSecondary : '#f59e0b' }]}>
+                <Text style={[styles.counter, { color: isValid ? theme.textSecondary : theme.warning }]}>
                   {characterCount < 10
                     ? `Kurang ${10 - characterCount} karakter lagi`
                     : `${characterCount} / 500 karakter`}
@@ -109,8 +109,8 @@ export function LeaveRequestModal({
             </View>
           </View>
 
-          <Text style={[styles.infoText, { color: theme.textTertiary }]}>
-            Alasan Anda akan dianalisis otomatis oleh AI sebagai informasi pendukung. Hasil analisis hanya dapat dilihat oleh asisten.
+          <Text style={[styles.infoText, { color: theme.textSecondary }]}>
+            Alasan dianalisis otomatis. Hasil hanya terlihat oleh asisten.
           </Text>
 
           <View style={styles.actions}>
@@ -124,15 +124,14 @@ export function LeaveRequestModal({
             <TouchableOpacity
               style={[
                 styles.button,
-                styles.submitButton,
-                { opacity: isValid && !loading ? 1 : 0.5 },
+                { backgroundColor: theme.primary, opacity: isValid && !loading ? 1 : 0.5 },
               ]}
               onPress={handleSubmit}
               disabled={!isValid || loading}>
               {loading ? (
-                <ActivityIndicator size="small" color="#ffffff" />
+                <ActivityIndicator size="small" color={theme.onPrimary} />
               ) : (
-                <Text style={[styles.buttonText, { color: '#ffffff' }]}>
+                <Text style={[styles.buttonText, { color: theme.onPrimary }]}>
                   {isEditing ? 'Simpan Perubahan' : 'Kirim Izin'}
                 </Text>
               )}
@@ -147,7 +146,6 @@ export function LeaveRequestModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.four,
@@ -155,34 +153,27 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 480,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.sheet,
     padding: Spacing.four,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...Typography.sectionTitle,
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
+    ...Typography.caption,
     marginBottom: Spacing.three,
   },
   inputContainer: {
     marginBottom: Spacing.two,
   },
   textArea: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     padding: Spacing.three,
-    height: 110,
+    height: 120,
     textAlignVertical: 'top',
-    fontSize: 14,
+    ...Typography.body,
+    borderWidth: 1,
   },
   charCountRow: {
     flexDirection: 'row',
@@ -190,17 +181,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   counter: {
-    fontSize: 12,
+    ...Typography.caption,
   },
   errorText: {
-    fontSize: 12,
-    color: '#ef4444',
+    ...Typography.caption,
     fontWeight: '500',
   },
   infoText: {
-    fontSize: 12,
+    ...Typography.caption,
     marginBottom: Spacing.four,
-    lineHeight: 16,
   },
   actions: {
     flexDirection: 'row',
@@ -210,19 +199,16 @@ const styles = StyleSheet.create({
   button: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.four,
-    borderRadius: Radius.md,
+    borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 48,
     minWidth: 90,
   },
   cancelButton: {
     borderWidth: 1,
   },
-  submitButton: {
-    backgroundColor: '#2563eb',
-  },
   buttonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...Typography.label,
   },
 });

@@ -88,7 +88,7 @@ The project uses the **Firebase JS SDK** (not `@react-native-firebase`), so no `
 └── package.json
 ```
 
-The `@/*` path alias maps to `src/*`. Files from Sprint 1 (`dummy-data`, `demo-data-context`) are replaced as the Firebase features land.
+The `@/*` path alias maps to `src/*`. Sprint 1 dummy data (`dummy-data`, `demo-data-context`) has been removed: schedules and practicum ownership now come from Firestore (FR-13), and the app reads them with role-scoped queries.
 
 ## Prerequisites
 
@@ -119,7 +119,9 @@ cp .env.example .env      # then fill in the values provided by the project owne
 
 # 3. Seed demo data (once, requires a service account key)
 #    Creates users/{uid} for the dummy accounts and practicums/sessions
-#    required by the Firestore Security Rules.
+#    required by the Firestore Security Rules. At least one asisten and one
+#    praktikan account must exist; practicums are assigned to asistens
+#    round-robin so each asisten only sees their own practicums.
 npm run seed:dummy -- --key secrets/service-account.json
 npm run seed:demo -- --key secrets/service-account.json
 

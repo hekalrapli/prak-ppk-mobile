@@ -49,20 +49,13 @@ export interface AttendanceDoc {
   sessionDate?: string;
 }
 
-export interface DemoUser {
-  id: string;
-  role: UserRole;
-  name: string;
-  identifier: string;
-  className?: string;
-  email?: string;
-}
-
 export interface Practicum {
   id: string;
   name: string;
   className: string;
   assistantId: string;
+  /** Nama asisten didenormalisasi agar praktikan dapat menampilkannya. */
+  assistantName?: string;
   studentIds?: string[];
 }
 
@@ -76,24 +69,4 @@ export interface Session {
   status: SessionStatus;
   openedAt?: string;
   closedAt?: string;
-}
-
-export interface AttendanceRecord {
-  id: string;
-  sessionId: string;
-  praktikanId: string;
-  status: AttendanceStatus;
-  recordedAt: string;
-  praktikanName?: string;
-  praktikanNim?: string;
-}
-
-export interface DemoState {
-  activeRole: UserRole | null;
-  activeUserId: string | null;
-  users: DemoUser[];
-  practicums: Practicum[];
-  sessions: Session[];
-  attendanceRecords: AttendanceRecord[];
-  leaveRequests?: LeaveRequest[];
 }

@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { LeaveRequest } from '../../types/attendance';
-import { Radius, Spacing } from '../../constants/theme';
+import { Radius, Shadow, Spacing, Typography } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
+import { StatusDot, StatusTone } from '../ui/status-dot';
 import { LeaveRequestModal } from './leave-request-modal';
 
 interface LeaveStatusCardProps {
@@ -23,13 +24,13 @@ export function LeaveStatusCard({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
-  const statusColors = {
-    pending: { bg: '#fef3c7', text: '#92400e', label: 'Menunggu Keputusan' },
-    approved: { bg: '#dcfce7', text: '#166534', label: 'Izin Diterima' },
-    rejected: { bg: '#fee2e2', text: '#991b1b', label: 'Izin Ditolak' },
+  const STATUS_META: Record<string, { label: string; tone: StatusTone }> = {
+    pending: { label: 'Menunggu', tone: 'warning' },
+    approved: { label: 'Diterima', tone: 'success' },
+    rejected: { label: 'Ditolak', tone: 'error' },
   };
 
-  const currentStatus = statusColors[leaveRequest.status] || statusColors.pending;
+  const currentStatus = STATUS_META[leaveRequest.status] ?? STATUS_META.pending;
 
   const handleConfirmCancel = () => {
     Alert.alert(
@@ -54,14 +55,10 @@ export function LeaveStatusCard({
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+    <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
       <View style={styles.headerRow}>
         <Text style={[styles.cardTitle, { color: theme.textPrimary }]}>Pengajuan Izin</Text>
-        <View style={[styles.statusBadge, { backgroundColor: currentStatus.bg }]}>
-          <Text style={[styles.statusText, { color: currentStatus.text }]}>
-            {currentStatus.label}
-          </Text>
-        </View>
+        <StatusDot label={currentStatus.label} tone={currentStatus.tone} />
       </View>
 
       <Text style={[styles.reasonText, { color: theme.textPrimary }]}>“{leaveRequest.reason}”</Text>
@@ -78,7 +75,7 @@ export function LeaveStatusCard({
 
       {/* Aksi Ubah / Batalkan hanya jika masih pending */}
       {leaveRequest.status === 'pending' ? (
-        <View style={styles.actionRow}>
+        <View style={[styles.actionRow, { borderTopColor: theme.border }]}>
           <TouchableOpacity
             style={[styles.smallBtn, { borderColor: theme.border }]}
             onPress={() => setIsEditModalOpen(true)}>
@@ -86,10 +83,10 @@ export function LeaveStatusCard({
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.smallBtn, styles.cancelBtn]}
+            style={[styles.smallBtn, { borderColor: theme.border }]}
             onPress={handleConfirmCancel}
             disabled={isCancelling}>
-            <Text style={styles.cancelBtnText}>
+            <Text style={[styles.smallBtnText, { color: theme.error }]}>
               {isCancelling ? 'Membatalkan...' : 'Batalkan Izin'}
             </Text>
           </TouchableOpacity>
@@ -112,8 +109,7 @@ export function LeaveStatusCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderWidth: 1,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.card,
     padding: Spacing.four,
     marginTop: Spacing.three,
   },
@@ -124,20 +120,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   cardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  statusBadge: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 3,
-    borderRadius: Radius.sm,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
+    ...Typography.cardTitle,
   },
   reasonText: {
-    fontSize: 14,
+    ...Typography.body,
     fontStyle: 'italic',
     marginTop: 2,
     marginBottom: Spacing.two,
@@ -148,11 +134,11 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
   },
   reviewNoteTitle: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...Typography.caption,
+    fontWeight: '700',
   },
   reviewNoteText: {
-    fontSize: 13,
+    ...Typography.body,
     marginTop: 2,
   },
   actionRow: {
@@ -162,25 +148,16 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three,
     paddingTop: Spacing.two,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
   },
   smallBtn: {
     borderWidth: 1,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: Radius.sm,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.pill,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   smallBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  cancelBtn: {
-    borderColor: '#fca5a5',
-    backgroundColor: '#fff1f2',
-  },
-  cancelBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#e11d48',
+    ...Typography.label,
   },
 });

@@ -18,7 +18,6 @@ import { useToast } from '@/components/ui/toast-provider';
 import { Spacing, Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth-context';
-import { useDemoData } from '@/store/demo-data-context';
 import { UserRole } from '@/types/attendance';
 
 type FieldKey =
@@ -87,7 +86,6 @@ export default function RegisterScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { register } = useAuth();
-  const { dispatch } = useDemoData();
   const { showToast } = useToast();
 
   const [role, setRole] = useState<UserRole>('praktikan');
@@ -148,19 +146,6 @@ export default function RegisterScreen() {
         inviteCode: role === 'asisten' ? inviteCode : undefined,
       });
 
-      // Jembatan sementara agar layar demo Sprint 1 mengenali pengguna baru.
-      dispatch({
-        type: 'REGISTER_IDENTITY',
-        payload: {
-          user: {
-            id: profile.uid,
-            name: profile.name,
-            identifier: profile.identifier,
-            role: profile.role,
-          },
-        },
-      });
-
       showToast('Akun berhasil dibuat. Selamat datang!', 'success');
       router.replace(profile.role === 'praktikan' ? '/praktikan' : '/asisten');
     } catch (error) {
@@ -175,7 +160,7 @@ export default function RegisterScreen() {
   return (
     <SafeAreaView
       edges={['bottom']}
-      style={[styles.container, { backgroundColor: theme.background }]}>
+      style={[styles.container, { backgroundColor: theme.surfaceWarm }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}>
@@ -185,9 +170,6 @@ export default function RegisterScreen() {
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.textPrimary }]}>
               Buat akun PrakPresensi
-            </Text>
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              Isi data berikut untuk mendaftar sebagai praktikan atau asisten.
             </Text>
           </View>
 
@@ -316,7 +298,7 @@ export default function RegisterScreen() {
               accessibilityRole="button"
               hitSlop={8}
               onPress={() => router.replace('/login')}>
-              <Text style={[styles.loginLink, { color: theme.primary }]}>Masuk</Text>
+              <Text style={[styles.loginLink, { color: theme.link }]}>Masuk</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -324,7 +306,7 @@ export default function RegisterScreen() {
         <View
           style={[
             styles.footer,
-            { backgroundColor: theme.background, borderTopColor: theme.border },
+            { backgroundColor: theme.surfaceWarm, borderTopColor: theme.border },
           ]}>
           <View style={styles.footerContent}>
             <AppButton
@@ -352,26 +334,24 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   header: { gap: Spacing.two, marginTop: Spacing.two },
-  title: { fontSize: 24, fontWeight: '700', lineHeight: 32 },
-  subtitle: { fontSize: 16, lineHeight: 24 },
+  title: { fontSize: 26, fontWeight: '700', lineHeight: 34 },
   section: { gap: Spacing.three },
-  sectionTitle: { fontSize: 18, fontWeight: '600', lineHeight: 26 },
+  sectionTitle: { fontSize: 19, fontWeight: '600', lineHeight: 27 },
   roleContainer: { flexDirection: 'row', gap: Spacing.three },
   fields: { gap: Spacing.three },
   errorPanel: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     padding: Spacing.three,
   },
-  errorText: { fontSize: 14, lineHeight: 20 },
+  errorText: { fontSize: 15, lineHeight: 22 },
   loginRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: Spacing.two,
   },
-  loginPrompt: { fontSize: 14, lineHeight: 20 },
-  loginLink: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  loginPrompt: { fontSize: 15, lineHeight: 22 },
+  loginLink: { fontSize: 15, fontWeight: '600', lineHeight: 22 },
   footer: {
     borderTopWidth: 1,
     padding: Spacing.three,

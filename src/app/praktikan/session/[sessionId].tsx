@@ -1,20 +1,80 @@
-import { Redirect, useLocalSearchParams } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 
 import { SessionDetail } from '@/components/attendance/session-detail';
-import { useDemoData } from '@/store/demo-data-context';
+import { DetailScreen } from '@/components/ui/detail-screen';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState, LoadingState } from '@/components/ui/screen-state';
+import { Spacing } from '@/constants/theme';
+import { useSessionDetail } from '@/hooks/use-session-detail';
+import { useAuth } from '@/store/auth-context';
 
 export default function PraktikanSessionScreen() {
-  const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
-  const { state } = useDemoData();
-  const user = state.users.find((candidate) => candidate.id === state.activeUserId);
+  const router = useRouter();
+  const { profile } = useAuth();
+  const { sessionId, practicumId } = useLocalSearchParams<{
+    sessionId: string;
+    practicumId?: string;
+  }>();
 
-  if (!user) {
-    return <Redirect href="/" />;
+  const { practicum, session, loading, error, retry } = useSessionDetail(
+    practicumId,
+    sessionId
+  );
+
+  const renderFallback = () => (
+    <DetailScreen title="Detail Sesi">
+      <View style={styles.fallback}>
+        <EmptyState
+          title="Sesi tidak ditemukan"
+          description="Sesi yang Anda cari tidak tersedia. Kembali ke jadwal untuk memilih sesi lain."
+          actionLabel="Kembali ke jadwal"
+          onAction={() => router.replace('/praktikan')}
+        />
+      </View>
+    </DetailScreen>
+  );
+
+  if (!practicumId) {
+    return renderFallback();
   }
 
-  if (state.activeRole !== 'praktikan' || user.role !== 'praktikan') {
-    return <Redirect href={state.activeRole === 'asisten' ? '/asisten' : '/'} />;
+  if (loading) {
+    return (
+      <DetailScreen title="Detail Sesi">
+        <View style={styles.fallback}>
+          <LoadingState label="Memuat sesi…" />
+        </View>
+      </DetailScreen>
+    );
   }
 
-  return <SessionDetail role="praktikan" sessionId={sessionId} />;
+  if (error) {
+    return (
+      <DetailScreen title="Detail Sesi">
+        <View style={styles.fallback}>
+          <ErrorState message={error} onRetry={retry} />
+        </View>
+      </DetailScreen>
+    );
+  }
+
+  if (!practicum || !session) {
+    return renderFallback();
+  }
+
+  // Authorisasi: praktikan hanya boleh membuka sesi praktikum yang diikutinya.
+  if (!profile || !practicum.studentIds?.includes(profile.uid)) {
+    return <Redirect href="/praktikan" />;
+  }
+
+  return (
+    <DetailScreen title="Detail Sesi">
+      <SessionDetail role="praktikan" practicum={practicum} session={session} />
+    </DetailScreen>
+  );
 }
+
+const styles = StyleSheet.create({
+  fallback: { flex: 1, justifyContent: 'center', padding: Spacing.three },
+});

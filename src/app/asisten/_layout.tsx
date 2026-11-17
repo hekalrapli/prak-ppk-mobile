@@ -1,24 +1,31 @@
 import { Stack } from 'expo-router';
 
-import { HeaderLogoutButton } from '@/components/ui/header-logout-button';
+import { RoleGuard } from '@/components/auth/role-guard';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function AsistenLayout() {
   const theme = useTheme();
 
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: theme.background },
-        headerShadowVisible: false,
-        headerTintColor: theme.textPrimary,
-        headerTitleStyle: { fontSize: 18, fontWeight: '600' },
-        contentStyle: { backgroundColor: theme.background },
-        headerRight: () => <HeaderLogoutButton />,
-      }}>
-      <Stack.Screen name="index" options={{ title: 'Jadwal' }} />
-      <Stack.Screen name="session/[sessionId]/index" options={{ title: 'Kelola Sesi' }} />
-      <Stack.Screen name="session/[sessionId]/recap" options={{ title: 'Rekap Kehadiran' }} />
-    </Stack>
+    <RoleGuard role="asisten">
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: theme.background },
+          headerShadowVisible: false,
+          headerTintColor: theme.textPrimary,
+          headerTitleStyle: { fontSize: 19, fontWeight: '600' },
+          contentStyle: { backgroundColor: theme.background },
+        }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="session/[sessionId]/index"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="session/[sessionId]/recap"
+          options={{ headerShown: false }}
+        />
+      </Stack>
+    </RoleGuard>
   );
 }

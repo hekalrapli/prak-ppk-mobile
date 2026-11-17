@@ -1,28 +1,29 @@
 // src/components/leave/asisten-leave-review-panel.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { LeaveRequest } from '../../types/attendance';
-import { Radius, Spacing } from '../../constants/theme';
+import { Radius, Shadow, Spacing, Typography } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
+import { StatusDot } from '../ui/status-dot';
 import { AICategoryBadge } from './ai-category-badge';
 
 interface AsistenLeaveReviewPanelProps {
   leaveRequests: LeaveRequest[];
   canManage: boolean;
-  asistenId: string;
   onDecide: (
     praktikanId: string,
     decision: 'approved' | 'rejected',
     reviewNote?: string
   ) => Promise<void>;
-  onRetryAI?: (praktikanId: string, reason: string) => Promise<void>;
+  /** Klasifikasi AI dipicu asisten pengampu (FR-18). */
+  onClassify: (praktikanId: string, reason: string) => Promise<void>;
 }
 
 export function AsistenLeaveReviewPanel({
   leaveRequests,
   canManage,
   onDecide,
-  onRetryAI,
+  onClassify,
 }: AsistenLeaveReviewPanelProps) {
   const theme = useTheme();
 
@@ -31,6 +32,36 @@ export function AsistenLeaveReviewPanel({
   const [reviewNote, setReviewNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
+  const autoClassifiedRef = useRef<Set<string>>(new Set());
+  const classifyQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  // Jalankan klasifikasi sekali untuk setiap pengajuan pending yang belum
+  // memiliki hasil AI. Proses diantrekan agar inferensi on-device tidak
+  // dijalankan serentak. Kegagalan tidak diulang otomatis; asisten tetap dapat
+  // memicunya manual dari badge.
+  useEffect(() => {
+    if (!canManage) {
+      return;
+    }
+
+    for (const request of leaveRequests) {
+      if (request.status !== 'pending' || request.ai) {
+        continue;
+      }
+
+      const key = `${request.praktikanId}|${request.reason}`;
+      if (autoClassifiedRef.current.has(key)) {
+        continue;
+      }
+
+      autoClassifiedRef.current.add(key);
+      const praktikanId = request.praktikanId;
+      const reason = request.reason;
+      classifyQueueRef.current = classifyQueueRef.current
+        .then(() => onClassify(praktikanId, reason))
+        .catch(() => undefined);
+    }
+  }, [canManage, leaveRequests, onClassify]);
 
   if (leaveRequests.length === 0) {
     return null; // Tidak perlu tampil jika tidak ada permohonan izin
@@ -64,7 +95,7 @@ export function AsistenLeaveReviewPanel({
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+    <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
       <Text style={[styles.title, { color: theme.textPrimary }]}>
         Pengajuan Izin Masuk ({leaveRequests.length})
       </Text>
@@ -80,7 +111,7 @@ export function AsistenLeaveReviewPanel({
               styles.requestItem,
               {
                 backgroundColor: theme.surfaceSubtle,
-                borderColor: isPending ? '#fbbf24' : isApproved ? '#86efac' : '#fca5a5',
+                borderColor: theme.border,
               },
             ]}>
             <View style={styles.reqHeader}>
@@ -93,31 +124,10 @@ export function AsistenLeaveReviewPanel({
                 </Text>
               </View>
 
-              <View
-                style={[
-                  styles.statusTag,
-                  {
-                    backgroundColor: isPending
-                      ? '#fef3c7'
-                      : isApproved
-                      ? '#dcfce7'
-                      : '#fee2e2',
-                  },
-                ]}>
-                <Text
-                  style={[
-                    styles.statusTagText,
-                    {
-                      color: isPending
-                        ? '#92400e'
-                        : isApproved
-                        ? '#166534'
-                        : '#991b1b',
-                    },
-                  ]}>
-                  {isPending ? 'Menunggu' : isApproved ? 'Diterima' : 'Ditolak'}
-                </Text>
-              </View>
+              <StatusDot
+                label={isPending ? 'Menunggu' : isApproved ? 'Diterima' : 'Ditolak'}
+                tone={isPending ? 'warning' : isApproved ? 'success' : 'error'}
+              />
             </View>
 
             <Text style={[styles.reasonText, { color: theme.textPrimary }]}>
@@ -127,9 +137,9 @@ export function AsistenLeaveReviewPanel({
             {/* AI Classification Chip (FR-18) */}
             <AICategoryBadge
               ai={req.ai}
-              onRetry={
-                onRetryAI ? () => onRetryAI(req.praktikanId, req.reason) : undefined
-              }
+              onRetry={() => {
+                onClassify(req.praktikanId, req.reason).catch(() => undefined);
+              }}
             />
 
             {req.reviewNote ? (
@@ -142,15 +152,15 @@ export function AsistenLeaveReviewPanel({
             {canManage && isPending ? (
               <View style={styles.actionRow}>
                 <TouchableOpacity
-                  style={[styles.btn, styles.rejectBtn]}
+                  style={[styles.btn, styles.outlineBtn, { borderColor: theme.border }]}
                   onPress={() => handleOpenDecision(req, 'rejected')}>
-                  <Text style={styles.rejectBtnText}>Tolak Izin</Text>
+                  <Text style={[styles.btnText, { color: theme.error }]}>Tolak Izin</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.btn, styles.approveBtn]}
+                  style={[styles.btn, { backgroundColor: theme.primary }]}
                   onPress={() => handleOpenDecision(req, 'approved')}>
-                  <Text style={styles.approveBtnText}>Terima Izin</Text>
+                  <Text style={[styles.btnText, { color: theme.onPrimary }]}>Terima Izin</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -164,8 +174,8 @@ export function AsistenLeaveReviewPanel({
         transparent
         animationType="fade"
         onRequestClose={() => setSelectedRequest(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
+          <View style={[styles.modalBox, Shadow.soft, { backgroundColor: theme.surface }]}>
             <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
               {decisionType === 'approved' ? 'Terima Pengajuan Izin?' : 'Tolak Pengajuan Izin?'}
             </Text>
@@ -183,7 +193,7 @@ export function AsistenLeaveReviewPanel({
                   {
                     backgroundColor: theme.surfaceSubtle,
                     color: theme.textPrimary,
-                    borderColor: noteError ? '#ef4444' : theme.border,
+                    borderColor: noteError ? theme.error : theme.border,
                   },
                 ]}
                 placeholder={
@@ -200,25 +210,39 @@ export function AsistenLeaveReviewPanel({
                   if (noteError) setNoteError(null);
                 }}
               />
-              {noteError ? <Text style={styles.errorText}>{noteError}</Text> : null}
+              {noteError ? (
+                <Text style={[styles.errorText, { color: theme.error }]}>{noteError}</Text>
+              ) : null}
             </View>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.btn, styles.cancelBtn, { borderColor: theme.border }]}
+                style={[styles.btn, styles.outlineBtn, { borderColor: theme.border }]}
                 onPress={() => setSelectedRequest(null)}
                 disabled={submitting}>
-                <Text style={{ color: theme.textPrimary, fontWeight: '600' }}>Batal</Text>
+                <Text style={[styles.btnText, { color: theme.textPrimary }]}>Batal</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.btn,
-                  decisionType === 'approved' ? styles.approveBtn : styles.rejectBtn,
+                  {
+                    backgroundColor:
+                      decisionType === 'approved' ? theme.primary : theme.error,
+                  },
                 ]}
                 onPress={handleConfirmDecision}
                 disabled={submitting}>
-                <Text style={{ color: '#ffffff', fontWeight: '600' }}>
+                <Text
+                  style={[
+                    styles.btnText,
+                    {
+                      color:
+                        decisionType === 'approved'
+                          ? theme.onPrimary
+                          : theme.background,
+                    },
+                  ]}>
                   {submitting ? 'Menyimpan...' : 'Konfirmasi'}
                 </Text>
               </TouchableOpacity>
@@ -232,19 +256,16 @@ export function AsistenLeaveReviewPanel({
 
 const styles = StyleSheet.create({
   card: {
-    borderWidth: 1,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.card,
     padding: Spacing.four,
     marginTop: Spacing.four,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...Typography.cardTitle,
     marginBottom: Spacing.three,
   },
   requestItem: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     padding: Spacing.three,
     marginBottom: Spacing.three,
   },
@@ -255,29 +276,19 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.one,
   },
   studentName: {
-    fontSize: 14,
-    fontWeight: '700',
+    ...Typography.bodyStrong,
   },
   studentNim: {
-    fontSize: 12,
-  },
-  statusTag: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 2,
-    borderRadius: Radius.sm,
-  },
-  statusTagText: {
-    fontSize: 11,
-    fontWeight: '700',
+    ...Typography.caption,
   },
   reasonText: {
-    fontSize: 13,
+    ...Typography.body,
     fontStyle: 'italic',
     marginTop: 2,
     marginBottom: 4,
   },
   noteText: {
-    fontSize: 12,
+    ...Typography.caption,
     marginTop: 4,
   },
   actionRow: {
@@ -287,31 +298,21 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
   },
   btn: {
-    paddingVertical: 6,
+    paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
-    borderRadius: Radius.sm,
+    borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 44,
   },
-  approveBtn: {
-    backgroundColor: '#16a34a',
+  outlineBtn: {
+    borderWidth: 1,
   },
-  approveBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  rejectBtn: {
-    backgroundColor: '#dc2626',
-  },
-  rejectBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
+  btnText: {
+    ...Typography.label,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.four,
@@ -319,45 +320,39 @@ const styles = StyleSheet.create({
   modalBox: {
     width: '100%',
     maxWidth: 420,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.sheet,
     padding: Spacing.four,
-    borderWidth: 1,
   },
   modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    ...Typography.sectionTitle,
     marginBottom: 4,
   },
   modalDesc: {
-    fontSize: 13,
+    ...Typography.caption,
     marginBottom: Spacing.three,
   },
   noteInputContainer: {
     marginBottom: Spacing.three,
   },
   inputLabel: {
-    fontSize: 12,
+    ...Typography.caption,
     marginBottom: 4,
   },
   noteInput: {
     borderWidth: 1,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     padding: Spacing.two,
     height: 70,
     textAlignVertical: 'top',
-    fontSize: 13,
+    ...Typography.body,
   },
   errorText: {
-    fontSize: 12,
-    color: '#ef4444',
+    ...Typography.caption,
     marginTop: 4,
   },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: Spacing.two,
-  },
-  cancelBtn: {
-    borderWidth: 1,
   },
 });

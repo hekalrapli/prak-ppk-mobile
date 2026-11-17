@@ -1,111 +1,125 @@
 // src/hooks/use-session-leave.ts
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { LeaveClassification, LeaveRequest } from '../types/attendance';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
 import {
   cancelLeaveRequest,
+  classifyLeaveRequest,
   decideLeaveRequest,
-  retryLeaveClassification,
   submitLeaveRequest,
   subscribeOwnLeaveRequest,
   subscribeSessionLeaveClassifications,
   subscribeSessionLeaveRequests,
   updateLeaveReason,
 } from '../services/leaveService';
-import { useDemoData } from '../store/demo-data-context';
+import type { LeaveClassification, LeaveRequest } from '../types/attendance';
 
-export function useSessionLeave(
-  practicumId: string,
-  sessionId: string,
-  currentUserId?: string,
-  isAsisten = false
-) {
+interface UseSessionLeaveOptions {
+  practicumId: string;
+  sessionId: string;
+  currentUserId?: string;
+  isAsisten?: boolean;
+  /** Hasil klasifikasi hanya dimuat bila layar membutuhkannya (asisten). */
+  loadClassifications?: boolean;
+}
+
+interface LeaveState {
+  key: string;
+  requests: LeaveRequest[];
+  error: string | null;
+}
+
+interface ClassificationState {
+  key: string;
+  data: Record<string, LeaveClassification>;
+}
+
+const EMPTY_REQUESTS: LeaveRequest[] = [];
+const EMPTY_CLASSIFICATIONS: Record<string, LeaveClassification> = {};
+
+export function useSessionLeave({
+  practicumId,
+  sessionId,
+  currentUserId,
+  isAsisten = false,
+  loadClassifications = isAsisten,
+}: UseSessionLeaveOptions) {
   const hasTarget = Boolean(practicumId && sessionId);
-  const targetKey = `${practicumId}|${sessionId}`;
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
-  const [classifications, setClassifications] = useState<Record<string, LeaveClassification>>({});
-  const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  const [errorState, setErrorState] = useState<{ key: string; message: string } | null>(null);
-  const { state: demoState, dispatch } = useDemoData();
+  const canLoadRequests = hasTarget && (isAsisten || Boolean(currentUserId));
 
-  const loading = hasTarget && loadedKey !== targetKey;
-  const error = errorState?.key === targetKey ? errorState.message : null;
+  const [leaveState, setLeaveState] = useState<LeaveState | null>(null);
+  const [classificationState, setClassificationState] =
+    useState<ClassificationState | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
-  // Hasil klasifikasi AI hanya dimuat untuk asisten (praktikan tidak berhak baca).
+  const requestKey = `${practicumId}|${sessionId}|${isAsisten}|${currentUserId ?? ''}|${attempt}`;
+  const classificationKey = `${practicumId}|${sessionId}|${attempt}`;
+
   useEffect(() => {
-    if (!isAsisten || !practicumId || !sessionId) {
+    if (!loadClassifications || !practicumId || !sessionId) {
       return;
     }
 
-    const unsubscribe = subscribeSessionLeaveClassifications(
+    const key = `${practicumId}|${sessionId}|${attempt}`;
+
+    return subscribeSessionLeaveClassifications(
       practicumId,
       sessionId,
-      (data) => setClassifications(data),
-      () => setClassifications({})
+      (data) => setClassificationState({ key, data }),
+      () => setClassificationState({ key, data: {} })
     );
-
-    return () => {
-      unsubscribe();
-    };
-  }, [isAsisten, practicumId, sessionId]);
+  }, [loadClassifications, practicumId, sessionId, attempt]);
 
   useEffect(() => {
-    if (!practicumId || !sessionId) {
+    if (!canLoadRequests || !practicumId || !sessionId) {
       return;
     }
 
-    const key = `${practicumId}|${sessionId}`;
+    const key = `${practicumId}|${sessionId}|${isAsisten}|${currentUserId ?? ''}|${attempt}`;
 
     // Praktikan: listener dokumen sendiri (query koleksi ditolak Rules).
-    if (!isAsisten && currentUserId) {
-      const unsubscribe = subscribeOwnLeaveRequest(
+    if (!isAsisten) {
+      if (!currentUserId) {
+        return;
+      }
+
+      return subscribeOwnLeaveRequest(
         practicumId,
         sessionId,
         currentUserId,
         (request) => {
-          setLeaveRequests(request ? [request] : []);
-          setLoadedKey(key);
+          setLeaveState({
+            key,
+            requests: request ? [request] : [],
+            error: null,
+          });
         },
         (err) => {
-          const local = (demoState.leaveRequests || []).filter(
-            (lr) => lr.sessionId === sessionId && lr.praktikanId === currentUserId
-          );
-          setLeaveRequests(local);
-          setErrorState({ key, message: err.message });
-          setLoadedKey(key);
+          setLeaveState({ key, requests: [], error: err.message });
         }
       );
-
-      return () => {
-        unsubscribe();
-      };
     }
 
-    // Asisten: seluruh pengajuan pada sesi ini.
-    const unsubscribe = subscribeSessionLeaveRequests(
+    // Asisten pengampu: seluruh pengajuan pada sesi ini.
+    return subscribeSessionLeaveRequests(
       practicumId,
       sessionId,
       (data) => {
-        setLeaveRequests(data);
-        setLoadedKey(key);
+        setLeaveState({ key, requests: data, error: null });
       },
       (err) => {
-        // Fallback jika Firestore belum terkoneksi
-        const local = (demoState.leaveRequests || []).filter(
-          (lr) => lr.sessionId === sessionId
-        );
-        setLeaveRequests(local);
-        setErrorState({ key, message: err.message });
-        setLoadedKey(key);
+        setLeaveState({ key, requests: [], error: err.message });
       }
     );
+  }, [canLoadRequests, practicumId, sessionId, isAsisten, currentUserId, attempt]);
 
-    return () => {
-      unsubscribe();
-    };
-  }, [practicumId, sessionId, isAsisten, currentUserId, demoState.leaveRequests]);
+  const loadedLeave = leaveState?.key === requestKey ? leaveState : null;
+  const leaveRequests = loadedLeave?.requests ?? EMPTY_REQUESTS;
+  const classifications =
+    classificationState?.key === classificationKey
+      ? classificationState.data
+      : EMPTY_CLASSIFICATIONS;
 
   // Gabungkan hasil klasifikasi (khusus asisten) ke daftar izin.
-  // Untuk praktikan, `ai` selalu undefined sehingga hasil AI tidak tampil.
   const mergedLeaveRequests = useMemo(
     () =>
       leaveRequests.map((request) => ({
@@ -117,8 +131,20 @@ export function useSessionLeave(
 
   const myLeaveRequest = useMemo(() => {
     if (!currentUserId) return undefined;
-    return mergedLeaveRequests.find((lr) => lr.praktikanId === currentUserId);
+    return mergedLeaveRequests.find((request) => request.praktikanId === currentUserId);
   }, [mergedLeaveRequests, currentUserId]);
+
+  const updateRequests = useCallback(
+    (updater: (current: LeaveRequest[]) => LeaveRequest[]) => {
+      setLeaveState((current) => {
+        if (!current || current.key !== requestKey) {
+          return current;
+        }
+        return { ...current, requests: updater(current.requests) };
+      });
+    },
+    [requestKey]
+  );
 
   const handleSubmitLeave = useCallback(
     async (params: {
@@ -133,22 +159,14 @@ export function useSessionLeave(
         ...params,
       });
 
-      // Update local state juga jika diperlukan
-      setLeaveRequests((prev) => {
-        const filtered = prev.filter((r) => r.praktikanId !== params.praktikanId);
-        return [...filtered, result];
-      });
-
-      if ('leaveRequests' in demoState) {
-        dispatch({
-          type: 'ADD_LEAVE_REQUEST' as any,
-          payload: result,
-        });
-      }
+      updateRequests((current) => [
+        ...current.filter((request) => request.praktikanId !== params.praktikanId),
+        result,
+      ]);
 
       return result;
     },
-    [practicumId, sessionId, demoState, dispatch]
+    [practicumId, sessionId, updateRequests]
   );
 
   const handleUpdateLeave = useCallback(
@@ -156,39 +174,39 @@ export function useSessionLeave(
       const trimmed = newReason.trim();
       await updateLeaveReason(practicumId, sessionId, praktikanId, trimmed);
 
-      // Perbarui state lokal segera agar kartu izin langsung menampilkan
-      // alasan baru, tanpa menunggu listener Firestore.
-      setLeaveRequests((prev) =>
-        prev.map((request) =>
+      updateRequests((current) =>
+        current.map((request) =>
           request.praktikanId === praktikanId ? { ...request, reason: trimmed } : request
         )
       );
-
-      dispatch({
-        type: 'UPDATE_LEAVE_REQUEST' as any,
-        payload: { sessionId, praktikanId, reason: trimmed },
-      });
     },
-    [practicumId, sessionId, dispatch]
+    [practicumId, sessionId, updateRequests]
   );
 
   const handleCancelLeave = useCallback(
     async (praktikanId: string) => {
       await cancelLeaveRequest(practicumId, sessionId, praktikanId);
-      setLeaveRequests((prev) => prev.filter((r) => r.praktikanId !== praktikanId));
+      updateRequests((current) =>
+        current.filter((request) => request.praktikanId !== praktikanId)
+      );
     },
-    [practicumId, sessionId]
+    [practicumId, sessionId, updateRequests]
   );
 
-  const handleRetryClassification = useCallback(
+  const handleClassifyLeave = useCallback(
     async (praktikanId: string, reason: string) => {
-      await retryLeaveClassification(practicumId, sessionId, praktikanId, reason);
+      await classifyLeaveRequest(practicumId, sessionId, praktikanId, reason);
     },
     [practicumId, sessionId]
   );
 
   const handleDecideLeave = useCallback(
-    async (praktikanId: string, asistenId: string, decision: 'approved' | 'rejected', reviewNote?: string) => {
+    async (
+      praktikanId: string,
+      asistenId: string,
+      decision: 'approved' | 'rejected',
+      reviewNote?: string
+    ) => {
       await decideLeaveRequest({
         practicumId,
         sessionId,
@@ -197,27 +215,33 @@ export function useSessionLeave(
         decision,
         reviewNote,
       });
-      setLeaveRequests((prev) =>
-        prev.map((r) =>
-          r.praktikanId === praktikanId
-            ? { ...r, status: decision, reviewNote: reviewNote || '', decidedBy: asistenId }
-            : r
+
+      updateRequests((current) =>
+        current.map((request) =>
+          request.praktikanId === praktikanId
+            ? {
+                ...request,
+                status: decision,
+                reviewNote: reviewNote || '',
+                decidedBy: asistenId,
+              }
+            : request
         )
       );
     },
-    [practicumId, sessionId]
+    [practicumId, sessionId, updateRequests]
   );
 
   return {
     leaveRequests: mergedLeaveRequests,
     myLeaveRequest,
-    loading,
-    error,
+    loading: canLoadRequests && !loadedLeave,
+    error: loadedLeave?.error ?? null,
+    retry: useCallback(() => setAttempt((value) => value + 1), []),
     handleSubmitLeave,
     handleUpdateLeave,
     handleCancelLeave,
-    handleRetryClassification,
+    handleClassifyLeave,
     handleDecideLeave,
   };
 }
-

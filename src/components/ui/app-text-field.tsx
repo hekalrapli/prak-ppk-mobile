@@ -7,8 +7,8 @@ import {
   View,
 } from 'react-native';
 
-import { Radius, Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/use-theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 interface AppTextFieldProps extends TextInputProps {
   label: string;
@@ -18,8 +18,7 @@ interface AppTextFieldProps extends TextInputProps {
 }
 
 /**
- * Labeled text input sesuai DESIGN.md §7.6.4:
- * label + 8 px gap + field + helper/error caption.
+ * Label + field + helper/error. Field membulat, latar putih, fokus koral.
  */
 export function AppTextField({
   label,
@@ -38,7 +37,7 @@ export function AppTextField({
   const borderColor = error
     ? theme.error
     : focused
-      ? theme.primary
+      ? theme.link
       : theme.border;
 
   return (
@@ -80,15 +79,15 @@ export function AppTextField({
 
 const styles = StyleSheet.create({
   container: { gap: Spacing.two },
-  label: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  label: { ...Typography.label },
   input: {
     minHeight: 52,
     borderWidth: 1,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
-    fontSize: 16,
-    lineHeight: 22,
+    ...Typography.body,
+    lineHeight: 24,
   },
-  caption: { fontSize: 12, lineHeight: 16 },
+  caption: { ...Typography.caption },
 });
