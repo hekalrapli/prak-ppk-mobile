@@ -1,9 +1,12 @@
 // src/components/ui/offline-banner.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
+
 import { Spacing } from '../../constants/theme';
+import { useTheme } from '../../hooks/use-theme';
 
 export function OfflineBanner() {
+  const theme = useTheme();
   const [isOffline, setIsOffline] = useState(() =>
     Platform.OS === 'web' && typeof window !== 'undefined'
       ? !window.navigator.onLine
@@ -28,26 +31,31 @@ export function OfflineBanner() {
   if (!isOffline) return null;
 
   return (
-    <View style={styles.banner}>
-      <Text style={styles.text}>Anda sedang offline. Data cache tetap ditampilkan.</Text>
+    <View
+      accessibilityRole="alert"
+      style={[
+        styles.banner,
+        { backgroundColor: theme.errorSoft, borderBottomColor: theme.error },
+      ]}>
+      <Text style={[styles.text, { color: theme.error }]}>
+        Anda sedang offline. Data cache tetap ditampilkan.
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: '#b91c1c',
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',
+    borderBottomWidth: 1,
     zIndex: 9999,
   },
   text: {
-    color: '#ffffff',
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
   },
 });
-

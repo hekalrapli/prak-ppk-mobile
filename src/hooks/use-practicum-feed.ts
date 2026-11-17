@@ -26,29 +26,34 @@ const EMPTY_SESSIONS: Record<string, Session[]> = {};
  * Sumber jadwal tunggal untuk kedua peran:
  * - asisten: hanya praktikum dengan `assistantId == uid`
  * - praktikan: hanya praktikum yang memuat uid di `studentIds`
+ *
+ * `refresh` mempertahankan data yang sudah tampil (tidak diganti skeleton)
+ * dan hanya memicu ulang listener Firestore.
  */
 export function usePracticumFeed(role: UserRole, userId?: string) {
   const [practicumAttempt, setPracticumAttempt] = useState(0);
   const [practicumState, setPracticumState] = useState<PracticumState | null>(null);
-  const practicumKey = `${role}|${userId ?? ''}|${practicumAttempt}`;
+  const [refreshing, setRefreshing] = useState(false);
+  const practicumKey = `${role}|${userId ?? ''}`;
 
   useEffect(() => {
     if (!userId) {
       return;
     }
 
-    const key = `${role}|${userId}|${practicumAttempt}`;
     const handleData = (data: Practicum[]) => {
-      setPracticumState({ key, practicums: data, error: null });
+      setPracticumState({ key: practicumKey, practicums: data, error: null });
+      setRefreshing(false);
     };
     const handleError = (message: string) => {
-      setPracticumState({ key, practicums: [], error: message });
+      setPracticumState({ key: practicumKey, practicums: [], error: message });
+      setRefreshing(false);
     };
 
     return role === 'asisten'
       ? subscribeAsistenPracticums(userId, handleData, handleError)
       : subscribePraktikanPracticums(userId, handleData, handleError);
-  }, [role, userId, practicumAttempt]);
+  }, [role, userId, practicumAttempt, practicumKey]);
 
   const loadedPracticums = practicumState?.key === practicumKey ? practicumState : null;
   const practicums = useMemo(
@@ -69,7 +74,6 @@ export function usePracticumFeed(role: UserRole, userId?: string) {
 
   const [sessionsAttempt, setSessionsAttempt] = useState(0);
   const [sessionState, setSessionState] = useState<SessionState | null>(null);
-  const sessionsKey = `${practicumIdsKey}|${sessionsAttempt}`;
 
   useEffect(() => {
     const ids = practicumIdsKey ? practicumIdsKey.split('|') : [];
@@ -78,7 +82,6 @@ export function usePracticumFeed(role: UserRole, userId?: string) {
       return;
     }
 
-    const key = `${practicumIdsKey}|${sessionsAttempt}`;
     const pendingFirstEmit = new Set(ids);
     const collected: Record<string, Session[]> = {};
 
@@ -91,18 +94,20 @@ export function usePracticumFeed(role: UserRole, userId?: string) {
 
           if (pendingFirstEmit.size === 0) {
             setSessionState({
-              key,
+              key: practicumIdsKey,
               byPracticum: { ...collected },
               error: null,
             });
+            setRefreshing(false);
           }
         },
         (message) => {
           setSessionState({
-            key,
+            key: practicumIdsKey,
             byPracticum: { ...collected },
             error: message,
           });
+          setRefreshing(false);
         }
       )
     );
@@ -112,7 +117,7 @@ export function usePracticumFeed(role: UserRole, userId?: string) {
     };
   }, [practicumIdsKey, sessionsAttempt]);
 
-  const loadedSessions = sessionState?.key === sessionsKey ? sessionState : null;
+  const loadedSessions = sessionState?.key === practicumIdsKey ? sessionState : null;
   const sessionsByPracticum = loadedSessions?.byPracticum ?? EMPTY_SESSIONS;
   const sessionsLoading = practicumIdsKey.length > 0 && !loadedSessions;
   const sessionsError = loadedSessions?.error ?? null;
@@ -128,11 +133,19 @@ export function usePracticumFeed(role: UserRole, userId?: string) {
     setSessionsAttempt((value) => value + 1);
   }, []);
 
+  const refresh = useCallback(() => {
+    setRefreshing(true);
+    setPracticumAttempt((value) => value + 1);
+    setSessionsAttempt((value) => value + 1);
+  }, []);
+
   return {
     practicums,
     sessions,
     loading: practicumsLoading || sessionsLoading,
+    refreshing,
     error: practicumsError ?? sessionsError,
     retry,
+    refresh,
   };
 }

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState, LoadingState } from '@/components/ui/screen-state';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { StatusDot } from '@/components/ui/status-dot';
 import { Radius, Spacing } from '@/constants/theme';
 import { useSessionAttendance } from '@/hooks/use-session-attendance';
 import { useSessionLeave } from '@/hooks/use-session-leave';
@@ -174,25 +175,10 @@ export function AttendanceRecap({ practicum, session }: AttendanceRecapProps) {
                 </View>
 
                 <View style={styles.badgeContainer}>
-                  <View
-                    style={[
-                      styles.statusPill,
-                      {
-                        backgroundColor:
-                          item.statusLabel === 'Hadir' ? '#dcfce7' : '#fef3c7',
-                      },
-                    ]}>
-                    <Text
-                      style={[
-                        styles.statusPillText,
-                        {
-                          color:
-                            item.statusLabel === 'Hadir' ? '#166534' : '#92400e',
-                        },
-                      ]}>
-                      {item.statusLabel}
-                    </Text>
-                  </View>
+                  <StatusDot
+                    label={item.statusLabel}
+                    tone={item.statusLabel === 'Hadir' ? 'success' : 'warning'}
+                  />
                   <Text style={[styles.timeText, { color: theme.textSecondary }]}>
                     {item.timeDisplay}
                   </Text>
@@ -265,15 +251,6 @@ const styles = StyleSheet.create({
   badgeContainer: {
     alignItems: 'flex-end',
     gap: 4,
-  },
-  statusPill: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 2,
-    borderRadius: Radius.sm,
-  },
-  statusPillText: {
-    fontSize: 12,
-    fontWeight: '700',
   },
   timeText: {
     fontSize: 12,

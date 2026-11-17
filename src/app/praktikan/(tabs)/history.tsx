@@ -1,12 +1,21 @@
 // src/app/praktikan/history.tsx
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AttendanceRecordItem } from '@/components/attendance/attendance-record-item';
 import { EmptyState } from '@/components/ui/empty-state';
-import { ErrorState, LoadingState } from '@/components/ui/screen-state';
+import { ErrorState } from '@/components/ui/screen-state';
+import { SkeletonCardList } from '@/components/ui/skeleton';
+import { StatusDot } from '@/components/ui/status-dot';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAttendanceHistory, useLeaveHistory } from '@/hooks/use-history';
 import { usePracticumFeed } from '@/hooks/use-practicum-feed';
@@ -145,7 +154,7 @@ export default function PraktikanHistoryScreen() {
       <SafeAreaView
         edges={['bottom']}
         style={[styles.container, { backgroundColor: theme.background }]}>
-        <LoadingState label="Memuat riwayat…" />
+        <SkeletonCardList count={4} />
       </SafeAreaView>
     );
   }
@@ -169,6 +178,14 @@ export default function PraktikanHistoryScreen() {
           data={entries}
           keyExtractor={(item) => `${item.record.practicumId}-${item.record.sessionId}`}
           contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              colors={[theme.textPrimary]}
+              onRefresh={feed.refresh}
+              refreshing={feed.refreshing}
+              tintColor={theme.textSecondary}
+            />
+          }
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={
             <EmptyState
@@ -212,6 +229,14 @@ export default function PraktikanHistoryScreen() {
           data={leaveEntries}
           keyExtractor={(item) => `${item.request.practicumId}-${item.request.sessionId}`}
           contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              colors={[theme.textPrimary]}
+              onRefresh={feed.refresh}
+              refreshing={feed.refreshing}
+              tintColor={theme.textSecondary}
+            />
+          }
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={
             <EmptyState
@@ -233,31 +258,10 @@ export default function PraktikanHistoryScreen() {
                   <Text style={[styles.leaveTitle, { color: theme.textPrimary }]}>
                     {item.practicum?.name ?? 'Praktikum'}
                   </Text>
-                  <View
-                    style={[
-                      styles.statusPill,
-                      {
-                        backgroundColor: isPending
-                          ? '#fef3c7'
-                          : isApproved
-                            ? '#dcfce7'
-                            : '#fee2e2',
-                      },
-                    ]}>
-                    <Text
-                      style={[
-                        styles.statusPillText,
-                        {
-                          color: isPending
-                            ? '#92400e'
-                            : isApproved
-                              ? '#166534'
-                              : '#991b1b',
-                        },
-                      ]}>
-                      {isPending ? 'Menunggu' : isApproved ? 'Diterima' : 'Ditolak'}
-                    </Text>
-                  </View>
+                  <StatusDot
+                    label={isPending ? 'Menunggu' : isApproved ? 'Diterima' : 'Ditolak'}
+                    tone={isPending ? 'warning' : isApproved ? 'success' : 'error'}
+                  />
                 </View>
 
                 {item.session?.date ? (
@@ -350,15 +354,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
     marginBottom: 4,
-  },
-  statusPill: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 2,
-    borderRadius: Radius.sm,
-  },
-  statusPillText: {
-    fontSize: 11,
-    fontWeight: '700',
   },
   reasonText: {
     fontSize: 13,

@@ -1,24 +1,23 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScheduleListItem, StatusLegend } from '@/components/attendance/schedule-list-item';
 import { EmptyState } from '@/components/ui/empty-state';
-import { ErrorState, LoadingState } from '@/components/ui/screen-state';
+import { ErrorState } from '@/components/ui/screen-state';
+import { SkeletonCardList } from '@/components/ui/skeleton';
 import { Spacing } from '@/constants/theme';
 import { usePracticumFeed } from '@/hooks/use-practicum-feed';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth-context';
 
-export default function AsistenScheduleScreen() {
+export default function PraktikanScheduleScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { profile } = useAuth();
-  const { practicums, sessions, loading, error, retry } = usePracticumFeed(
-    'asisten',
-    profile?.uid
-  );
+  const { practicums, sessions, loading, refreshing, error, retry, refresh } =
+    usePracticumFeed('praktikan', profile?.uid);
 
   const practicumById = useMemo(
     () => new Map(practicums.map((practicum) => [practicum.id, practicum])),
@@ -39,7 +38,7 @@ export default function AsistenScheduleScreen() {
       <SafeAreaView
         edges={['bottom']}
         style={[styles.container, { backgroundColor: theme.background }]}>
-        <LoadingState label="Memuat jadwal praktikum…" />
+        <SkeletonCardList count={4} />
       </SafeAreaView>
     );
   }
@@ -57,23 +56,20 @@ export default function AsistenScheduleScreen() {
   const renderHeader = () => (
     <View style={styles.header}>
       <Text style={[styles.greeting, { color: theme.textPrimary }]}>
-        Halo, {profile?.name ?? 'Asisten'}
+        Halo, {profile?.name ?? 'Praktikan'}
       </Text>
       <Text style={[styles.userMeta, { color: theme.textSecondary }]}>
-        Asisten · {profile?.identifier ?? '—'}
+        {profile?.identifier ?? '—'}
       </Text>
 
       <View style={styles.sectionRow}>
         <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-          Sesi Praktikum{' '}
+          Jadwal Praktikum{' '}
           <Text style={[styles.count, { color: theme.textSecondary }]}>
             ({rows.length} sesi)
           </Text>
         </Text>
       </View>
-      <Text style={[styles.sectionHint, { color: theme.textSecondary }]}>
-        Hanya praktikum yang Anda ampu sebagai asisten pengampu.
-      </Text>
     </View>
   );
 
@@ -85,22 +81,30 @@ export default function AsistenScheduleScreen() {
         data={rows}
         keyExtractor={(item) => item.session.id}
         contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            colors={[theme.textPrimary]}
+            onRefresh={refresh}
+            refreshing={refreshing}
+            tintColor={theme.textSecondary}
+          />
+        }
         ListHeaderComponent={renderHeader}
         ListFooterComponent={rows.length > 0 ? <StatusLegend /> : undefined}
         ListEmptyComponent={
           <EmptyState
             title="Belum ada jadwal"
-            description="Belum ada sesi untuk praktikum yang Anda ampu. Pastikan penugasan asisten dan jadwal sesi sudah dibuat."
+            description="Belum ada sesi untuk praktikum yang Anda ikuti. Pastikan Anda sudah terdaftar sebagai peserta dan jadwal sesi sudah dibuat."
           />
         }
         renderItem={({ item }) => (
           <ScheduleListItem
             session={item.session}
             practicum={item.practicum}
-            assistantName={item.practicum.assistantName ?? profile?.name}
+            assistantName={item.practicum.assistantName}
             onPress={() =>
               router.push({
-                pathname: '/asisten/session/[sessionId]',
+                pathname: '/praktikan/session/[sessionId]',
                 params: {
                   sessionId: item.session.id,
                   practicumId: item.practicum.id,
@@ -126,8 +130,9 @@ const styles = StyleSheet.create({
   header: { marginBottom: Spacing.three },
   greeting: { fontSize: 24, fontWeight: '700', lineHeight: 32, marginBottom: Spacing.one },
   userMeta: { fontSize: 14, lineHeight: 20, marginBottom: Spacing.four },
-  sectionRow: { marginBottom: Spacing.one },
-  sectionTitle: { fontSize: 18, fontWeight: '600', lineHeight: 26 },
+  sectionRow: {
+    marginBottom: Spacing.two,
+  },
+  sectionTitle: { flex: 1, fontSize: 18, fontWeight: '600', lineHeight: 26 },
   count: { fontSize: 14, fontWeight: '400' },
-  sectionHint: { fontSize: 13, lineHeight: 18, marginBottom: Spacing.two },
 });

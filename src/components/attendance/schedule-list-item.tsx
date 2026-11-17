@@ -4,6 +4,7 @@ import { Session, Practicum } from '../../types/attendance';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
 import { StatusBadge } from '../ui/status-badge';
+import { StatusDot } from '../ui/status-dot';
 
 interface ScheduleListItemProps {
   session: Session;
@@ -55,12 +56,20 @@ export const ScheduleListItem: React.FC<ScheduleListItemProps> = ({
 
 // Komponen Legend (Penjelasan Status)
 export const StatusLegend = () => {
-  const theme = useTheme();
   return (
     <View style={styles.legendContainer}>
-      <Text style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 4 }}>• <Text style={{fontWeight: '600'}}>Belum dibuka</Text>: Asisten belum membuka presensi.</Text>
-      <Text style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 4 }}>• <Text style={{fontWeight: '600'}}>Dibuka</Text>: Presensi dapat dicatat sampai sesi ditutup.</Text>
-      <Text style={{ fontSize: 12, color: theme.textSecondary }}>• <Text style={{fontWeight: '600'}}>Ditutup</Text>: Sesi selesai; presensi tidak lagi tersedia.</Text>
+      <StatusDot
+        label="Belum dibuka — asisten belum membuka presensi"
+        tone="muted"
+      />
+      <StatusDot
+        label="Dibuka — presensi dapat dicatat sampai sesi ditutup"
+        tone="success"
+      />
+      <StatusDot
+        label="Ditutup — sesi selesai, presensi tidak tersedia"
+        tone="neutral"
+      />
     </View>
   );
 };
@@ -73,5 +82,5 @@ const styles = StyleSheet.create({
   meta: { fontSize: 14, marginBottom: Spacing.one },
   assistant: { fontSize: 14, lineHeight: 20, marginBottom: Spacing.one },
   time: { fontSize: 16, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  legendContainer: { marginTop: Spacing.three, paddingHorizontal: Spacing.one },
+  legendContainer: { marginTop: Spacing.three, paddingHorizontal: Spacing.one, gap: Spacing.two },
 });

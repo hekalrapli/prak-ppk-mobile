@@ -64,7 +64,7 @@ export function LeaveRequestModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}>
+        style={[styles.overlay, { backgroundColor: theme.overlay }]}>
         <View style={[styles.modalCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.title, { color: theme.textPrimary }]}>
             {isEditing ? 'Ubah Alasan Izin' : 'Pengajuan Izin Praktikum'}
@@ -80,7 +80,7 @@ export function LeaveRequestModal({
                 {
                   backgroundColor: theme.surfaceSubtle,
                   color: theme.textPrimary,
-                  borderColor: errorMsg ? '#ef4444' : theme.border,
+                  borderColor: errorMsg ? theme.error : theme.border,
                 },
               ]}
               placeholder="Tuliskan alasan izin Anda (10–500 karakter)..."
@@ -98,9 +98,9 @@ export function LeaveRequestModal({
 
             <View style={styles.charCountRow}>
               {errorMsg ? (
-                <Text style={styles.errorText}>{errorMsg}</Text>
+                <Text style={[styles.errorText, { color: theme.error }]}>{errorMsg}</Text>
               ) : (
-                <Text style={[styles.counter, { color: isValid ? theme.textSecondary : '#f59e0b' }]}>
+                <Text style={[styles.counter, { color: isValid ? theme.textSecondary : theme.warning }]}>
                   {characterCount < 10
                     ? `Kurang ${10 - characterCount} karakter lagi`
                     : `${characterCount} / 500 karakter`}
@@ -124,15 +124,14 @@ export function LeaveRequestModal({
             <TouchableOpacity
               style={[
                 styles.button,
-                styles.submitButton,
-                { opacity: isValid && !loading ? 1 : 0.5 },
+                { backgroundColor: theme.primary, opacity: isValid && !loading ? 1 : 0.5 },
               ]}
               onPress={handleSubmit}
               disabled={!isValid || loading}>
               {loading ? (
-                <ActivityIndicator size="small" color="#ffffff" />
+                <ActivityIndicator size="small" color={theme.onPrimary} />
               ) : (
-                <Text style={[styles.buttonText, { color: '#ffffff' }]}>
+                <Text style={[styles.buttonText, { color: theme.onPrimary }]}>
                   {isEditing ? 'Simpan Perubahan' : 'Kirim Izin'}
                 </Text>
               )}
@@ -147,7 +146,6 @@ export function LeaveRequestModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.four,
@@ -194,7 +192,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    color: '#ef4444',
     fontWeight: '500',
   },
   infoText: {
@@ -217,9 +214,6 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     borderWidth: 1,
-  },
-  submitButton: {
-    backgroundColor: '#2563eb',
   },
   buttonText: {
     fontSize: 14,

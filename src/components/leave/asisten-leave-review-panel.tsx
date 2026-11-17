@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput } from 'reac
 import { LeaveRequest } from '../../types/attendance';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
+import { StatusDot } from '../ui/status-dot';
 import { AICategoryBadge } from './ai-category-badge';
 
 interface AsistenLeaveReviewPanelProps {
@@ -110,7 +111,7 @@ export function AsistenLeaveReviewPanel({
               styles.requestItem,
               {
                 backgroundColor: theme.surfaceSubtle,
-                borderColor: isPending ? '#fbbf24' : isApproved ? '#86efac' : '#fca5a5',
+                borderColor: theme.border,
               },
             ]}>
             <View style={styles.reqHeader}>
@@ -123,31 +124,10 @@ export function AsistenLeaveReviewPanel({
                 </Text>
               </View>
 
-              <View
-                style={[
-                  styles.statusTag,
-                  {
-                    backgroundColor: isPending
-                      ? '#fef3c7'
-                      : isApproved
-                      ? '#dcfce7'
-                      : '#fee2e2',
-                  },
-                ]}>
-                <Text
-                  style={[
-                    styles.statusTagText,
-                    {
-                      color: isPending
-                        ? '#92400e'
-                        : isApproved
-                        ? '#166534'
-                        : '#991b1b',
-                    },
-                  ]}>
-                  {isPending ? 'Menunggu' : isApproved ? 'Diterima' : 'Ditolak'}
-                </Text>
-              </View>
+              <StatusDot
+                label={isPending ? 'Menunggu' : isApproved ? 'Diterima' : 'Ditolak'}
+                tone={isPending ? 'warning' : isApproved ? 'success' : 'error'}
+              />
             </View>
 
             <Text style={[styles.reasonText, { color: theme.textPrimary }]}>
@@ -172,15 +152,15 @@ export function AsistenLeaveReviewPanel({
             {canManage && isPending ? (
               <View style={styles.actionRow}>
                 <TouchableOpacity
-                  style={[styles.btn, styles.rejectBtn]}
+                  style={[styles.btn, styles.outlineBtn, { borderColor: theme.border }]}
                   onPress={() => handleOpenDecision(req, 'rejected')}>
-                  <Text style={styles.rejectBtnText}>Tolak Izin</Text>
+                  <Text style={[styles.btnText, { color: theme.error }]}>Tolak Izin</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.btn, styles.approveBtn]}
+                  style={[styles.btn, { backgroundColor: theme.primary }]}
                   onPress={() => handleOpenDecision(req, 'approved')}>
-                  <Text style={styles.approveBtnText}>Terima Izin</Text>
+                  <Text style={[styles.btnText, { color: theme.onPrimary }]}>Terima Izin</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -194,7 +174,7 @@ export function AsistenLeaveReviewPanel({
         transparent
         animationType="fade"
         onRequestClose={() => setSelectedRequest(null)}>
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
           <View style={[styles.modalBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
               {decisionType === 'approved' ? 'Terima Pengajuan Izin?' : 'Tolak Pengajuan Izin?'}
@@ -213,7 +193,7 @@ export function AsistenLeaveReviewPanel({
                   {
                     backgroundColor: theme.surfaceSubtle,
                     color: theme.textPrimary,
-                    borderColor: noteError ? '#ef4444' : theme.border,
+                    borderColor: noteError ? theme.error : theme.border,
                   },
                 ]}
                 placeholder={
@@ -230,25 +210,30 @@ export function AsistenLeaveReviewPanel({
                   if (noteError) setNoteError(null);
                 }}
               />
-              {noteError ? <Text style={styles.errorText}>{noteError}</Text> : null}
+              {noteError ? (
+                <Text style={[styles.errorText, { color: theme.error }]}>{noteError}</Text>
+              ) : null}
             </View>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.btn, styles.cancelBtn, { borderColor: theme.border }]}
+                style={[styles.btn, styles.outlineBtn, { borderColor: theme.border }]}
                 onPress={() => setSelectedRequest(null)}
                 disabled={submitting}>
-                <Text style={{ color: theme.textPrimary, fontWeight: '600' }}>Batal</Text>
+                <Text style={[styles.btnText, { color: theme.textPrimary }]}>Batal</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.btn,
-                  decisionType === 'approved' ? styles.approveBtn : styles.rejectBtn,
+                  {
+                    backgroundColor:
+                      decisionType === 'approved' ? theme.primary : theme.error,
+                  },
                 ]}
                 onPress={handleConfirmDecision}
                 disabled={submitting}>
-                <Text style={{ color: '#ffffff', fontWeight: '600' }}>
+                <Text style={[styles.btnText, { color: theme.onPrimary }]}>
                   {submitting ? 'Menyimpan...' : 'Konfirmasi'}
                 </Text>
               </TouchableOpacity>
@@ -291,15 +276,6 @@ const styles = StyleSheet.create({
   studentNim: {
     fontSize: 12,
   },
-  statusTag: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 2,
-    borderRadius: Radius.sm,
-  },
-  statusTagText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
   reasonText: {
     fontSize: 13,
     fontStyle: 'italic',
@@ -323,25 +299,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  approveBtn: {
-    backgroundColor: '#16a34a',
+  outlineBtn: {
+    borderWidth: 1,
   },
-  approveBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  rejectBtn: {
-    backgroundColor: '#dc2626',
-  },
-  rejectBtnText: {
-    color: '#ffffff',
+  btnText: {
     fontSize: 12,
     fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.four,
@@ -379,15 +345,11 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    color: '#ef4444',
     marginTop: 4,
   },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: Spacing.two,
-  },
-  cancelBtn: {
-    borderWidth: 1,
   },
 });

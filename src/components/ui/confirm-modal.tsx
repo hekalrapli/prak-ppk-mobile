@@ -31,7 +31,7 @@ export function ConfirmModal({
       onRequestClose={onCancel}
       transparent
       visible={visible}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
         <Pressable
           accessibilityLabel="Tutup dialog"
           onPress={onCancel}
@@ -66,7 +66,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.three,
-    backgroundColor: 'rgba(17, 24, 39, 0.48)',
   },
   card: {
     width: '100%',

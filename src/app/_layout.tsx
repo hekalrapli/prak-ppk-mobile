@@ -3,14 +3,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'react-native';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthGate } from '@/components/auth/auth-gate';
-import { ToastProvider } from '@/components/ui/toast-provider';
 import { OfflineBanner } from '@/components/ui/offline-banner';
+import { ToastProvider } from '@/components/ui/toast-provider';
 import { Colors } from '@/constants/theme';
 import { AuthProvider } from '@/store/auth-context';
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.setOptions({ duration: 300, fade: true });
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -22,7 +21,6 @@ export default function RootLayout() {
       <AuthProvider>
         <ToastProvider>
           <StatusBar style={isDark ? 'light' : 'dark'} />
-          <AnimatedSplashOverlay />
           <OfflineBanner />
           <AuthGate />
           <Stack
