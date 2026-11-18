@@ -18,6 +18,18 @@ export default function AsistenLayout() {
         }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
+          name="practicum/form"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="practicum/[practicumId]"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="session/form"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
           name="session/[sessionId]/index"
           options={{ headerShown: false }}
         />
