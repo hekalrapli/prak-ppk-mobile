@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -26,6 +27,7 @@ function initialsOf(name: string) {
 }
 
 export function ProfileScreen({ role }: ProfileScreenProps) {
+  const router = useRouter();
   const theme = useTheme();
   const { profile, logout } = useAuth();
   const { practicums, loading, error } = usePracticumFeed(role, profile?.uid);
@@ -108,33 +110,77 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
               : 'Belum ada praktikum yang Anda ikuti.'}
           </Text>
         ) : (
-          visiblePracticums.map((practicum, index) => (
-            <View
-              key={practicum.id}
-              style={[
-                styles.practicumRow,
-                index > 0 && {
-                  borderTopWidth: 1,
-                  borderTopColor: theme.border,
-                  paddingTop: Spacing.two,
-                },
-              ]}>
-              <View style={[styles.dot, { backgroundColor: theme.accent }]} />
-              <View style={styles.practicumInfo}>
-                <Text style={[styles.practicumName, { color: theme.textPrimary }]}>
-                  {practicum.name}
-                </Text>
-                <Text style={[styles.practicumMeta, { color: theme.textSecondary }]}>
-                  {practicum.className}
-                  {isAsisten
-                    ? ''
-                    : practicum.assistantName
-                      ? ` · ${practicum.assistantName}`
-                      : ''}
-                </Text>
+          visiblePracticums.map((practicum, index) => {
+            const canManagePracticum =
+              isAsisten &&
+              profile?.role === 'asisten' &&
+              practicum.assistantId === profile.uid;
+
+            const rowContent = (
+              <>
+                <View style={[styles.dot, { backgroundColor: theme.accent }]} />
+                <View style={styles.practicumInfo}>
+                  <Text style={[styles.practicumName, { color: theme.textPrimary }]}>
+                    {practicum.name}
+                  </Text>
+                  <Text style={[styles.practicumMeta, { color: theme.textSecondary }]}>
+                    {practicum.className}
+                    {isAsisten
+                      ? ` · ${practicum.studentIds?.length ?? 0} peserta`
+                      : practicum.assistantName
+                        ? ` · ${practicum.assistantName}`
+                        : ''}
+                  </Text>
+                </View>
+                {canManagePracticum ? (
+                  <Text style={[styles.manageLabel, { color: theme.link }]}>
+                    Kelola
+                  </Text>
+                ) : null}
+              </>
+            );
+
+            if (canManagePracticum) {
+              return (
+                <Pressable
+                  key={practicum.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Kelola ${practicum.name}`}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/asisten/practicum/[practicumId]',
+                      params: { practicumId: practicum.id },
+                    })
+                  }
+                  style={({ pressed }) => [
+                    styles.practicumRow,
+                    index > 0 && {
+                      borderTopWidth: 1,
+                      borderTopColor: theme.border,
+                      paddingTop: Spacing.two,
+                    },
+                    pressed && { opacity: 0.75 },
+                  ]}>
+                  {rowContent}
+                </Pressable>
+              );
+            }
+
+            return (
+              <View
+                key={practicum.id}
+                style={[
+                  styles.practicumRow,
+                  index > 0 && {
+                    borderTopWidth: 1,
+                    borderTopColor: theme.border,
+                    paddingTop: Spacing.two,
+                  },
+                ]}>
+                {rowContent}
               </View>
-            </View>
-          ))
+            );
+          })
         )}
 
         {hasHiddenPracticums ? (
@@ -153,6 +199,16 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
                 : `Lihat semua (${sortedPracticums.length})`}
             </Text>
           </Pressable>
+        ) : null}
+
+        {isAsisten && profile?.role === 'asisten' ? (
+          <View style={styles.addPracticumWrap}>
+            <AppButton
+              label="Tambah praktikum"
+              variant="secondary"
+              onPress={() => router.push('/asisten/practicum/form')}
+            />
+          </View>
         ) : null}
       </View>
 
@@ -245,6 +301,8 @@ const styles = StyleSheet.create({
   practicumInfo: { flex: 1, gap: 2 },
   practicumName: { ...Typography.bodyStrong },
   practicumMeta: { ...Typography.caption },
+  manageLabel: { ...Typography.label, alignSelf: 'center' },
+  addPracticumWrap: { marginTop: Spacing.two },
   toggle: {
     minHeight: 44,
     justifyContent: 'center',

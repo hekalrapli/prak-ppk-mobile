@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +16,12 @@ import { useSessionLeave } from '@/hooks/use-session-leave';
 import { useTheme } from '@/hooks/use-theme';
 import { buildRecapEntries } from '@/lib/recap';
 import { formatTimestampToTime } from '@/services/attendanceService';
-import { closeSession, openSession } from '@/services/scheduleService';
+import {
+  closeSession,
+  deleteSessionCascade,
+  getSessionAttendanceCount,
+  openSession,
+} from '@/services/scheduleService';
 import { useAuth } from '@/store/auth-context';
 import type { Practicum, Session, SessionStatus, UserRole } from '@/types/attendance';
 import { AsistenLeaveReviewPanel } from '@/components/leave/asisten-leave-review-panel';
@@ -34,6 +40,7 @@ type SessionAction = 'open' | 'close';
 type SessionTab = 'ringkasan' | 'kehadiran' | 'izin';
 
 export function SessionDetail({ role, practicum, session }: SessionDetailProps) {
+  const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
@@ -47,6 +54,11 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
   const [pendingAction, setPendingAction] = useState<SessionAction | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLeaveModalVisible, setIsLeaveModalVisible] = useState(false);
+  const [deleteAttendanceCount, setDeleteAttendanceCount] = useState<number | null>(
+    null
+  );
+  const [checkingDeleteSession, setCheckingDeleteSession] = useState(false);
+  const [deletingSession, setDeletingSession] = useState(false);
   const savingRef = useRef(false);
 
   const {
@@ -196,6 +208,50 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
     }
   };
 
+  const handleRequestDeleteSession = async () => {
+    if (!canManage || checkingDeleteSession || savingRef.current) {
+      return;
+    }
+
+    setCheckingDeleteSession(true);
+    try {
+      const count = await getSessionAttendanceCount(practicum.id, session.id);
+      setDeleteAttendanceCount(count);
+    } catch (error) {
+      showToast(
+        error instanceof Error
+          ? error.message
+          : 'Gagal memeriksa data kehadiran sesi.',
+        'error'
+      );
+    } finally {
+      setCheckingDeleteSession(false);
+    }
+  };
+
+  const handleConfirmDeleteSession = async () => {
+    if (!canManage || savingRef.current) {
+      return;
+    }
+
+    savingRef.current = true;
+    setDeletingSession(true);
+    try {
+      await deleteSessionCascade(practicum.id, session.id);
+      setDeleteAttendanceCount(null);
+      showToast('Sesi berhasil dihapus', 'success');
+      router.replace('/asisten');
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Gagal menghapus sesi.',
+        'error'
+      );
+    } finally {
+      savingRef.current = false;
+      setDeletingSession(false);
+    }
+  };
+
   const confirmationCopy =
     pendingAction === 'open'
       ? {
@@ -277,6 +333,50 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
               closedAt={session.closedAt}
               hasAttended={Boolean(attendanceRecord)}
             />
+
+            {canManage ? (
+              <View
+                style={[
+                  styles.infoCard,
+                  Shadow.soft,
+                  { backgroundColor: theme.surface },
+                ]}>
+                <Text style={[styles.manageHeading, { color: theme.textPrimary }]}>
+                  Pengelolaan Praktikum & Sesi
+                </Text>
+                <AppButton
+                  label="Kelola praktikum & peserta"
+                  variant="secondary"
+                  onPress={() =>
+                    router.push({
+                      pathname: '/asisten/practicum/[practicumId]',
+                      params: { practicumId: practicum.id },
+                    })
+                  }
+                />
+                {session.status !== 'closed' ? (
+                  <AppButton
+                    label="Ubah jadwal sesi"
+                    variant="secondary"
+                    onPress={() =>
+                      router.push({
+                        pathname: '/asisten/session/form',
+                        params: {
+                          practicumId: practicum.id,
+                          sessionId: session.id,
+                        },
+                      })
+                    }
+                  />
+                ) : null}
+                <AppButton
+                  label="Hapus sesi"
+                  variant="destructive"
+                  loading={checkingDeleteSession || deletingSession}
+                  onPress={handleRequestDeleteSession}
+                />
+              </View>
+            ) : null}
 
             {attendanceError ? (
               <InlineError message={attendanceError} onRetry={retryAttendance} />
@@ -487,6 +587,24 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
         title={confirmationCopy.title}
         visible={pendingAction !== null}
       />
+
+      <ConfirmModal
+        destructive
+        title="Hapus sesi?"
+        message={
+          deleteAttendanceCount && deleteAttendanceCount > 0
+            ? `PERINGATAN: Sesi ${practicum.name} (${session.date}) sudah memiliki ${deleteAttendanceCount} data kehadiran tercatat. Menghapus sesi ini akan ikut menghapus data kehadiran terkait secara permanen.`
+            : `Sesi ${practicum.name} pada ${session.date} (${session.startTime}–${session.endTime}) akan dihapus secara permanen.`
+        }
+        confirmLabel={deletingSession ? 'Menghapus…' : 'Hapus sesi'}
+        onCancel={() => {
+          if (!deletingSession) {
+            setDeleteAttendanceCount(null);
+          }
+        }}
+        onConfirm={handleConfirmDeleteSession}
+        visible={deleteAttendanceCount !== null}
+      />
     </View>
   );
 }
@@ -622,6 +740,7 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.two,
   },
+  manageHeading: { ...Typography.cardTitle, marginBottom: Spacing.half },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },
   detailLabel: { ...Typography.body },
   detailValue: {
