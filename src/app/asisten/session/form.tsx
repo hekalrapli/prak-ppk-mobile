@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState, LoadingState } from '@/components/ui/screen-state';
 import { useToast } from '@/components/ui/toast-provider';
 import { Radius, Spacing, Typography } from '@/constants/theme';
+import { useLaboratories } from '@/hooks/use-laboratories';
 import { usePracticumFeed } from '@/hooks/use-practicum-feed';
 import { useSessionDetail } from '@/hooks/use-session-detail';
 import { useTheme } from '@/hooks/use-theme';
@@ -44,6 +45,7 @@ export default function SessionFormScreen() {
 
   const isEditing = Boolean(sessionId);
   const feed = usePracticumFeed('asisten', profile?.uid);
+  const labsFeed = useLaboratories();
   const [selectedPracticumId, setSelectedPracticumId] = useState(
     initialPracticumId ?? ''
   );
@@ -61,6 +63,7 @@ export default function SessionFormScreen() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [room, setRoom] = useState('');
+  const [labId, setLabId] = useState('');
   const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>({});
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -73,6 +76,7 @@ export default function SessionFormScreen() {
       setStartTime(detail.session.startTime);
       setEndTime(detail.session.endTime);
       setRoom(detail.session.room);
+      setLabId(detail.session.lab_id ?? '');
       initializedRef.current = true;
     }
   }, [isEditing, detail.session]);
@@ -160,7 +164,13 @@ export default function SessionFormScreen() {
     return <Redirect href="/asisten" />;
   }
 
-  const errors = validateSessionInput({ date, startTime, endTime, room });
+  const errors = validateSessionInput({
+    date,
+    startTime,
+    endTime,
+    room,
+    lab_id: labId || undefined,
+  });
   const isValid = Boolean(activePracticumId) && Object.keys(errors).length === 0;
 
   const markTouched = (field: FieldKey) => {
@@ -188,6 +198,7 @@ export default function SessionFormScreen() {
           startTime,
           endTime,
           room,
+          lab_id: labId || undefined,
         });
         showToast('Jadwal sesi berhasil diperbarui', 'success');
         router.back();
@@ -197,6 +208,7 @@ export default function SessionFormScreen() {
           startTime,
           endTime,
           room,
+          lab_id: labId || undefined,
         });
         showToast('Sesi baru berhasil ditambahkan', 'success');
         router.replace({
@@ -343,6 +355,132 @@ export default function SessionFormScreen() {
                 required
                 editable={!submitting}
               />
+
+              <View style={styles.practicumPicker}>
+                <View style={styles.labPickerHeader}>
+                  <Text style={[styles.pickerLabel, { color: theme.textPrimary }]}>
+                    Lokasi lab geofence (opsional)
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={() => router.push('/asisten/labs')}>
+                    <Text style={[styles.labManageLink, { color: theme.link }]}>
+                      Kelola lab
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {labsFeed.loading ? (
+                  <Text style={[styles.pickerSub, { color: theme.textSecondary }]}>
+                    Memuat daftar lokasi lab…
+                  </Text>
+                ) : labsFeed.error ? (
+                  <View style={styles.labErrorRow}>
+                    <Text style={[styles.pickerSub, { color: theme.error }]}>
+                      {labsFeed.error}
+                    </Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      hitSlop={8}
+                      onPress={labsFeed.retry}>
+                      <Text style={[styles.labManageLink, { color: theme.link }]}>
+                        Coba lagi
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <View style={styles.pickerList}>
+                    {labId && !labsFeed.labs.some((item) => item.id === labId) ? (
+                      <View
+                        style={[
+                          styles.danglingNote,
+                          { backgroundColor: theme.warningSoft },
+                        ]}>
+                        <Text
+                          style={[styles.pickerSub, { color: theme.warning }]}>
+                          Lab sebelumnya tidak ditemukan (mungkin sudah dihapus).
+                          Pilih lab lain atau lepaskan tautan di bawah.
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    <Pressable
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: labId === '' }}
+                      disabled={submitting}
+                      onPress={() => setLabId('')}
+                      style={[
+                        styles.pickerItem,
+                        {
+                          backgroundColor:
+                            labId === '' ? theme.primarySoft : theme.surface,
+                          borderColor:
+                            labId === '' ? theme.primary : theme.border,
+                        },
+                      ]}>
+                      <Text
+                        style={[
+                          styles.pickerTitle,
+                          { color: theme.textPrimary },
+                        ]}>
+                        Tanpa lokasi lab
+                      </Text>
+                      <Text
+                        style={[
+                          styles.pickerSub,
+                          { color: theme.textSecondary },
+                        ]}>
+                        Sesi tidak ditautkan ke titik geofence lab
+                      </Text>
+                    </Pressable>
+
+                    {labsFeed.labs.map((lab) => {
+                      const selected = lab.id === labId;
+                      return (
+                        <Pressable
+                          key={lab.id}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected }}
+                          disabled={submitting}
+                          onPress={() => {
+                            setLabId(lab.id);
+                            if (!room.trim()) {
+                              setRoom(lab.nama.slice(0, 60));
+                            }
+                          }}
+                          style={[
+                            styles.pickerItem,
+                            {
+                              backgroundColor: selected
+                                ? theme.primarySoft
+                                : theme.surface,
+                              borderColor: selected
+                                ? theme.primary
+                                : theme.border,
+                            },
+                          ]}>
+                          <Text
+                            style={[
+                              styles.pickerTitle,
+                              { color: theme.textPrimary },
+                            ]}>
+                            {lab.nama}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.pickerSub,
+                              { color: theme.textSecondary },
+                            ]}>
+                            {lab.gedung ? `${lab.gedung} · ` : ''}Radius{' '}
+                            {lab.radius_meter} m
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
             </View>
 
             {formError ? (
@@ -410,6 +548,18 @@ const styles = StyleSheet.create({
   },
   pickerTitle: { ...Typography.bodyStrong },
   pickerSub: { ...Typography.caption },
+  labPickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  labManageLink: { ...Typography.label },
+  labErrorRow: { gap: Spacing.one },
+  danglingNote: {
+    borderRadius: Radius.md,
+    padding: Spacing.two,
+  },
   fields: { gap: Spacing.three },
   timeRow: { flexDirection: 'row', gap: Spacing.two },
   errorPanel: {

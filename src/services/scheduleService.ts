@@ -5,6 +5,7 @@ import {
   arrayUnion,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -69,6 +70,10 @@ export function mapSession(
     startTime: typeof data.startTime === 'string' ? data.startTime : '',
     endTime: typeof data.endTime === 'string' ? data.endTime : '',
     room: typeof data.room === 'string' ? data.room : '',
+    lab_id:
+      typeof data.lab_id === 'string' && data.lab_id.trim().length > 0
+        ? data.lab_id.trim()
+        : undefined,
     status,
     labId,
     openedAt: typeof data.openedAt === 'string' ? data.openedAt : undefined,
@@ -237,6 +242,7 @@ export interface SessionInput {
   startTime: string;
   endTime: string;
   room: string;
+  lab_id?: string;
 }
 
 export function validatePracticumInput(
@@ -294,6 +300,11 @@ export function validateSessionInput(
     errors.room = 'Ruang wajib diisi.';
   } else if (room.length > 60) {
     errors.room = 'Ruang maksimal 60 karakter.';
+  }
+
+  const labId = input.lab_id?.trim() ?? '';
+  if (labId.length > 100) {
+    errors.lab_id = 'ID laboratorium maksimal 100 karakter.';
   }
 
   return errors;
@@ -578,21 +589,29 @@ export async function createSession(
   params: SessionInput
 ): Promise<string> {
   const errors = validateSessionInput(params);
-  const firstError = errors.date ?? errors.startTime ?? errors.endTime ?? errors.room;
+  const firstError =
+    errors.date ?? errors.startTime ?? errors.endTime ?? errors.room ?? errors.lab_id;
   if (firstError) {
     throw new Error(firstError);
   }
 
+  const labId = params.lab_id?.trim() ?? '';
+
   try {
+    const payload: Record<string, unknown> = {
+      date: params.date.trim(),
+      startTime: params.startTime.trim(),
+      endTime: params.endTime.trim(),
+      room: params.room.trim(),
+      status: 'upcoming',
+    };
+    if (labId) {
+      payload.lab_id = labId;
+    }
+
     const docRef = await addDoc(
       collection(db, 'practicums', practicumId, 'sessions'),
-      {
-        date: params.date.trim(),
-        startTime: params.startTime.trim(),
-        endTime: params.endTime.trim(),
-        room: params.room.trim(),
-        status: 'upcoming',
-      }
+      payload
     );
     return docRef.id;
   } catch (error) {
@@ -609,10 +628,13 @@ export async function updateSession(
   params: SessionInput
 ): Promise<void> {
   const errors = validateSessionInput(params);
-  const firstError = errors.date ?? errors.startTime ?? errors.endTime ?? errors.room;
+  const firstError =
+    errors.date ?? errors.startTime ?? errors.endTime ?? errors.room ?? errors.lab_id;
   if (firstError) {
     throw new Error(firstError);
   }
+
+  const labId = params.lab_id?.trim() ?? '';
 
   try {
     const sessionRef = doc(db, 'practicums', practicumId, 'sessions', sessionId);
@@ -624,12 +646,19 @@ export async function updateSession(
       throw new Error('Sesi yang sudah ditutup tidak dapat diubah.');
     }
 
-    await updateDoc(sessionRef, {
+    const payload: Record<string, unknown> = {
       date: params.date.trim(),
       startTime: params.startTime.trim(),
       endTime: params.endTime.trim(),
       room: params.room.trim(),
-    });
+    };
+    if (labId) {
+      payload.lab_id = labId;
+    } else if ('lab_id' in snap.data()) {
+      payload.lab_id = deleteField();
+    }
+
+    await updateDoc(sessionRef, payload);
   } catch (error) {
     throw new Error(getHumanReadableErrorMessage(error));
   }

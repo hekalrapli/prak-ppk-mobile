@@ -89,9 +89,20 @@ export interface Session {
   startTime: string;
   endTime: string;
   room: string;
+  lab_id?: string;
   status: SessionStatus;
   /** Referensi laboratorium untuk validasi geofence (FR-P1-02). */
   labId?: string;
   openedAt?: string;
   closedAt?: string;
+}
+
+export interface Laboratory {
+  id: string;
+  nama: string;
+  gedung: string;
+  latitude: number;
+  longitude: number;
+  radius_meter: number;
+  updated_at: FirestoreTimestamp;
 }
