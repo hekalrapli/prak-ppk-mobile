@@ -12,6 +12,11 @@ import React, {
 
 import { registerUser, loginUser, logoutUser, RegisterInput } from '../services/auth';
 import { auth, db } from '../services/firebase';
+import {
+  registerUserPushNotifications,
+  subscribePushTokenRefresh,
+  unregisterUserPushToken,
+} from '../services/notificationService';
 import { UserProfile } from '../types/auth';
 
 interface AuthContextValue {
@@ -81,6 +86,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             identifier: String(data.identifier ?? ''),
             email: String(data.email ?? ''),
             role,
+            fcm_tokens: Array.isArray(data.fcm_tokens)
+              ? data.fcm_tokens.filter(
+                  (token: unknown): token is string => typeof token === 'string'
+                )
+              : [],
           });
           setProfileLoading(false);
           setInitializing(false);
@@ -100,13 +110,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    const activeUid = profile?.uid;
+    if (!activeUid) {
+      return;
+    }
+
+    void registerUserPushNotifications(activeUid);
+    const unsubscribeTokenRefresh = subscribePushTokenRefresh(activeUid);
+
+    return () => {
+      unsubscribeTokenRefresh();
+    };
+  }, [profile?.uid]);
+
   const register = useCallback(async (input: RegisterInput) => registerUser(input), []);
   const login = useCallback(async (email: string, password: string) => {
     await loginUser(email, password);
   }, []);
   const logout = useCallback(async () => {
+    const currentUid = auth.currentUser?.uid ?? user?.uid;
+    await unregisterUserPushToken(currentUid);
     await logoutUser();
-  }, []);
+  }, [user?.uid]);
 
   const value = useMemo(
     () => ({ user, profile, initializing, profileLoading, register, login, logout }),

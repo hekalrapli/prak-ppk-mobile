@@ -13,11 +13,25 @@
  */
 const googleMapsApiKey =
   process.env.GOOGLE_MAPS_API_KEY ?? process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+const googleServicesFile =
+  process.env.GOOGLE_SERVICES_JSON ?? './google-services.json';
 
 module.exports = ({ config }) => ({
   ...config,
+  android: {
+    ...config.android,
+    googleServicesFile,
+  },
   plugins: [
     ...(config.plugins ?? []),
+    [
+      'expo-notifications',
+      {
+        icon: './assets/images/android-icon-monochrome.png',
+        color: '#C9492B',
+        defaultChannel: 'default',
+      },
+    ],
     ...(googleMapsApiKey
       ? [
           [

@@ -7,11 +7,17 @@ import { AuthGate } from '@/components/auth/auth-gate';
 import { OfflineBanner } from '@/components/ui/offline-banner';
 import { ToastProvider } from '@/components/ui/toast-provider';
 import { Colors } from '@/constants/theme';
+import { useNotificationObserver } from '@/hooks/use-push-notifications';
 import { AuthProvider } from '@/store/auth-context';
 import { ThemeModeProvider, useThemeMode } from '@/store/theme-context';
 
 SplashScreen.preventAutoHideAsync();
 SplashScreen.setOptions({ duration: 300, fade: true });
+
+function NotificationObserver() {
+  useNotificationObserver();
+  return null;
+}
 
 export default function RootLayout() {
   return (
@@ -56,6 +62,7 @@ function RootContent() {
           <StatusBar style={isDark ? 'light' : 'dark'} />
           <OfflineBanner />
           <AuthGate />
+          <NotificationObserver />
           <Stack
             screenOptions={{
               headerShown: false,

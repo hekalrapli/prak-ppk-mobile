@@ -37,19 +37,22 @@ service cloud.firestore {
     function str(v, min, max) {
       return v is string && v.size() >= min && v.size() <= max;
     }
+    function isValidExpoPushToken(t) {
+      return str(t, 20, 120) && t.matches('^ExponentPushToken\\[.+\\]$');
+    }
+    function isValidFcmTokens(tokens) {
+      return tokens is list
+        && tokens.size() <= 5
+        && (tokens.size() < 1 || isValidExpoPushToken(tokens[0]))
+        && (tokens.size() < 2 || isValidExpoPushToken(tokens[1]))
+        && (tokens.size() < 3 || isValidExpoPushToken(tokens[2]))
+        && (tokens.size() < 4 || isValidExpoPushToken(tokens[3]))
+        && (tokens.size() < 5 || isValidExpoPushToken(tokens[4]));
+    }
 
     // ---------- Config (tidak bisa dibaca klien; hanya dipakai get() oleh rules) ----------
     match /config/{doc} {
       allow read, write: if false;
-    }
-
-    // ---------- Laboratorium (FR-P1-02/03) ----------
-    // Semua pengguna yang login boleh membaca titik & radius laboratorium.
-    // Penulisan dimiliki FR-P2-03 (CRUD asisten); validasi field ditambahkan
-    // bersama layar pengelolaan laboratorium.
-    match /laboratorium/{labId} {
-      allow read: if signedIn();
-      allow write: if isAsisten();
     }
 
     // ---------- Users ----------
@@ -72,10 +75,12 @@ service cloud.firestore {
                get(/databases/$(database)/documents/config/registration).data.asistenCode)
         );
 
-      // Hanya nama yang boleh diubah; peran & identitas terkunci.
+      // Hanya pemilik yang boleh mengubah nama atau fcm_tokens miliknya; peran & identitas terkunci.
       allow update: if signedIn() && request.auth.uid == uid
-        && onlyChanges(['name'])
-        && str(request.resource.data.name, 1, 60);
+        && onlyChanges(['name', 'fcm_tokens'])
+        && str(request.resource.data.name, 1, 60)
+        && (!('fcm_tokens' in request.resource.data)
+            || isValidFcmTokens(request.resource.data.fcm_tokens));
 
       allow delete: if false;
     }
