@@ -4,7 +4,8 @@ A mobile practicum attendance app for a university, built with Expo / React Nati
 
 > **Implementation status**
 > - **Sprint 1 (complete):** frontend-only prototype with local dummy data and React state (role selection, schedules, session open/close, attendance, history, recap).
-> - **Sprint 2 (in progress):** Firebase Authentication, Firestore (CRUD, real-time listeners, Security Rules), leave requests, and AI classification of leave reasons. See [`PRD.md`](./PRD.md) §7.
+> - **Sprint 2 (complete):** Firebase Authentication, Firestore (CRUD, real-time listeners, Security Rules), leave requests, and AI classification of leave reasons. See [`PRD.md`](./PRD.md) §7.
+> - **Sprint 3 (active):** Geolocation Attendance, Interactive Lab Maps, Geofencing, and Push Notifications. See [Sprint 3 Specification](#sprint-3-geolocation-maps--push-notifications-task-breakdown).
 
 ## Objectives
 
@@ -225,6 +226,246 @@ Rules enforce identity (`request.auth.uid`), role (from `users/{uid}`), session 
 2. The request is stored with status **Menunggu**. The AI result is **not shown to the praktikan** — only the asisten can see it.
 3. Login as **Asisten**, open **Izin Masuk**, review the reason and AI category, then **Terima** or **Tolak** with a note.
 4. The praktikan sees the decision and note in **Izin Saya** in real time.
+
+## Sprint 3: Geolocation, Maps & Push Notification Task Breakdown
+
+### Overview & Goals
+In Sprint 3, PrakPresensi expands physical presence verification and proactive communication through:
+1. **Location-based Presence (Geofencing):** Practical sessions require device geolocation check within a defined laboratory radius.
+2. **Interactive Informatics Lab Map:** Dynamic map with laboratory markers, active student tracking marker, and realtime practicum status bottom sheet.
+3. **Event-driven Push Notifications (FCM):** Instant alerts when a session opens, schedules change, or leave requests are approved/rejected.
+4. **Device State & Permission Hardening:** Graceful handling when GPS is disabled, location permission denied, or push notifications blocked.
+
+---
+
+### Task Allocation Matrix (Programmer 1 vs Programmer 2)
+
+| Ticket ID | Module & Feature | Assignee | Story Points | Dependencies |
+| :--- | :--- | :---: | :---: | :--- |
+| **FR-P1-01** | Device Geolocation & Permission Engine | **Programmer 1** | 3 | - |
+| **FR-P1-02** | Dedicated Location Presence Screen (Praktikan) | **Programmer 1** | 5 | FR-P1-01, FR-P2-03 |
+| **FR-P1-03** | Interactive Laboratory Map & User Live Marker | **Programmer 1** | 5 | FR-P1-01, FR-P2-03 |
+| **FR-P1-04** | Lab Activity Bottom Sheet (Ongoing & Next Session) | **Programmer 1** | 3 | FR-P1-03 |
+| **FR-P1-05** | *(Optional)* QR Code Presence Scanner | **Programmer 1** | 2 | FR-P1-02 |
+| **FR-P2-01** | Firebase Cloud Messaging (FCM) Core Setup | **Programmer 2** | 5 | - |
+| **FR-P2-02** | Event-Driven Push Notification Dispatcher | **Programmer 2** | 5 | FR-P2-01 |
+| **FR-P2-03** | Laboratory Location & Geofence CRUD (Asisten) | **Programmer 2** | 3 | - |
+| **FR-P2-04** | Realtime Attendance Monitoring & Radius Recap (Asisten) | **Programmer 2** | 3 | FR-P1-02 |
+| **FR-P2-05** | Leave Request Decision Feedback & Notification Flow | **Programmer 2** | 2 | FR-P2-02 |
+
+---
+
+### Detailed Functional Requirements (FR)
+
+#### 👨‍💻 Programmer 1: Geo-Location, Presence Engine & Interactive Maps
+
+##### `FR-P1-01`: Device Geolocation & Permission Engine
+* **Goal:** Provide a centralized location service to request permissions, fetch live GPS coordinates, detect device location state, and calculate distances using the Haversine formula.
+* **Technical Tasks:**
+  - Install & configure `expo-location` (or `@react-native-community/geolocation`).
+  - Create `src/services/locationService.ts` containing:
+    - `requestLocationPermission(): Promise<boolean>`
+    - `getCurrentCoordinates(): Promise<{ latitude: number, longitude: number, accuracy: number }>`
+    - `calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number` (returns distance in meters).
+  - Create user-friendly fallback modal/banner when location permission is denied or location services are turned off, with direct link to device settings.
+* **Acceptance Criteria (DoD):**
+  - App prompts for foreground location permission with explanatory rationale.
+  - Correctly calculates distance between practical lab coordinates and student device.
+  - Catches location timeouts, mock/fake locations (if supported), and GPS off states gracefully.
+
+##### `FR-P1-02`: Dedicated Location Presence Screen (Praktikan)
+* **Goal:** Provide a dedicated presence screen (separated from session detail) where students verify geofence distance and submit attendance.
+* **Technical Tasks:**
+  - Create screen `src/app/praktikan/session/[sessionId]/presence.tsx` (or route `src/app/praktikan/presence/[sessionId].tsx`).
+  - Display practicum details: Course Name, Class, Lab Name, Target Radius, Current Session Status, and Live Distance Indicator (e.g., "Jarak Anda: 18m / Maks 50m").
+  - Validate attendance conditions before submission:
+    1. Session must be in status `OPEN`.
+    2. Student coordinates must be $\le$ laboratory `radius_meter`.
+    3. Student has not previously checked in for this session.
+  - Disable presence button and display informative banner if out-of-radius (e.g., *"Anda berada 120 meter di luar radius laboratorium"*).
+  - Write attendance record to Firestore via `src/services/attendance.ts` including recorded timestamp, student coordinates, and calculated distance.
+* **Acceptance Criteria (DoD):**
+  - Attendance succeeds ONLY when within allowed radius and session is `OPEN`.
+  - Duplicate check-in is strictly prevented.
+  - Clear visual feedback for within-radius (green badge) vs outside-radius (red warning).
+
+##### `FR-P1-03`: Interactive Laboratory Map & User Live Marker
+* **Goal:** Display a full-screen interactive map showing all Informatics laboratories with custom markers, geofence radius circles, and real-time student location tracking.
+* **Technical Tasks:**
+  - Install & configure `react-native-maps`.
+  - Create route `src/app/maps/index.tsx` (accessible from tab/drawer navigation for both roles).
+  - Fetch lab coordinates dynamically from Firestore `laboratorium` collection.
+  - Render `<Marker>` for each laboratory and `<Circle>` representing its allowed presence radius.
+  - Render user live position marker with periodic tracking updates while screen is active.
+  - Add quick action button to re-center camera to user's current GPS position.
+* **Acceptance Criteria (DoD):**
+  - Map renders smoothly with all lab pins and student live dot.
+  - Tapping a lab marker highlights the selected lab and pans camera smoothly.
+
+##### `FR-P1-04`: Lab Activity Bottom Sheet (Ongoing & Next Session)
+* **Goal:** When a user taps a laboratory marker on the map, show a bottom sheet / modal with current active and upcoming practicum schedules.
+* **Technical Tasks:**
+  - Integrate bottom sheet component (e.g., `@gorhom/bottom-sheet` or custom animated view).
+  - Query Firestore `sessions` collection filtered by `lab_id == selectedLab.id`.
+  - Calculate:
+    - **Ongoing Practicum:** Session where current time falls within `waktu_mulai` and `waktu_selesai` (or status == `OPEN`).
+    - **Next Practicum:** Next upcoming session sorted by `waktu_mulai`.
+  - Display Course Title, Class, Assistant Name, Schedule Time, and real-time Session Status Badge (`Dibuka`, `Berlangsung`, `Kosong`).
+* **Acceptance Criteria (DoD):**
+  - Real-time updates: If an assistant opens a session at that lab, the status badge on the map sheet updates immediately without reload.
+  - Shows friendly empty state if no practicums are scheduled for today.
+
+##### `FR-P1-05`: *(Optional)* QR Code Presence Scanner
+* **Goal:** Provide an alternate camera QR scanner for students as a secondary presence verification option.
+* **Technical Tasks:**
+  - Integrate `expo-camera` scanner to parse session QR code token generated by assistant.
+
+---
+
+#### 👨‍💻 Programmer 2: Push Notifications, Lab Geofence CRUD & Asisten Monitoring
+
+##### `FR-P2-01`: Firebase Cloud Messaging (FCM) Core Setup & Token Management
+* **Goal:** Initialize push notifications, request notification permissions, register device FCM tokens, and manage foreground/background notification handlers.
+* **Technical Tasks:**
+  - Configure push notification library (e.g., `expo-notifications` or `@react-native-firebase/messaging`).
+  - Request notification permission upon login.
+  - Save/update FCM token in user document: `users/{uid}/fcmTokens` (supports multiple devices per user).
+  - Remove token on user logout.
+  - Handle foreground notifications with in-app banner/toast and notification sound.
+* **Acceptance Criteria (DoD):**
+  - Token successfully registers to Firestore user document upon login.
+  - Notification permission rejection is handled gracefully without crashing the app.
+
+##### `FR-P2-02`: Event-Driven Push Notification Dispatcher
+* **Goal:** Send automated push notifications to relevant users based on practicum events.
+* **Technical Tasks:**
+  - Implement notification triggers (via Cloud Functions or backend service):
+    1. **Event: Session Opened (`session.status == 'OPEN'`):**
+       - Recipient: Enrolled students of the practicum class.
+       - Title: *"Sesi Praktikum Dibuka!"*
+       - Body: *"Sesi [Nama Praktikum] di [Nama Lab] telah dibuka. Silakan lakukan presensi di lokasi."*
+    2. **Event: Schedule Rescheduled / Modified:**
+       - Recipient: Enrolled students and assigned assistants.
+       - Title: *"Perubahan Jadwal Praktikum"*
+       - Body: *"Jadwal praktikum [Nama Praktikum] mengalami perubahan. Periksa detail sesi terbaru."*
+    3. **Event: Leave Request Decision (`leaveRequest.status` updated):**
+       - Recipient: Requesting student.
+       - Title: *"Status Pengajuan Izin"*
+       - Body: *"Pengajuan izin Anda untuk praktikum [Nama Praktikum] telah [Disetujui/Ditolak] oleh asisten."*
+  - Support notification response tapping to navigate directly to target screen.
+* **Acceptance Criteria (DoD):**
+  - Targeted users receive prompt push notification within 3-5 seconds of event trigger.
+
+##### `FR-P2-03`: Laboratory Location & Geofence CRUD (Asisten)
+* **Goal:** Allow assistants to manage laboratory geographic reference points and presence validation radii.
+* **Technical Tasks:**
+  - Create management screen `src/app/asisten/labs/` (List, Add, Edit).
+  - Form fields:
+    - Lab Name (e.g., "Laboratorium Rekayasa Perangkat Lunak")
+    - Building / Floor description (e.g., "Gedung E Lantai 3")
+    - Latitude & Longitude (decimal degrees)
+    - Allowed Presence Radius (e.g., 30m, 50m, 100m)
+  - Quick action: *"Gunakan Lokasi Saya Saat Ini"* using device GPS to auto-populate coordinates.
+  - Persist to Firestore `laboratorium` collection with validation.
+* **Acceptance Criteria (DoD):**
+  - Assistant can create, update, and view labs with coordinates.
+  - Data updates propagate immediately to students' map and presence screens.
+
+##### `FR-P2-04`: Realtime Attendance Monitoring & Radius Recap (Asisten)
+* **Goal:** Enhance assistant's session recap screen with location verification data.
+* **Technical Tasks:**
+  - Update `src/app/asisten/session/[sessionId]/recap.tsx`:
+    - Display distance recorded during check-in (e.g., *"Hadir - 14 meter dari titik lab"*).
+    - Status badge indicating verified geofence check.
+  - Keep real-time Firestore listener `onSnapshot` for instant list updates as students arrive.
+* **Acceptance Criteria (DoD):**
+  - Recap displays timestamp, student name, NIM, and verified check-in distance.
+  - Non-verified or out-of-bounds attempts are excluded from success count.
+
+##### `FR-P2-05`: Leave Request Decision Feedback & Notification Flow
+* **Goal:** Connect assistant's approval/rejection of leave requests directly to the notification dispatch pipeline.
+* **Technical Tasks:**
+  - In `asisten/session/[sessionId]/leaveReview.tsx`, upon tapping "Terima" or "Tolak":
+    - Update Firestore `leaveRequests/{requestId}` document with status and optional note.
+    - Trigger `FR-P2-02` notification dispatcher with student's UID.
+* **Acceptance Criteria (DoD):**
+  - Student receives instant push notification with assistant's decision and note.
+
+---
+
+### Shared Firestore Data Contracts
+
+```json
+// Collection: laboratorium
+{
+  "id": "lab-basis-data",
+  "nama": "Laboratorium Basis Data",
+  "gedung": "Gedung E Lantai 2",
+  "latitude": -7.049821,
+  "longitude": 110.439123,
+  "radius_meter": 50,
+  "updated_at": "2026-11-20T08:00:00Z"
+}
+
+// Collection: sessions (enhanced)
+{
+  "id": "sesi-prak-01",
+  "practicum_id": "prak-mobile",
+  "matakuliah": "Pemrograman Mobile",
+  "kelas": "IF-A",
+  "lab_id": "lab-basis-data",
+  "waktu_mulai": "2026-11-20T08:00:00Z",
+  "waktu_selesai": "2026-11-20T10:00:00Z",
+  "status": "OPEN", // "OPEN", "CLOSED", "UPCOMING"
+  "asisten_id": "aslab-uid"
+}
+
+// Collection: attendance (enhanced with geofence audit)
+{
+  "id": "att-001",
+  "session_id": "sesi-prak-01",
+  "user_id": "mhs-uid",
+  "user_name": "Rian Pratama",
+  "user_nim": "24060122140001",
+  "recorded_at": "2026-11-20T08:05:12Z",
+  "status": "Hadir",
+  "distance_meter": 16.4,
+  "device_lat": -7.049810,
+  "device_lng": 110.439115,
+  "is_location_verified": true
+}
+
+// Collection: users (enhanced with FCM)
+{
+  "uid": "mhs-uid",
+  "email": "rian@students.undip.ac.id",
+  "role": "praktikan",
+  "fcm_tokens": ["fcm_token_device_1", "fcm_token_device_2"]
+}
+```
+
+---
+
+### Demonstration & QA Verification Checklist (3 Main Flows)
+
+1. **Flow 1 — Location-Based Presence:**
+   - Assistant opens session at Lab Basis Data (50m radius).
+   - Student > 50m away opens presence screen $\rightarrow$ Submit button is disabled; distance error displayed.
+   - Student enters lab ($\le 50$m) $\rightarrow$ Submit button is enabled; attendance recorded successfully.
+   - Student attempts duplicate check-in $\rightarrow$ Rejected with clear feedback.
+   - Assistant recap updates in real time with student distance badge.
+
+2. **Flow 2 — Interactive Map & Lab Activities:**
+   - User opens Maps screen $\rightarrow$ Current GPS position marker appears; all lab markers rendered.
+   - User taps Lab Basis Data $\rightarrow$ Bottom sheet shows ongoing practicum and next scheduled session.
+   - Assistant changes session status $\rightarrow$ Map sheet reflects change live.
+
+3. **Flow 3 — Activity Push Notifications:**
+   - Assistant opens session $\rightarrow$ Enrolled students receive "Sesi Dibuka" push notification.
+   - Assistant modifies schedule $\rightarrow$ Affected users receive "Perubahan Jadwal" notification.
+   - Assistant approves/rejects leave $\rightarrow$ Requesting student receives decision notification.
+
+---
 
 ## Current Limitations
 
