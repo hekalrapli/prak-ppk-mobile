@@ -71,6 +71,31 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---------- Laboratorium & Geofence ----------
+    match /laboratorium/{labId} {
+      // Asisten dan praktikan yang terdaftar dapat membaca titik lokasi & radius lab.
+      allow read: if isAsisten() || isPraktikan();
+
+      // Hanya asisten yang dapat membuat, mengubah, atau menghapus lokasi lab.
+      allow create, update: if isAsisten()
+        && request.resource.data.keys().hasAll(['nama','gedung','latitude','longitude','radius_meter','updated_at'])
+        && request.resource.data.keys().hasOnly(['nama','gedung','latitude','longitude','radius_meter','updated_at'])
+        && str(request.resource.data.nama, 1, 100)
+        && str(request.resource.data.gedung, 0, 100)
+        && request.resource.data.latitude is number
+        && request.resource.data.latitude >= -90
+        && request.resource.data.latitude <= 90
+        && request.resource.data.longitude is number
+        && request.resource.data.longitude >= -180
+        && request.resource.data.longitude <= 180
+        && request.resource.data.radius_meter is number
+        && request.resource.data.radius_meter > 0
+        && request.resource.data.radius_meter <= 1000
+        && request.resource.data.updated_at == request.time;
+
+      allow delete: if isAsisten();
+    }
+
     // ---------- Practicums ----------
     match /practicums/{pid} {
       // Hanya asisten pengampu dan praktikan peserta yang boleh membaca.
@@ -102,14 +127,16 @@ service cloud.firestore {
           && str(request.resource.data.date, 8, 30)
           && str(request.resource.data.startTime, 4, 5)
           && str(request.resource.data.endTime, 4, 5)
-          && request.resource.data.endTime > request.resource.data.startTime;
+          && request.resource.data.endTime > request.resource.data.startTime
+          && (!('lab_id' in request.resource.data) || str(request.resource.data.lab_id, 1, 100));
 
         // Edit jadwal (status tidak berubah) ATAU transisi status upcoming->open / open->closed.
         allow update: if isPengampu(pid) && (
           (request.resource.data.status == resource.data.status
              && resource.data.status != 'closed'
              && str(request.resource.data.room, 1, 60)
-             && request.resource.data.endTime > request.resource.data.startTime)
+             && request.resource.data.endTime > request.resource.data.startTime
+             && (!('lab_id' in request.resource.data) || str(request.resource.data.lab_id, 1, 100)))
           ||
           (resource.data.status == 'upcoming' && request.resource.data.status == 'open'
              && onlyChanges(['status','openedAt']))

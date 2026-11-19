@@ -114,22 +114,29 @@ export default function AsistenScheduleScreen() {
   const renderHeader = () => (
     <View style={styles.header}>
       {isAsisten ? (
-        <View style={styles.crudBar}>
-          <View style={styles.crudButton}>
-            <AppButton
-              label="Tambah praktikum"
-              variant={ownedPracticums.length === 0 ? 'primary' : 'secondary'}
-              onPress={() => router.push('/asisten/practicum/form')}
-            />
-          </View>
-          {ownedPracticums.length > 0 ? (
+        <View style={styles.actionGroup}>
+          <View style={styles.crudBar}>
             <View style={styles.crudButton}>
               <AppButton
-                label="Tambah sesi"
-                onPress={() => router.push('/asisten/session/form')}
+                label="Tambah praktikum"
+                variant={ownedPracticums.length === 0 ? 'primary' : 'secondary'}
+                onPress={() => router.push('/asisten/practicum/form')}
               />
             </View>
-          ) : null}
+            {ownedPracticums.length > 0 ? (
+              <View style={styles.crudButton}>
+                <AppButton
+                  label="Tambah sesi"
+                  onPress={() => router.push('/asisten/session/form')}
+                />
+              </View>
+            ) : null}
+          </View>
+          <AppButton
+            label="Kelola lokasi lab"
+            variant="secondary"
+            onPress={() => router.push('/asisten/labs')}
+          />
         </View>
       ) : null}
 
@@ -271,6 +278,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   header: { gap: Spacing.three, marginTop: Spacing.two, marginBottom: Spacing.one },
+  actionGroup: { gap: Spacing.two },
   crudBar: {
     flexDirection: 'row',
     gap: Spacing.two,

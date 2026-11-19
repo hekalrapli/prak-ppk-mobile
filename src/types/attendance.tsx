@@ -75,7 +75,18 @@ export interface Session {
   startTime: string;
   endTime: string;
   room: string;
+  lab_id?: string;
   status: SessionStatus;
   openedAt?: string;
   closedAt?: string;
+}
+
+export interface Laboratory {
+  id: string;
+  nama: string;
+  gedung: string;
+  latitude: number;
+  longitude: number;
+  radius_meter: number;
+  updated_at: FirestoreTimestamp;
 }
