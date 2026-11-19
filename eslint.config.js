@@ -11,7 +11,13 @@ module.exports = defineConfig([
       // resolusi modul tetap diverifikasi oleh `tsc --noEmit`.
       'import/no-unresolved': [
         'error',
-        { ignore: ['^expo-location$', '^react-native-maps$'] },
+        {
+          ignore: [
+            '^expo-location$',
+            '^expo-notifications$',
+            '^react-native-maps$',
+          ],
+        },
       ],
     },
   },

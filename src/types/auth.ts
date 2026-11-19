@@ -6,4 +6,5 @@ export interface UserProfile {
   identifier: string;
   email: string;
   role: UserRole;
+  fcm_tokens?: string[];
 }
