@@ -21,6 +21,10 @@ export default function PraktikanLayout() {
           name="session/[sessionId]"
           options={{ headerShown: false }}
         />
+        <Stack.Screen
+          name="presence/[sessionId]"
+          options={{ headerShown: false }}
+        />
       </Stack>
     </RoleGuard>
   );

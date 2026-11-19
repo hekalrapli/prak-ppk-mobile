@@ -43,6 +43,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ---------- Laboratorium (FR-P1-02/03) ----------
+    // Semua pengguna yang login boleh membaca titik & radius laboratorium.
+    // Penulisan dimiliki FR-P2-03 (CRUD asisten); validasi field ditambahkan
+    // bersama layar pengelolaan laboratorium.
+    match /laboratorium/{labId} {
+      allow read: if signedIn();
+      allow write: if isAsisten();
+    }
+
     // ---------- Users ----------
     match /users/{uid} {
       // Pemilik membaca profilnya sendiri; asisten boleh membaca profil (untuk mencari praktikan sebagai peserta).
@@ -128,10 +137,25 @@ service cloud.firestore {
           allow create: if isPeserta(pid)
             && request.auth.uid == uid
             && session(pid, sid).data.status == 'open'
-            && request.resource.data.keys().hasOnly(['praktikanId','praktikanName','praktikanNim','status','recordedAt'])
+            && request.resource.data.keys().hasOnly(['praktikanId','praktikanName','praktikanNim','status','recordedAt','distance_meter','device_lat','device_lng','is_location_verified'])
             && request.resource.data.praktikanId == uid
             && request.resource.data.status == 'present'
-            && request.resource.data.recordedAt == request.time;
+            && request.resource.data.recordedAt == request.time
+            // FR-P1-02: jejak geofence opsional (presensi lama tetap sah),
+            // tetapi bila dikirim harus bertipe benar dan tidak negatif.
+            && (!('distance_meter' in request.resource.data)
+              || (request.resource.data.distance_meter is number
+                  && request.resource.data.distance_meter >= 0))
+            && (!('device_lat' in request.resource.data)
+              || (request.resource.data.device_lat is number
+                  && request.resource.data.device_lat >= -90
+                  && request.resource.data.device_lat <= 90))
+            && (!('device_lng' in request.resource.data)
+              || (request.resource.data.device_lng is number
+                  && request.resource.data.device_lng >= -180
+                  && request.resource.data.device_lng <= 180))
+            && (!('is_location_verified' in request.resource.data)
+              || request.resource.data.is_location_verified == true);
 
           allow update, delete: if false;
         }

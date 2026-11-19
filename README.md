@@ -173,15 +173,18 @@ npm run web       # web target
 ```
 config/registration                     { asistenCode }                       # not readable by clients
 users/{uid}                             { name, identifier, email, role, createdAt }
+laboratorium/{labId}                    { nama, gedung, latitude, longitude, radius_meter, updated_at }
 practicums/{pid}                        { name, className, assistantId, studentIds[], createdAt }
-  sessions/{sid}                        { date, startTime, endTime, room, status, openedAt?, closedAt? }
-    attendance/{uid}                    { praktikanId, praktikanName, praktikanNim, status, recordedAt }
+  sessions/{sid}                        { date, startTime, endTime, room, labId?, status, openedAt?, closedAt? }
+    attendance/{uid}                    { praktikanId, praktikanName, praktikanNim, status, recordedAt, distance_meter?, device_lat?, device_lng?, is_location_verified? }
     leaveRequests/{uid}                 { praktikanId, praktikanName, praktikanNim, reason, status, ai, createdAt, decidedBy?, decidedAt?, reviewNote? }
 ```
 
 - Attendance and leave request documents use the **praktikan's UID as the document ID**, so at most one record per praktikan per session is guaranteed at the data level.
+- Attendance geofence fields (`distance_meter`, `device_lat`, `device_lng`, `is_location_verified`) are optional so records created before Sprint 3 stay valid.
 - Session status transitions are `upcoming → open → closed` only. A closed session cannot be reopened.
 - Attendance time uses the Firestore server timestamp and is displayed as `HH:mm` (WIB).
+- `sessions.labId` points to `laboratorium/{labId}`. Sessions without it fall back to matching the room name against laboratory names (legacy demo data).
 
 ## Roles and Security Rules
 
@@ -189,6 +192,7 @@ practicums/{pid}                        { name, className, assistantId, studentI
 | --- | --- | --- | --- |
 | `users/{uid}` | read/update own name | read | read |
 | `practicums`, `sessions` | read if participant | create, update, delete | read |
+| `laboratorium` | read | read, write (FR-P2-03) | read |
 | `attendance` | read own; create while session is open | read | read |
 | `leaveRequests` | create/read own; edit reason while pending | read; approve/reject | read |
 
@@ -235,6 +239,25 @@ In Sprint 3, PrakPresensi expands physical presence verification and proactive c
 2. **Interactive Informatics Lab Map:** Dynamic map with laboratory markers, active student tracking marker, and realtime practicum status bottom sheet.
 3. **Event-driven Push Notifications (FCM):** Instant alerts when a session opens, schedules change, or leave requests are approved/rejected.
 4. **Device State & Permission Hardening:** Graceful handling when GPS is disabled, location permission denied, or push notifications blocked.
+
+---
+
+### Implementation Progress — Programmer 1
+
+| Ticket | Branch | Status |
+| :--- | :--- | :--- |
+| **FR-P1-01** | `feat/FR-P1-01/geo-location-engine` | Done — `src/services/locationService.ts`, permission/GPS fallback panel, `expo-location` plugin |
+| **FR-P1-02** | `feat/FR-P1-02/location-presence` | Done — presence screen, geofence validation, distance audit on attendance |
+| **FR-P1-03** | `feat/FR-P1-03/interactive-lab-map` | In progress |
+| **FR-P1-04** | `feat/FR-P1-04/lab-activity-sheet` | Planned |
+| **FR-P1-05** | — | Skipped (optional; needs assistant-side QR token generation) |
+
+**Notes for FR-P1-01/02**
+
+- `expo-location` is a native module: after pulling this branch, install dependencies and rebuild the development build (`npm run android` / `npm run ios`). Expo Go is not enough for the rest of Sprint 3.
+- The updated `firestore.rules` must be published. It adds the `laboratorium` collection and the optional geofence fields on `attendance`.
+- `npm run seed:demo -- --key secrets/service-account.json` now also creates `laboratorium/{labId}` documents and sets `sessions.labId`, so the 50 m demo radius can be tested immediately.
+- Radius verification runs on the device (Haversine). Security Rules validate field types only; a modified client could still forge the reported distance. This is documented as a limitation, same as the AI classification result.
 
 ---
 

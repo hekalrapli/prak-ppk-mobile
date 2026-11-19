@@ -67,7 +67,6 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
     loading: attendanceLoading,
     error: attendanceError,
     retry: retryAttendance,
-    handleRecordAttendance: recordAttendanceRemote,
   } = useSessionAttendance(practicum.id, session.id, { role, userId: profile?.uid });
 
   const {
@@ -153,53 +152,6 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : 'Gagal mengubah status sesi.',
-        'error'
-      );
-    } finally {
-      savingRef.current = false;
-      setIsSaving(false);
-    }
-  };
-
-  const handleRecordAttendance = async () => {
-    if (!profile || savingRef.current) {
-      return;
-    }
-
-    if (session.status !== 'open') {
-      showToast('Sesi sudah ditutup. Kehadiran tidak dapat dicatat.', 'error');
-      return;
-    }
-
-    if (attendanceRecord) {
-      showToast('Kehadiran sudah dicatat sebelumnya.', 'error');
-      return;
-    }
-
-    if (myLeaveRequest?.status === 'approved') {
-      showToast(
-        'Anda tidak dapat presensi karena pengajuan izin Anda telah diterima.',
-        'error'
-      );
-      return;
-    }
-
-    savingRef.current = true;
-    setIsSaving(true);
-
-    try {
-      const result = await recordAttendanceRemote({
-        praktikanId: profile.uid,
-        praktikanName: profile.name,
-        praktikanNim: profile.identifier,
-      });
-      showToast(
-        `Kehadiran berhasil dicatat pada pukul ${result.recordedAtDisplay}`,
-        'success'
-      );
-    } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : 'Gagal mencatat kehadiran.',
         'error'
       );
     } finally {
@@ -528,8 +480,15 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
                   session.status === 'open' ? (
                     <AppButton
                       label="Catat kehadiran"
-                      onPress={handleRecordAttendance}
-                      loading={isSaving}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/praktikan/presence/[sessionId]',
+                          params: {
+                            sessionId: session.id,
+                            practicumId: practicum.id,
+                          },
+                        })
+                      }
                     />
                   ) : null}
 
