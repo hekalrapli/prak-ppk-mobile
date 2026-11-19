@@ -41,17 +41,49 @@ const DUMMY_PRACTICUMS = [
   { id: 'PRK-10', name: 'Praktikum Analisis dan Perancangan Sistem', className: 'IF-3A' },
 ];
 
+const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+/**
+ * Tanggal sesi demo dihitung relatif terhadap hari ini agar status
+ * "sedang berlangsung" dan "berikutnya" pada peta/bottom sheet bisa diuji kapan
+ * pun script ini dijalankan. Formatnya sama dengan yang dipakai aplikasi:
+ * "Senin, 26 Okt 2026".
+ */
+function relativeDate(offsetDays) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return `${DAY_NAMES[date.getDay()]}, ${date.getDate()} ${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function minutesToTime(totalMinutes) {
+  const safe = Math.min(23 * 60 + 59, Math.max(0, totalMinutes));
+  return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
+}
+
+/** Jendela waktu yang memuat "sekarang" agar satu sesi tampil Berlangsung. */
+function windowAroundNow() {
+  const now = new Date();
+  const current = now.getHours() * 60 + now.getMinutes();
+  return {
+    startTime: minutesToTime(current - 30),
+    endTime: minutesToTime(current + 30),
+  };
+}
+
+const demoWindow = windowAroundNow();
+
 const DUMMY_SESSIONS = [
-  { id: 'S-01', practicumId: 'PRK-1', date: 'Senin, 26 Okt 2026', startTime: '08:00', endTime: '09:40', room: 'Lab Mobile 2', labId: 'lab-mobile', status: 'upcoming' },
-  { id: 'S-02', practicumId: 'PRK-2', date: 'Selasa, 27 Okt 2026', startTime: '10:00', endTime: '11:40', room: 'Lab Basis Data 1', labId: 'lab-basis-data', status: 'open' },
-  { id: 'S-03', practicumId: 'PRK-3', date: 'Senin, 19 Okt 2026', startTime: '13:00', endTime: '14:40', room: 'Lab Jaringan', labId: 'lab-jaringan', status: 'closed' },
-  { id: 'S-04', practicumId: 'PRK-4', date: 'Rabu, 28 Okt 2026', startTime: '15:00', endTime: '16:40', room: 'Lab Komputer 3', labId: 'lab-komputer-3', status: 'upcoming' },
-  { id: 'S-05', practicumId: 'PRK-5', date: 'Kamis, 29 Okt 2026', startTime: '08:00', endTime: '09:40', room: 'Lab Sistem Operasi', labId: 'lab-sistem-operasi', status: 'upcoming' },
-  { id: 'S-06', practicumId: 'PRK-6', date: 'Kamis, 29 Okt 2026', startTime: '10:00', endTime: '11:40', room: 'Lab Kecerdasan Buatan', labId: 'lab-kecerdasan-buatan', status: 'open' },
-  { id: 'S-07', practicumId: 'PRK-7', date: 'Jumat, 30 Okt 2026', startTime: '13:00', endTime: '14:40', room: 'Lab RPL', labId: 'lab-rpl', status: 'upcoming' },
-  { id: 'S-08', practicumId: 'PRK-8', date: 'Jumat, 30 Okt 2026', startTime: '15:00', endTime: '16:40', room: 'Lab Keamanan', labId: 'lab-keamanan', status: 'closed' },
-  { id: 'S-09', practicumId: 'PRK-9', date: 'Selasa, 20 Okt 2026', startTime: '08:00', endTime: '09:40', room: 'Lab Web', labId: 'lab-web', status: 'open' },
-  { id: 'S-10', practicumId: 'PRK-10', date: 'Selasa, 20 Okt 2026', startTime: '10:00', endTime: '11:40', room: 'Lab APSI', labId: 'lab-apsi', status: 'open' },
+  { id: 'S-01', practicumId: 'PRK-1', date: relativeDate(1), startTime: '08:00', endTime: '09:40', room: 'Lab Mobile 2', labId: 'lab-mobile', status: 'upcoming' },
+  { id: 'S-02', practicumId: 'PRK-2', date: relativeDate(0), startTime: '10:00', endTime: '11:40', room: 'Lab Basis Data 1', labId: 'lab-basis-data', status: 'open' },
+  { id: 'S-03', practicumId: 'PRK-3', date: relativeDate(-1), startTime: '13:00', endTime: '14:40', room: 'Lab Jaringan', labId: 'lab-jaringan', status: 'closed' },
+  { id: 'S-04', practicumId: 'PRK-4', date: relativeDate(0), startTime: demoWindow.startTime, endTime: demoWindow.endTime, room: 'Lab Komputer 3', labId: 'lab-komputer-3', status: 'upcoming' },
+  { id: 'S-05', practicumId: 'PRK-5', date: relativeDate(2), startTime: '08:00', endTime: '09:40', room: 'Lab Sistem Operasi', labId: 'lab-sistem-operasi', status: 'upcoming' },
+  { id: 'S-06', practicumId: 'PRK-6', date: relativeDate(0), startTime: '10:00', endTime: '11:40', room: 'Lab Kecerdasan Buatan', labId: 'lab-kecerdasan-buatan', status: 'open' },
+  { id: 'S-07', practicumId: 'PRK-7', date: relativeDate(3), startTime: '13:00', endTime: '14:40', room: 'Lab RPL', labId: 'lab-rpl', status: 'upcoming' },
+  { id: 'S-08', practicumId: 'PRK-8', date: relativeDate(-2), startTime: '15:00', endTime: '16:40', room: 'Lab Keamanan', labId: 'lab-keamanan', status: 'closed' },
+  { id: 'S-09', practicumId: 'PRK-9', date: relativeDate(0), startTime: '08:00', endTime: '09:40', room: 'Lab Web', labId: 'lab-web', status: 'open' },
+  { id: 'S-10', practicumId: 'PRK-10', date: relativeDate(4), startTime: '10:00', endTime: '11:40', room: 'Lab APSI', labId: 'lab-apsi', status: 'upcoming' },
 ];
 
 /**
