@@ -15,6 +15,7 @@ export default function AsistenTabsLayout() {
         tabBarHideOnKeyboard: true,
       }}>
       <Tabs.Screen name="index" options={{ title: 'Jadwal' }} />
+      <Tabs.Screen name="maps" options={{ title: 'Peta' }} />
       <Tabs.Screen name="history" options={{ title: 'Riwayat' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profil' }} />
     </Tabs>
