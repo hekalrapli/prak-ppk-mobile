@@ -1,5 +1,4 @@
 // src/components/maps/lab-map-screen.tsx
-import { SymbolView } from 'expo-symbols';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -10,9 +9,8 @@ import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useDevicePosition } from '@/hooks/use-device-position';
 import { useLaboratories } from '@/hooks/use-laboratories';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDistanceMeters } from '@/lib/format-distance';
-import { distanceToLaboratory } from '@/services/locationService';
-import type { DevicePosition, Laboratory, LocationIssue } from '@/types/location';
+import type { Laboratory, LocationIssue } from '@/types/location';
+import { LabActivitySheet } from './lab-activity-sheet';
 import { LabMapView } from './lab-map-view';
 
 type MapIssue =
@@ -180,19 +178,6 @@ export function LabMapScreen() {
             </View>
           ) : null}
 
-          {Platform.OS !== 'web' && selectedLaboratory ? (
-            <SelectedLabCard
-              distance={
-                position
-                  ? distanceToLaboratory(position, selectedLaboratory)
-                  : null
-              }
-              laboratory={selectedLaboratory}
-              onClose={() => handleSelect(null)}
-              userPosition={position}
-            />
-          ) : null}
-
           {locationLoading && !position ? (
             <View style={styles.loadingOverlay} pointerEvents="none">
               <View style={styles.loadingPill}>
@@ -203,76 +188,16 @@ export function LabMapScreen() {
             </View>
           ) : null}
         </View>
+
+        {selectedLaboratory ? (
+          <LabActivitySheet
+            laboratories={laboratories}
+            laboratory={selectedLaboratory}
+            onClose={() => handleSelect(null)}
+          />
+        ) : null}
       </View>
     </TabScreen>
-  );
-}
-
-function SelectedLabCard({
-  laboratory,
-  distance,
-  userPosition,
-  onClose,
-}: {
-  laboratory: Laboratory;
-  distance: number | null;
-  userPosition: DevicePosition | null;
-  onClose: () => void;
-}) {
-  const theme = useTheme();
-  const insideRadius =
-    distance !== null && laboratory.radiusMeter > 0 && distance <= laboratory.radiusMeter;
-
-  return (
-    <View
-      style={[styles.selectedCard, Shadow.sheet, { backgroundColor: theme.surface }]}>
-      <View style={styles.rowBetween}>
-        <Text style={[styles.selectedName, { color: theme.textPrimary }]}>
-          {laboratory.name}
-        </Text>
-        <Pressable
-          accessibilityLabel="Tutup informasi laboratorium"
-          accessibilityRole="button"
-          hitSlop={10}
-          onPress={onClose}>
-          <SymbolView
-            name={{ ios: 'xmark', android: 'close', web: 'close' }}
-            size={18}
-            tintColor={theme.textSecondary}
-          />
-        </Pressable>
-      </View>
-
-      <Text style={[styles.selectedMeta, { color: theme.textSecondary }]}>
-        {laboratory.building || 'Gedung belum diisi'}
-      </Text>
-
-      <View style={styles.rowBetween}>
-        <Text style={[styles.selectedMeta, { color: theme.textSecondary }]}>
-          {laboratory.radiusMeter > 0
-            ? `Radius presensi ${laboratory.radiusMeter} m`
-            : 'Radius presensi belum diatur'}
-        </Text>
-        <Text
-          style={[
-            styles.selectedDistance,
-            {
-              color:
-                distance === null
-                  ? theme.textTertiary
-                  : insideRadius
-                    ? theme.success
-                    : theme.error,
-            },
-          ]}>
-          {distance === null
-            ? userPosition
-              ? 'Menghitung jarak…'
-              : 'Lokasi tidak aktif'
-            : `${formatDistanceMeters(distance)} dari Anda`}
-        </Text>
-      </View>
-    </View>
   );
 }
 
@@ -309,24 +234,6 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { ...Typography.cardTitle },
   emptyBody: { ...Typography.body },
-  selectedCard: {
-    position: 'absolute',
-    left: Spacing.three,
-    right: Spacing.three,
-    bottom: Spacing.three,
-    borderRadius: Radius.card,
-    padding: Spacing.three,
-    gap: Spacing.one,
-  },
-  selectedName: { ...Typography.cardTitle, flexShrink: 1 },
-  selectedMeta: { ...Typography.caption },
-  selectedDistance: { ...Typography.caption, fontWeight: '700' },
-  rowBetween: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
   loadingOverlay: {
     position: 'absolute',
     top: Spacing.three,

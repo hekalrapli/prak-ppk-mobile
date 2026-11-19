@@ -253,7 +253,7 @@ In Sprint 3, PrakPresensi expands physical presence verification and proactive c
 | **FR-P1-01** | `feat/FR-P1-01/geo-location-engine` | Done — `src/services/locationService.ts`, permission/GPS fallback panel, `expo-location` plugin |
 | **FR-P1-02** | `feat/FR-P1-02/location-presence` | Done — presence screen, geofence validation, distance audit on attendance |
 | **FR-P1-03** | `feat/FR-P1-03/interactive-lab-map` | Done — `/maps` route + “Peta” tab for both roles, lab markers, radius circles, live user marker, recenter button, web list fallback |
-| **FR-P1-04** | `feat/FR-P1-04/lab-activity-sheet` | Planned |
+| **FR-P1-04** | `feat/FR-P1-04/lab-activity-sheet` | Done — activity sheet with ongoing/next sessions, live status badge, and empty state |
 | **FR-P1-05** | — | Skipped (optional; needs assistant-side QR token generation) |
 
 **Notes for FR-P1-01/02**
@@ -263,6 +263,7 @@ In Sprint 3, PrakPresensi expands physical presence verification and proactive c
 - Set `GOOGLE_MAPS_API_KEY` in `.env` before building Android to see map tiles. `app.config.js` adds the maps config plugin only when the key exists, so builds without it still succeed.
 - The updated `firestore.rules` must be published. It adds the `laboratorium` collection and the optional geofence fields on `attendance`.
 - `npm run seed:demo -- --key secrets/service-account.json` now also creates `laboratorium/{labId}` documents and sets `sessions.labId`, so the 50 m demo radius can be tested immediately.
+- Demo session dates are generated relative to the day the seed runs, so the activity sheet can show **Dibuka**, **Berlangsung**, and **Kosong** states at any time.
 - Radius verification runs on the device (Haversine). Security Rules validate field types only; a modified client could still forge the reported distance. This is documented as a limitation, same as the AI classification result.
 
 ---
