@@ -13,7 +13,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { AttendanceDoc, FirestoreTimestamp } from '../types/attendance';
+import { AttendanceDoc, AttendanceGeofence, FirestoreTimestamp } from '../types/attendance';
 import { getHumanReadableErrorMessage } from './errorHandler';
 
 /**
@@ -108,6 +108,11 @@ function mapAttendanceDoc(
   sessionId: string,
   practicumId: string
 ): AttendanceDoc {
+  const distanceRaw = data.distance_meter ?? data.distanceMeter;
+  const latRaw = data.device_lat ?? data.deviceLat;
+  const lngRaw = data.device_lng ?? data.deviceLng;
+  const verifiedRaw = data.is_location_verified ?? data.isLocationVerified;
+
   return {
     id,
     praktikanId: String(data.praktikanId ?? id),
@@ -117,6 +122,10 @@ function mapAttendanceDoc(
     recordedAt: parseTimestampValue(data.recordedAt),
     sessionId,
     practicumId,
+    distanceMeter: typeof distanceRaw === 'number' ? distanceRaw : undefined,
+    deviceLat: typeof latRaw === 'number' ? latRaw : undefined,
+    deviceLng: typeof lngRaw === 'number' ? lngRaw : undefined,
+    isLocationVerified: typeof verifiedRaw === 'boolean' ? verifiedRaw : undefined,
   };
 }
 
@@ -124,6 +133,10 @@ function mapAttendanceDoc(
  * FR-14: Presensi Terintegrasi
  * Menyimpan presensi di practicums/{pid}/sessions/{sid}/attendance/{uid}
  * ID dokumen = UID praktikan, mencegah duplikasi di level Firestore.
+ *
+ * FR-P1-02: bila `geofence` dikirim, jarak dan koordinat perangkat ikut
+ * disimpan sebagai jejak audit. Perhitungan radius dilakukan di klien
+ * (Haversine) dan tidak dapat diverifikasi ulang oleh Security Rules.
  */
 export async function recordAttendance(params: {
   practicumId: string;
@@ -131,8 +144,10 @@ export async function recordAttendance(params: {
   praktikanId: string;
   praktikanName: string;
   praktikanNim: string;
+  geofence?: AttendanceGeofence;
 }): Promise<{ success: boolean; recordedAtDisplay: string }> {
-  const { practicumId, sessionId, praktikanId, praktikanName, praktikanNim } = params;
+  const { practicumId, sessionId, praktikanId, praktikanName, praktikanNim, geofence } =
+    params;
 
   try {
     // 1. Cek apakah ada izin yang sudah disetujui (approved) pada sesi ini
@@ -151,13 +166,22 @@ export async function recordAttendance(params: {
 
     // 3. Simpan dokumen presensi
     const now = new Date();
-    await setDoc(attendanceDocRef, {
+    const payload: Record<string, unknown> = {
       praktikanId,
       praktikanName,
       praktikanNim,
       status: 'present',
       recordedAt: serverTimestamp(),
-    });
+    };
+
+    if (geofence) {
+      payload.distance_meter = geofence.distanceMeter;
+      payload.device_lat = geofence.deviceLat;
+      payload.device_lng = geofence.deviceLng;
+      payload.is_location_verified = geofence.isLocationVerified;
+    }
+
+    await setDoc(attendanceDocRef, payload);
 
     const displayTime = formatTimestampToTime(now);
     return { success: true, recordedAtDisplay: displayTime };
@@ -272,6 +296,14 @@ export function subscribeUserAttendanceHistory(
             recordedAt: data.recordedAt,
             sessionId: sid,
             practicumId: pid,
+            distanceMeter:
+              typeof data.distance_meter === 'number' ? data.distance_meter : undefined,
+            deviceLat: typeof data.device_lat === 'number' ? data.device_lat : undefined,
+            deviceLng: typeof data.device_lng === 'number' ? data.device_lng : undefined,
+            isLocationVerified:
+              typeof data.is_location_verified === 'boolean'
+                ? data.is_location_verified
+                : undefined,
           });
         });
         onData(records);

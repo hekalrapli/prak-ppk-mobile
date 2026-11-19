@@ -10,6 +10,7 @@ type TabBarProps = Parameters<
 
 const ICONS: Record<string, SymbolViewProps['name']> = {
   index: { ios: 'calendar', android: 'calendar_month', web: 'calendar_month' },
+  maps: { ios: 'map', android: 'map', web: 'map' },
   history: { ios: 'clock.arrow.circlepath', android: 'history', web: 'history' },
   profile: { ios: 'person.crop.circle', android: 'person', web: 'person' },
 };

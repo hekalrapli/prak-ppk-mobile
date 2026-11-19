@@ -55,6 +55,14 @@ export function mapSession(
   const status: SessionStatus =
     data.status === 'open' || data.status === 'closed' ? data.status : 'upcoming';
 
+  // Kontrak Sprint 3 memakai `lab_id`; aplikasi menulis `labId`. Keduanya dibaca.
+  const labId =
+    typeof data.labId === 'string'
+      ? data.labId
+      : typeof data.lab_id === 'string'
+        ? data.lab_id
+        : undefined;
+
   return {
     id,
     practicumId,
@@ -67,6 +75,7 @@ export function mapSession(
         ? data.lab_id.trim()
         : undefined,
     status,
+    labId,
     openedAt: typeof data.openedAt === 'string' ? data.openedAt : undefined,
     closedAt: typeof data.closedAt === 'string' ? data.closedAt : undefined,
   };

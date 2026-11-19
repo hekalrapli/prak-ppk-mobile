@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { subscribeLaboratories, subscribeLaboratory } from '../services/labService';
 import type { Laboratory } from '../types/attendance';
+import type { Laboratory as LocationLaboratory } from '../types/location';
 
 interface LaboratoriesState {
   attempt: number;
@@ -17,8 +18,36 @@ interface LaboratoryDetailState {
 
 const EMPTY_LABS: Laboratory[] = [];
 
+function toLocationLaboratory(lab: Laboratory): LocationLaboratory | null {
+  const validCoordinate =
+    Number.isFinite(lab.latitude) &&
+    Number.isFinite(lab.longitude) &&
+    lab.latitude >= -90 &&
+    lab.latitude <= 90 &&
+    lab.longitude >= -180 &&
+    lab.longitude <= 180;
+
+  if (!validCoordinate) {
+    return null;
+  }
+
+  return {
+    id: lab.id,
+    name: lab.nama.trim() || 'Laboratorium',
+    building: lab.gedung.trim(),
+    latitude: lab.latitude,
+    longitude: lab.longitude,
+    radiusMeter:
+      Number.isFinite(lab.radius_meter) && lab.radius_meter > 0
+        ? lab.radius_meter
+        : 0,
+  };
+}
+
 /**
  * Listener real-time daftar lokasi lab & geofence pada koleksi `laboratorium`.
+ * Mengembalikan `labs` (format kontrak Firestore untuk CRUD asisten) serta
+ * `laboratories` (format `types/location` untuk peta & presensi FR-P1-02/03).
  */
 export function useLaboratories(enabled = true) {
   const [attempt, setAttempt] = useState(0);
@@ -51,6 +80,15 @@ export function useLaboratories(enabled = true) {
   }, [attempt, enabled]);
 
   const loaded = enabled && state?.attempt === attempt ? state : null;
+  const labs = loaded?.labs ?? EMPTY_LABS;
+
+  const laboratories = useMemo(
+    () =>
+      labs
+        .map(toLocationLaboratory)
+        .filter((item): item is LocationLaboratory => item !== null),
+    [labs]
+  );
 
   const retry = useCallback(() => {
     setAttempt((value) => value + 1);
@@ -62,7 +100,8 @@ export function useLaboratories(enabled = true) {
   }, []);
 
   return {
-    labs: loaded?.labs ?? EMPTY_LABS,
+    labs,
+    laboratories,
     loading: enabled && !loaded,
     refreshing,
     error: loaded?.error ?? null,

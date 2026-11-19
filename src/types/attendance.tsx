@@ -45,6 +45,15 @@ export interface LeaveRequest {
   sessionDate?: string;
 }
 
+export interface AttendanceGeofence {
+  /** Jarak perangkat ke titik laboratorium saat presensi (meter). */
+  distanceMeter: number;
+  deviceLat: number;
+  deviceLng: number;
+  /** true bila koordinat lolos verifikasi radius di sisi klien. */
+  isLocationVerified: boolean;
+}
+
 export interface AttendanceDoc {
   id?: string; // UID praktikan
   praktikanId: string;
@@ -56,6 +65,11 @@ export interface AttendanceDoc {
   practicumId?: string;
   practicumName?: string;
   sessionDate?: string;
+  /** Jejak audit geofence; kosong untuk presensi lama sebelum Sprint 3. */
+  distanceMeter?: number;
+  deviceLat?: number;
+  deviceLng?: number;
+  isLocationVerified?: boolean;
 }
 
 export interface Practicum {
@@ -77,6 +91,8 @@ export interface Session {
   room: string;
   lab_id?: string;
   status: SessionStatus;
+  /** Referensi laboratorium untuk validasi geofence (FR-P1-02). */
+  labId?: string;
   openedAt?: string;
   closedAt?: string;
 }

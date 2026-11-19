@@ -39,7 +39,13 @@
       ],
       "expo-image",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "PrakPresensi menggunakan lokasi Anda hanya saat aplikasi terbuka untuk memverifikasi kehadiran di dalam radius laboratorium."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

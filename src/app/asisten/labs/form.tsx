@@ -26,6 +26,11 @@ import {
   validateLaboratoryInput,
   type LaboratoryFieldKey,
 } from '@/services/labService';
+import {
+  getCurrentCoordinates,
+  LocationServiceError,
+  requestLocationPermission,
+} from '@/services/locationService';
 
 export default function LabFormScreen() {
   const router = useRouter();
@@ -44,6 +49,7 @@ export default function LabFormScreen() {
   const [radiusMeter, setRadiusMeter] = useState('50');
   const [touched, setTouched] = useState<Partial<Record<LaboratoryFieldKey, boolean>>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const initializedRef = useRef(false);
   const savingRef = useRef(false);
@@ -107,6 +113,43 @@ export default function LabFormScreen() {
 
   const markTouched = (field: LaboratoryFieldKey) => {
     setTouched((curr) => ({ ...curr, [field]: true }));
+  };
+
+  const handleUseCurrentLocation = async () => {
+    if (locating || submitting) {
+      return;
+    }
+
+    setLocating(true);
+    setFormError(null);
+    try {
+      const granted = await requestLocationPermission();
+      if (!granted) {
+        setFormError(
+          'Izin lokasi belum diberikan. Aktifkan izin lokasi di Pengaturan atau isi koordinat secara manual.'
+        );
+        return;
+      }
+
+      const position = await getCurrentCoordinates();
+      setLatitude(position.latitude.toFixed(6));
+      setLongitude(position.longitude.toFixed(6));
+      setTouched((curr) => ({ ...curr, latitude: true, longitude: true }));
+      showToast(
+        position.mocked
+          ? 'Koordinat terisi (terdeteksi lokasi simulasi/mock)'
+          : 'Koordinat lokasi saat ini berhasil diisi',
+        'success'
+      );
+    } catch (err) {
+      const message =
+        err instanceof LocationServiceError || err instanceof Error
+          ? err.message
+          : 'Gagal membaca lokasi perangkat saat ini.';
+      setFormError(message);
+    } finally {
+      setLocating(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -211,6 +254,14 @@ export default function LabFormScreen() {
                 helper="Opsional, maksimal 100 karakter."
                 maxLength={100}
                 editable={!submitting}
+              />
+
+              <AppButton
+                label={locating ? 'Mengambil lokasi…' : 'Gunakan Lokasi Saya Saat Ini'}
+                variant="secondary"
+                onPress={handleUseCurrentLocation}
+                disabled={submitting || locating}
+                loading={locating}
               />
 
               <AppTextField

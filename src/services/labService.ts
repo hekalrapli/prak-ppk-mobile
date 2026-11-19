@@ -129,22 +129,27 @@ export function validateLaboratoryInput(input: LaboratoryFormInput): {
 }
 
 export function mapLaboratory(id: string, data: DocumentData): Laboratory {
+  const rawLat = Number(data.latitude ?? data.lat);
+  const rawLng = Number(data.longitude ?? data.lng ?? data.lon);
+  const rawRadius = Number(data.radius_meter ?? data.radiusMeter ?? data.radius);
+
   return {
     id,
-    nama: typeof data.nama === 'string' ? data.nama : '',
-    gedung: typeof data.gedung === 'string' ? data.gedung : '',
-    latitude:
-      typeof data.latitude === 'number' && Number.isFinite(data.latitude)
-        ? data.latitude
-        : 0,
-    longitude:
-      typeof data.longitude === 'number' && Number.isFinite(data.longitude)
-        ? data.longitude
-        : 0,
-    radius_meter:
-      typeof data.radius_meter === 'number' && Number.isFinite(data.radius_meter)
-        ? data.radius_meter
-        : 0,
+    nama:
+      typeof data.nama === 'string'
+        ? data.nama
+        : typeof data.name === 'string'
+          ? data.name
+          : '',
+    gedung:
+      typeof data.gedung === 'string'
+        ? data.gedung
+        : typeof data.building === 'string'
+          ? data.building
+          : '',
+    latitude: Number.isFinite(rawLat) ? rawLat : 0,
+    longitude: Number.isFinite(rawLng) ? rawLng : 0,
+    radius_meter: Number.isFinite(rawRadius) ? rawRadius : 0,
     updated_at: (data.updated_at as FirestoreTimestamp | undefined) ?? null,
   };
 }
