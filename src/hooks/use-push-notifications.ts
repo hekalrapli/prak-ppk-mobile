@@ -10,15 +10,76 @@ import {
   type NotificationTargetPayload,
 } from '@/services/notificationService';
 import { useAuth } from '@/store/auth-context';
+import type { UserRole } from '@/types/attendance';
+
+type SessionRoutePathname =
+  | '/praktikan/session/[sessionId]'
+  | '/asisten/session/[sessionId]';
+
+type RoleHomePathname = '/praktikan' | '/asisten';
 
 /**
- * FR-P2-01: Mengelola notifikasi masuk saat aplikasi di foreground (menampilkan
- * in-app banner/toast) serta menangani ketukan (tap) notifikasi dari
- * background/quit untuk mengarahkan pengguna ke layar sesi terkait.
+ * Pemetaan terpusat tipe event notifikasi -> rute tujuan per peran.
+ * Mengubah tujuan navigasi untuk satu tipe event cukup mengubah satu baris di sini.
+ */
+export const NOTIFICATION_EVENT_ROUTES: Record<
+  string,
+  Record<UserRole, SessionRoutePathname>
+> = {
+  session_opened: {
+    praktikan: '/praktikan/session/[sessionId]',
+    asisten: '/asisten/session/[sessionId]',
+  },
+  schedule_modified: {
+    praktikan: '/praktikan/session/[sessionId]',
+    asisten: '/asisten/session/[sessionId]',
+  },
+  leave_decision: {
+    praktikan: '/praktikan/session/[sessionId]',
+    asisten: '/asisten/session/[sessionId]',
+  },
+};
+
+function getRoleHomeRoute(role: UserRole): RoleHomePathname {
+  return role === 'asisten' ? '/asisten' : '/praktikan';
+}
+
+export function resolveNotificationNavigation(
+  target: NotificationTargetPayload,
+  role: UserRole
+):
+  | { pathname: SessionRoutePathname; params: { sessionId: string; practicumId: string } }
+  | { pathname: RoleHomePathname } {
+  const sessionId = target.sessionId?.trim();
+  const practicumId = target.practicumId?.trim();
+
+  if (!sessionId || !practicumId) {
+    return { pathname: getRoleHomeRoute(role) };
+  }
+
+  const mapped = target.type
+    ? NOTIFICATION_EVENT_ROUTES[target.type]?.[role]
+    : undefined;
+  const pathname: SessionRoutePathname =
+    mapped ??
+    (role === 'asisten'
+      ? '/asisten/session/[sessionId]'
+      : '/praktikan/session/[sessionId]');
+
+  return {
+    pathname,
+    params: { sessionId, practicumId },
+  };
+}
+
+/**
+ * FR-P2-01 & FR-P2-02: Mengelola notifikasi masuk saat aplikasi di foreground
+ * (menampilkan in-app toast) serta menangani ketukan notifikasi (background &
+ * cold start) menuju rute yang tepat.
  */
 export function useNotificationObserver(): void {
   const router = useRouter();
-  const { profile } = useAuth();
+  const { profile, initializing, profileLoading } = useAuth();
   const { showToast } = useToast();
   const handledResponseIdsRef = useRef<Set<string>>(new Set());
   const pendingTargetRef = useRef<NotificationTargetPayload | null>(null);
@@ -40,36 +101,29 @@ export function useNotificationObserver(): void {
 
   useEffect(() => {
     const navigateToTarget = (target: NotificationTargetPayload) => {
-      if (!profile) {
+      if (initializing || profileLoading || !profile) {
         pendingTargetRef.current = target;
         return;
       }
 
       pendingTargetRef.current = null;
+      const destination = resolveNotificationNavigation(target, profile.role);
 
-      if (target.sessionId) {
-        const params: { sessionId: string; practicumId?: string } = {
-          sessionId: target.sessionId,
-        };
-        if (target.practicumId) {
-          params.practicumId = target.practicumId;
-        }
-
-        if (profile.role === 'asisten') {
+      try {
+        if ('params' in destination) {
           router.push({
-            pathname: '/asisten/session/[sessionId]',
-            params,
+            pathname: destination.pathname,
+            params: destination.params,
           });
         } else {
-          router.push({
-            pathname: '/praktikan/session/[sessionId]',
-            params,
-          });
+          router.replace(destination.pathname);
         }
+      } catch {
+        router.replace(getRoleHomeRoute(profile.role));
       }
     };
 
-    if (profile && pendingTargetRef.current) {
+    if (!initializing && !profileLoading && profile && pendingTargetRef.current) {
       navigateToTarget(pendingTargetRef.current);
     }
 
@@ -86,5 +140,5 @@ export function useNotificationObserver(): void {
     return () => {
       unsubscribeResponses();
     };
-  }, [profile, router]);
+  }, [profile, initializing, profileLoading, router]);
 }

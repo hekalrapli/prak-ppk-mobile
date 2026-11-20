@@ -276,6 +276,9 @@ async function performUserPushRegistration(
 
   const permission = await requestNotificationPermission();
   if (!permission.granted || isUnregistering || activeUserId !== uid) {
+    console.warn(
+      `[PushNotification] Registrasi dilewati untuk ${uid}: izin=${permission.status}`
+    );
     return {
       granted: false,
       token: null,
@@ -285,6 +288,9 @@ async function performUserPushRegistration(
 
   const token = await fetchExpoPushToken();
   if (!token || isUnregistering || activeUserId !== uid) {
+    console.warn(
+      `[PushNotification] Token tidak tersedia untuk ${uid} (isDevice=${Device.isDevice}).`
+    );
     return {
       granted: true,
       token: null,
@@ -302,6 +308,7 @@ async function performUserPushRegistration(
   activePushToken = token;
   await AsyncStorage.setItem(STORED_PUSH_TOKEN_KEY, token).catch(() => undefined);
   await saveUserPushToken(uid, token, previousToken);
+  console.info(`[PushNotification] Token berhasil diproses untuk users/${uid}.`);
 
   return { granted: true, token };
 }
@@ -526,9 +533,7 @@ export function subscribeNotificationResponses(
       const target = parseTargetPayload(
         lastResponse.notification.request.content.data
       );
-      if (target.sessionId) {
-        onTap(target, lastResponse.notification.request.identifier);
-      }
+      onTap(target, lastResponse.notification.request.identifier);
     })
     .catch(() => undefined);
 
