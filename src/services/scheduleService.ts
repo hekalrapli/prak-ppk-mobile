@@ -24,7 +24,11 @@ import {
 import type { Practicum, Session, SessionStatus } from '../types/attendance';
 import type { UserProfile } from '../types/auth';
 import { getHumanReadableErrorMessage } from './errorHandler';
-import { db } from './firebase';
+import { auth, db } from './firebase';
+import {
+  notifyScheduleModified,
+  notifySessionOpened,
+} from './pushDispatcher';
 
 type DataHandler<T> = (data: T) => void;
 type ErrorHandler = (message: string) => void;
@@ -213,6 +217,9 @@ export async function openSession(practicumId: string, sessionId: string): Promi
   } catch (error) {
     throw new Error(getHumanReadableErrorMessage(error));
   }
+
+  // FR-P2-02: Kirim notifikasi non-blocking setelah sesi berhasil dibuka.
+  void notifySessionOpened(practicumId, sessionId).catch(() => undefined);
 }
 
 /**
@@ -662,6 +669,13 @@ export async function updateSession(
   } catch (error) {
     throw new Error(getHumanReadableErrorMessage(error));
   }
+
+  // FR-P2-02: Kirim notifikasi non-blocking setelah perubahan jadwal tersimpan.
+  void notifyScheduleModified(
+    practicumId,
+    sessionId,
+    auth.currentUser?.uid
+  ).catch(() => undefined);
 }
 
 /**
