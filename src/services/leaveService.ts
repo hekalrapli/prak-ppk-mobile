@@ -17,6 +17,7 @@ import { db } from './firebase';
 import { LeaveClassification, LeaveRequest, LeaveStatus } from '../types/attendance';
 import { classifyLeaveReason } from './leaveClassifier';
 import { getHumanReadableErrorMessage, validateLeaveReason } from './errorHandler';
+import { notifyLeaveDecision } from './pushDispatcher';
 
 /**
  * Hasil klasifikasi AI disimpan di dokumen terpisah
@@ -229,6 +230,14 @@ export async function decideLeaveRequest(params: {
   } catch (error: any) {
     throw new Error(getHumanReadableErrorMessage(error));
   }
+
+  // FR-P2-02: Kirim notifikasi non-blocking setelah keputusan izin tersimpan.
+  void notifyLeaveDecision({
+    practicumId,
+    sessionId,
+    praktikanId,
+    decision,
+  }).catch(() => undefined);
 }
 
 /**
