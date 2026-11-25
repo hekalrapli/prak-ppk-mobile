@@ -1,5 +1,4 @@
 import Constants from 'expo-constants';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -11,7 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { BrandLogo } from '@/components/ui/brand-logo';
+import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth-context';
 
@@ -59,24 +59,7 @@ export default function EntryScreen() {
           styles.brandBlock,
           { opacity, transform: [{ translateY }] },
         ]}>
-        <View style={[styles.emblemHalo, { backgroundColor: theme.primarySoft }]}>
-          <View
-            style={[
-              styles.emblem,
-              Shadow.floating,
-              { backgroundColor: theme.primary },
-            ]}>
-            <SymbolView
-              name={{
-                ios: 'checkmark.seal.fill',
-                android: 'verified',
-                web: 'verified',
-              }}
-              size={38}
-              tintColor={theme.onPrimary}
-            />
-          </View>
-        </View>
+        <BrandLogo size="lg" />
 
         <View style={styles.titleGroup}>
           <Text style={[styles.wordmark, { color: theme.textPrimary }]}>
@@ -122,20 +105,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.four,
     maxWidth: 320,
-  },
-  emblemHalo: {
-    width: 100,
-    height: 100,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emblem: {
-    width: 78,
-    height: 78,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   titleGroup: {
     alignItems: 'center',

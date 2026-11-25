@@ -1,5 +1,4 @@
 import { useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -14,7 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui/app-button';
 import { AppTextField } from '@/components/ui/app-text-field';
-import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { BrandLogo } from '@/components/ui/brand-logo';
+import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth-context';
 
@@ -73,22 +73,7 @@ export default function LoginScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <View
-              style={[
-                styles.brandBadge,
-                Shadow.soft,
-                { backgroundColor: theme.primary },
-              ]}>
-              <SymbolView
-                name={{
-                  ios: 'checkmark.seal.fill',
-                  android: 'verified',
-                  web: 'verified',
-                }}
-                size={24}
-                tintColor={theme.onPrimary}
-              />
-            </View>
+            <BrandLogo size="md" />
             <View style={styles.titleBlock}>
               <Text style={[styles.title, { color: theme.textPrimary }]}>
                 Prakitiw
@@ -185,24 +170,21 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   header: {
+    alignItems: 'center',
     gap: Spacing.three,
     marginTop: Spacing.three,
   },
-  brandBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   titleBlock: {
+    alignItems: 'center',
     gap: Spacing.one,
   },
   title: {
     ...Typography.display,
+    textAlign: 'center',
   },
   subtitle: {
     ...Typography.body,
+    textAlign: 'center',
   },
   fields: { gap: Spacing.three },
   errorPanel: {

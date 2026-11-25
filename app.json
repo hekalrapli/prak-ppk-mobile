@@ -8,7 +8,7 @@
     "scheme": "prakppkmobile",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,9 +28,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#C9492B",
+          "backgroundColor": "#FFF8F2",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 96,
+          "imageWidth": 112,
           "dark": {
             "backgroundColor": "#141110",
             "image": "./assets/images/splash-icon.png"
