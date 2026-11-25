@@ -196,7 +196,7 @@ function PraktikanQrScanner({
 
     const parsed = parseQrPresencePayload(rawData);
     if (!parsed.ok) {
-      const message = 'Kode QR tidak valid atau bukan milik Prakitiw.';
+      const message = 'Kode QR tidak valid atau bukan milik PrakYuks.';
       setScanFeedback({ kind: 'error', message });
       showToast(message, 'error');
       return;
@@ -365,8 +365,8 @@ function PraktikanQrScanner({
             </Text>
             <Text style={[styles.permissionBody, { color: theme.textSecondary }]}>
               {permanentlyDenied
-                ? 'Akses kamera ditolak secara permanen. Aktifkan izin Kamera untuk Prakitiw melalui Pengaturan perangkat agar Anda bisa memindai QR presensi.'
-                : 'Prakitiw memerlukan akses kamera untuk memindai kode QR presensi yang ditampilkan oleh asisten di kelas.'}
+                ? 'Akses kamera ditolak secara permanen. Aktifkan izin Kamera untuk PrakYuks melalui Pengaturan perangkat agar Anda bisa memindai QR presensi.'
+                : 'PrakYuks memerlukan akses kamera untuk memindai kode QR presensi yang ditampilkan oleh asisten di kelas.'}
             </Text>
             <View style={styles.permissionActions}>
               {permanentlyDenied ? (

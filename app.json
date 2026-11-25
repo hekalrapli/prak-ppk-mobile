@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Prakitiw",
+    "name": "PrakYuks",
     "slug": "prak-ppk-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -43,13 +43,13 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Prakitiw menggunakan lokasi Anda hanya saat aplikasi terbuka untuk memverifikasi kehadiran di dalam radius laboratorium."
+          "locationWhenInUsePermission": "PrakYuks menggunakan lokasi Anda hanya saat aplikasi terbuka untuk memverifikasi kehadiran di dalam radius laboratorium."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Prakitiw memerlukan akses kamera untuk memindai kode QR presensi praktikum.",
+          "cameraPermission": "PrakYuks memerlukan akses kamera untuk memindai kode QR presensi praktikum.",
           "recordAudioAndroid": false
         }
       ]

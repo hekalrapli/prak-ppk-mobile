@@ -236,7 +236,7 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
       </View>
 
       <Text style={[styles.version, { color: theme.textTertiary }]}>
-        Prakitiw · v{version}
+        PrakYuks · v{version}
       </Text>
     </ScrollView>
 

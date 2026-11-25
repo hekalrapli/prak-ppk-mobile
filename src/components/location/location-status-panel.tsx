@@ -29,7 +29,7 @@ const COPY: Record<
   undetermined: {
     title: 'Izin lokasi diperlukan',
     description:
-      'Prakitiw memakai lokasi Anda hanya saat aplikasi terbuka, untuk memastikan presensi tercatat di dalam radius laboratorium. Lokasi tidak dipakai untuk pelacakan di luar presensi.',
+      'PrakYuks memakai lokasi Anda hanya saat aplikasi terbuka, untuk memastikan presensi tercatat di dalam radius laboratorium. Lokasi tidak dipakai untuk pelacakan di luar presensi.',
     tone: 'info',
   },
   'permission-denied': {

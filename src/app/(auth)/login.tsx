@@ -76,7 +76,7 @@ export default function LoginScreen() {
             <BrandLogo size="md" />
             <View style={styles.titleBlock}>
               <Text style={[styles.title, { color: theme.textPrimary }]}>
-                Prakitiw
+                PrakYuks
               </Text>
               <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
                 Masuk untuk mengakses jadwal dan presensi praktikum.

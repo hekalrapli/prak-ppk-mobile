@@ -63,7 +63,7 @@ export default function EntryScreen() {
 
         <View style={styles.titleGroup}>
           <Text style={[styles.wordmark, { color: theme.textPrimary }]}>
-            Prakitiw
+            PrakYuks
           </Text>
           <Text style={[styles.tagline, { color: theme.textSecondary }]}>
             Presensi praktikum berbasis lokasi & QR
@@ -84,7 +84,7 @@ export default function EntryScreen() {
           </Text>
         </View>
         <Text style={[styles.version, { color: theme.textTertiary }]}>
-          Prakitiw · v{version}
+          PrakYuks · v{version}
         </Text>
       </View>
     </SafeAreaView>

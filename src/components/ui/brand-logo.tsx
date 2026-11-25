@@ -29,7 +29,7 @@ const METRICS = {
 } as const;
 
 /**
- * Logo resmi Prakitiw (`under-computer.webp`) di dalam tile putih membulat
+ * Logo resmi PrakYuks (`under-computer.webp`) di dalam tile putih membulat
  * dan halo koral lembut agar tetap tajam di mode terang maupun gelap.
  */
 export function BrandLogo({ size = 'md' }: BrandLogoProps) {
@@ -39,7 +39,7 @@ export function BrandLogo({ size = 'md' }: BrandLogoProps) {
   return (
     <View
       accessible
-      accessibilityLabel="Logo Prakitiw"
+      accessibilityLabel="Logo PrakYuks"
       accessibilityRole="image"
       style={[
         styles.halo,

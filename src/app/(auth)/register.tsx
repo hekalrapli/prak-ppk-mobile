@@ -169,7 +169,7 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.textPrimary }]}>
-              Buat akun Prakitiw
+              Buat akun PrakYuks
             </Text>
           </View>
 
