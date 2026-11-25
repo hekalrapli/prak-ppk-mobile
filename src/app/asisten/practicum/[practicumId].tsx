@@ -166,7 +166,7 @@ export default function PracticumManageScreen() {
       await deletePracticumCascade(practicum.id);
       setDeleteSummary(null);
       showToast('Praktikum dan seluruh sesinya berhasil dihapus', 'success');
-      router.replace('/asisten');
+      router.replace('/asisten/manage');
     } catch (err) {
       showToast(
         err instanceof Error ? err.message : 'Gagal menghapus praktikum.',

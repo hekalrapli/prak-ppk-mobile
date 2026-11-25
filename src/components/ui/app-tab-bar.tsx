@@ -10,6 +10,7 @@ type TabBarProps = Parameters<
 
 const ICONS: Record<string, SymbolViewProps['name']> = {
   index: { ios: 'calendar', android: 'calendar_month', web: 'calendar_month' },
+  manage: { ios: 'square.grid.2x2', android: 'grid_view', web: 'grid_view' },
   maps: { ios: 'map', android: 'map', web: 'map' },
   history: { ios: 'clock.arrow.circlepath', android: 'history', web: 'history' },
   profile: { ios: 'person.crop.circle', android: 'person', web: 'person' },
@@ -22,11 +23,13 @@ const ICONS: Record<string, SymbolViewProps['name']> = {
  */
 export function AppTabBar({ state, descriptors, navigateToTab, insets }: TabBarProps) {
   const theme = useTheme();
+  const isCompact = state.routes.length >= 5;
 
   return (
     <View
       style={[
         styles.wrapper,
+        isCompact && styles.wrapperCompact,
         {
           backgroundColor: theme.background,
           paddingBottom: Math.max(insets.bottom, Spacing.two) + Spacing.one,
@@ -49,7 +52,7 @@ export function AppTabBar({ state, descriptors, navigateToTab, insets }: TabBarP
               accessibilityState={{ selected: focused }}
               onPress={() => navigateToTab(route.key)}
               style={styles.item}>
-              <View style={styles.itemInner}>
+              <View style={[styles.itemInner, isCompact && styles.itemInnerCompact]}>
                 <SymbolView
                   name={
                     ICONS[route.name] ?? {
@@ -92,6 +95,9 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     paddingHorizontal: Spacing.four,
   },
+  wrapperCompact: {
+    paddingHorizontal: Spacing.three,
+  },
   pill: {
     width: '100%',
     maxWidth: 480,
@@ -102,16 +108,24 @@ const styles = StyleSheet.create({
     padding: Spacing.one,
     minHeight: 64,
   },
-  item: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  item: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   itemInner: {
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.two,
     borderRadius: Radius.pill,
-    minWidth: 76,
     minHeight: 52,
+  },
+  itemInnerCompact: {
+    paddingHorizontal: Spacing.one,
   },
   label: {
     ...Typography.caption,
