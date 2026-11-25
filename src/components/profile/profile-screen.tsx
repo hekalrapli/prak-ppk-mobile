@@ -214,16 +214,6 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
             </Text>
           </Pressable>
         ) : null}
-
-        {isAsisten && profile?.role === 'asisten' ? (
-          <View style={styles.addPracticumWrap}>
-            <AppButton
-              label="Tambah praktikum"
-              variant="secondary"
-              onPress={() => router.push('/asisten/practicum/form')}
-            />
-          </View>
-        ) : null}
       </View>
 
       <View style={styles.actions}>
@@ -333,7 +323,6 @@ const styles = StyleSheet.create({
   practicumName: { ...Typography.bodyStrong },
   practicumMeta: { ...Typography.caption },
   manageLabel: { ...Typography.label, alignSelf: 'center' },
-  addPracticumWrap: { marginTop: Spacing.two },
   toggle: {
     minHeight: 44,
     justifyContent: 'center',

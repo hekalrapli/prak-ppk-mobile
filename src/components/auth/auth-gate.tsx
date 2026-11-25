@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/store/auth-context';
 
-/** Durasi minimal layar pembuka bermerek saat cold start agar transisi mulus. */
-const BRAND_SPLASH_MIN_MS = 850;
+/** Durasi minimal layar pembuka bermerek saat cold start (~2,5 detik) agar transisi mulus. */
+export const BRAND_SPLASH_MIN_MS = 2500;
 
 /**
  * Gerbang autentikasi:

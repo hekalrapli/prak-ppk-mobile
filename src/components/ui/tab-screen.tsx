@@ -1,5 +1,6 @@
+import { usePathname, useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Radius, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -17,26 +18,57 @@ function initialsOf(name: string) {
 }
 
 /**
- * Kerangka layar tab: app bar (avatar inisial statis + judul + toggle tema)
- * dan konten. Avatar hanya identitas, bukan tombol.
+ * Kerangka layar tab: app bar (avatar inisial menuju Profil + judul + toggle tema)
+ * dan konten. Menekan avatar langsung membuka tab Profil sesuai peran.
  */
 export function TabScreen({ title, children }: { title: string; children: ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const theme = useTheme();
   const { profile } = useAuth();
+
+  const profileRoute =
+    profile?.role === 'asisten'
+      ? '/asisten/profile'
+      : profile?.role === 'praktikan'
+        ? '/praktikan/profile'
+        : null;
+  const isOnProfile = profileRoute !== null && pathname === profileRoute;
+
+  const handleOpenProfile = () => {
+    if (!profileRoute || isOnProfile) {
+      return;
+    }
+    router.navigate(profileRoute);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScreenHeader
         title={title}
         left={
-          <View
-            accessible
-            accessibilityLabel={profile?.name ?? 'Pengguna'}
-            style={[styles.avatar, { backgroundColor: theme.primarySoft }]}>
-            <Text style={[styles.initials, { color: theme.textPrimary }]}>
-              {initialsOf(profile?.name ?? '') || '—'}
-            </Text>
-          </View>
+          <Pressable
+            accessibilityLabel={
+              isOnProfile
+                ? `Profil ${profile?.name ?? 'Pengguna'}`
+                : 'Buka profil'
+            }
+            accessibilityRole="button"
+            accessibilityState={{ selected: isOnProfile }}
+            disabled={!profileRoute || isOnProfile}
+            hitSlop={4}
+            onPress={handleOpenProfile}
+            style={({ pressed }) => [
+              styles.avatarButton,
+              pressed && !isOnProfile && { opacity: 0.72 },
+            ]}>
+            <View
+              style={[styles.avatar, { backgroundColor: theme.primarySoft }]}>
+              <Text style={[styles.initials, { color: theme.textPrimary }]}>
+                {initialsOf(profile?.name ?? '') || '—'}
+              </Text>
+            </View>
+          </Pressable>
         }
         right={<ThemeToggle />}
       />
@@ -47,6 +79,12 @@ export function TabScreen({ title, children }: { title: string; children: ReactN
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  avatarButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
   avatar: {
     width: 40,
     height: 40,
