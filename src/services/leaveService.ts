@@ -231,12 +231,13 @@ export async function decideLeaveRequest(params: {
     throw new Error(getHumanReadableErrorMessage(error));
   }
 
-  // FR-P2-02: Kirim notifikasi non-blocking setelah keputusan izin tersimpan.
+  // FR-P2-02 & FR-P2-05: Kirim notifikasi non-blocking setelah keputusan izin tersimpan.
   void notifyLeaveDecision({
     practicumId,
     sessionId,
     praktikanId,
     decision,
+    reviewNote: reviewNote ? reviewNote.trim() : undefined,
   }).catch(() => undefined);
 }
 

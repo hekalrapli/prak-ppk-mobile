@@ -421,18 +421,21 @@ export async function notifyScheduleModified(
 }
 
 /**
- * FR-P2-02 Event 3: Status Pengajuan Izin (`leave_decision`).
+ * FR-P2-02 & FR-P2-05 Event 3: Status Pengajuan Izin (`leave_decision`).
  * Penerima: praktikan pengaju izin (`praktikanId`).
- * Catatan privasi: isi notifikasi tidak memuat alasan izin maupun catatan penolakan.
+ * Memuat keputusan (`Disetujui`/`Ditolak`) serta catatan asisten bila ada.
  */
+const MAX_NOTIFICATION_NOTE_LENGTH = 120;
+
 export async function notifyLeaveDecision(params: {
   practicumId: string;
   sessionId: string;
   praktikanId: string;
   decision: 'approved' | 'rejected';
+  reviewNote?: string;
 }): Promise<void> {
   try {
-    const { practicumId, sessionId, praktikanId, decision } = params;
+    const { practicumId, sessionId, praktikanId, decision, reviewNote } = params;
     const practicumSnap = await getDoc(doc(db, 'practicums', practicumId));
     const practicumData = practicumSnap.exists() ? practicumSnap.data() : null;
     const practicumName =
@@ -441,11 +444,19 @@ export async function notifyLeaveDecision(params: {
         : 'Praktikum';
 
     const statusLabel = decision === 'approved' ? 'Disetujui' : 'Ditolak';
+    const trimmedNote = reviewNote?.trim() ?? '';
+    const noteSnippet =
+      trimmedNote.length > MAX_NOTIFICATION_NOTE_LENGTH
+        ? `${trimmedNote.slice(0, MAX_NOTIFICATION_NOTE_LENGTH - 1)}…`
+        : trimmedNote;
+    const body = noteSnippet
+      ? `Pengajuan izin Anda untuk praktikum ${practicumName} telah ${statusLabel} oleh asisten. Catatan: "${noteSnippet}"`
+      : `Pengajuan izin Anda untuk praktikum ${practicumName} telah ${statusLabel} oleh asisten.`;
 
     await dispatchExpoPushNotifications({
       recipientUids: [praktikanId],
       title: 'Status Pengajuan Izin',
-      body: `Pengajuan izin Anda untuk praktikum ${practicumName} telah ${statusLabel} oleh asisten.`,
+      body,
       data: {
         type: 'leave_decision',
         practicumId,

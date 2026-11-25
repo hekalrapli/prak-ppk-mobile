@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -38,7 +38,18 @@ export default function PraktikanHistoryScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'attendance' | 'leave'>('attendance');
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const requestedTab: 'attendance' | 'leave' =
+    tab === 'leave' ? 'leave' : 'attendance';
+  const [tabSelection, setTabSelection] = useState<{
+    source: string | undefined;
+    value: 'attendance' | 'leave';
+  }>({ source: tab, value: requestedTab });
+  const activeTab: 'attendance' | 'leave' =
+    tabSelection.source === tab ? tabSelection.value : requestedTab;
+  const setActiveTab = (next: 'attendance' | 'leave') => {
+    setTabSelection({ source: tab, value: next });
+  };
 
   const feed = usePracticumFeed('praktikan', profile?.uid);
   const sessionRefs = useMemo<HistorySessionRef[]>(

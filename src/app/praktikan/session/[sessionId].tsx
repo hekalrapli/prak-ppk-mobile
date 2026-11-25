@@ -12,9 +12,10 @@ import { useAuth } from '@/store/auth-context';
 export default function PraktikanSessionScreen() {
   const router = useRouter();
   const { profile } = useAuth();
-  const { sessionId, practicumId } = useLocalSearchParams<{
+  const { sessionId, practicumId, tab } = useLocalSearchParams<{
     sessionId: string;
     practicumId?: string;
+    tab?: string;
   }>();
 
   const { practicum, session, loading, error, retry } = useSessionDetail(
@@ -70,7 +71,12 @@ export default function PraktikanSessionScreen() {
 
   return (
     <DetailScreen title="Detail Sesi">
-      <SessionDetail role="praktikan" practicum={practicum} session={session} />
+      <SessionDetail
+        role="praktikan"
+        practicum={practicum}
+        session={session}
+        initialTab={tab === 'izin' ? 'izin' : undefined}
+      />
     </DetailScreen>
   );
 }
