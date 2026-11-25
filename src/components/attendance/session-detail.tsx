@@ -34,12 +34,18 @@ interface SessionDetailProps {
   role: UserRole;
   practicum: Practicum;
   session: Session;
+  initialTab?: SessionTab;
 }
 
 type SessionAction = 'open' | 'close';
-type SessionTab = 'ringkasan' | 'kehadiran' | 'izin';
+export type SessionTab = 'ringkasan' | 'kehadiran' | 'izin';
 
-export function SessionDetail({ role, practicum, session }: SessionDetailProps) {
+export function SessionDetail({
+  role,
+  practicum,
+  session,
+  initialTab,
+}: SessionDetailProps) {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -50,7 +56,17 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
   const canManage = isAsisten && profile?.uid === practicum.assistantId;
   const assistantName = practicum.assistantName ?? (isAsisten ? profile?.name : undefined);
 
-  const [activeTab, setActiveTab] = useState<SessionTab>('ringkasan');
+  const [tabSelection, setTabSelection] = useState<{
+    source: SessionTab | undefined;
+    value: SessionTab;
+  }>({ source: initialTab, value: initialTab ?? 'ringkasan' });
+  const activeTab: SessionTab =
+    tabSelection.source === initialTab
+      ? tabSelection.value
+      : (initialTab ?? 'ringkasan');
+  const setActiveTab = (next: SessionTab) => {
+    setTabSelection({ source: initialTab, value: next });
+  };
   const [pendingAction, setPendingAction] = useState<SessionAction | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLeaveModalVisible, setIsLeaveModalVisible] = useState(false);

@@ -16,7 +16,21 @@ type SessionRoutePathname =
   | '/praktikan/session/[sessionId]'
   | '/asisten/session/[sessionId]';
 
-type RoleHomePathname = '/praktikan' | '/asisten';
+export type NotificationNavigationTarget =
+  | {
+      kind: 'session';
+      pathname: SessionRoutePathname;
+      params: { sessionId: string; practicumId: string; tab?: string };
+    }
+  | {
+      kind: 'history';
+      pathname: '/praktikan/history';
+      params: { tab: 'leave' };
+    }
+  | {
+      kind: 'home';
+      pathname: '/praktikan' | '/asisten';
+    };
 
 /**
  * Pemetaan terpusat tipe event notifikasi -> rute tujuan per peran.
@@ -40,21 +54,26 @@ export const NOTIFICATION_EVENT_ROUTES: Record<
   },
 };
 
-function getRoleHomeRoute(role: UserRole): RoleHomePathname {
+function getRoleHomeRoute(role: UserRole): '/praktikan' | '/asisten' {
   return role === 'asisten' ? '/asisten' : '/praktikan';
 }
 
 export function resolveNotificationNavigation(
   target: NotificationTargetPayload,
   role: UserRole
-):
-  | { pathname: SessionRoutePathname; params: { sessionId: string; practicumId: string } }
-  | { pathname: RoleHomePathname } {
+): NotificationNavigationTarget {
   const sessionId = target.sessionId?.trim();
   const practicumId = target.practicumId?.trim();
 
   if (!sessionId || !practicumId) {
-    return { pathname: getRoleHomeRoute(role) };
+    if (target.type === 'leave_decision' && role === 'praktikan') {
+      return {
+        kind: 'history',
+        pathname: '/praktikan/history',
+        params: { tab: 'leave' },
+      };
+    }
+    return { kind: 'home', pathname: getRoleHomeRoute(role) };
   }
 
   const mapped = target.type
@@ -67,8 +86,15 @@ export function resolveNotificationNavigation(
       : '/praktikan/session/[sessionId]');
 
   return {
+    kind: 'session',
     pathname,
-    params: { sessionId, practicumId },
+    params: {
+      sessionId,
+      practicumId,
+      ...(target.type === 'leave_decision' && role === 'praktikan'
+        ? { tab: 'izin' }
+        : {}),
+    },
   };
 }
 
@@ -110,8 +136,13 @@ export function useNotificationObserver(): void {
       const destination = resolveNotificationNavigation(target, profile.role);
 
       try {
-        if ('params' in destination) {
+        if (destination.kind === 'session') {
           router.push({
+            pathname: destination.pathname,
+            params: destination.params,
+          });
+        } else if (destination.kind === 'history') {
+          router.replace({
             pathname: destination.pathname,
             params: destination.params,
           });

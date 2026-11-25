@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { LeaveRequest } from '../../types/attendance';
 import { Radius, Shadow, Spacing, Typography } from '../../constants/theme';
 import { useTheme } from '../../hooks/use-theme';
+import { formatTimestampToTime } from '../../services/attendanceService';
 import { StatusDot, StatusTone } from '../ui/status-dot';
 import { LeaveRequestModal } from './leave-request-modal';
 
@@ -62,6 +63,40 @@ export function LeaveStatusCard({
       </View>
 
       <Text style={[styles.reasonText, { color: theme.textPrimary }]}>“{leaveRequest.reason}”</Text>
+
+      {/* Umpan balik keputusan asisten (FR-P2-05) */}
+      {leaveRequest.status !== 'pending' ? (
+        <View
+          style={[
+            styles.decisionBanner,
+            {
+              backgroundColor:
+                leaveRequest.status === 'approved'
+                  ? theme.successSoft
+                  : theme.errorSoft,
+            },
+          ]}>
+          <Text
+            style={[
+              styles.decisionTitle,
+              {
+                color:
+                  leaveRequest.status === 'approved'
+                    ? theme.success
+                    : theme.error,
+              },
+            ]}>
+            {leaveRequest.status === 'approved'
+              ? 'Pengajuan izin Anda disetujui asisten.'
+              : 'Pengajuan izin Anda ditolak asisten.'}
+          </Text>
+          {leaveRequest.decidedAt ? (
+            <Text style={[styles.decisionMeta, { color: theme.textSecondary }]}>
+              Diputuskan pukul {formatTimestampToTime(leaveRequest.decidedAt)} WIB
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
 
       {/* Catatan Asisten jika ada */}
       {leaveRequest.reviewNote ? (
@@ -127,6 +162,18 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 2,
     marginBottom: Spacing.two,
+  },
+  decisionBanner: {
+    padding: Spacing.two,
+    borderRadius: Radius.sm,
+    marginTop: Spacing.one,
+    gap: 2,
+  },
+  decisionTitle: {
+    ...Typography.label,
+  },
+  decisionMeta: {
+    ...Typography.caption,
   },
   reviewNoteBox: {
     padding: Spacing.two,
