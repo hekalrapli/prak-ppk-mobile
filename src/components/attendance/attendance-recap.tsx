@@ -2,10 +2,13 @@ import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Radius } from '@/constants/theme';
+import { useLaboratories } from '@/hooks/use-laboratories';
+import { usePracticumParticipants } from '@/hooks/use-practicum-participants';
 import { useSessionAttendance } from '@/hooks/use-session-attendance';
 import { useSessionLeave } from '@/hooks/use-session-leave';
 import { useTheme } from '@/hooks/use-theme';
 import { buildRecapEntries } from '@/lib/recap';
+import { findLaboratoryForSession } from '@/services/laboratoryService';
 import type { Practicum, Session } from '@/types/attendance';
 import { SessionRecapList } from './session-recap-list';
 
@@ -24,10 +27,28 @@ export function AttendanceRecap({ practicum, session }: AttendanceRecapProps) {
     isAsisten: true,
     loadClassifications: false,
   });
+  const labs = useLaboratories();
+  const participantsState = usePracticumParticipants(practicum.studentIds, true);
+
+  const laboratory = useMemo(
+    () => findLaboratoryForSession(labs.laboratories, session),
+    [labs.laboratories, session]
+  );
 
   const entries = useMemo(
-    () => buildRecapEntries(attendance.records, leave.leaveRequests),
-    [attendance.records, leave.leaveRequests]
+    () =>
+      buildRecapEntries(attendance.records, leave.leaveRequests, {
+        participants: participantsState.participants,
+        studentIds: practicum.studentIds,
+        radiusMeter: laboratory?.radiusMeter,
+      }),
+    [
+      attendance.records,
+      leave.leaveRequests,
+      participantsState.participants,
+      practicum.studentIds,
+      laboratory?.radiusMeter,
+    ]
   );
 
   return (
@@ -36,11 +57,24 @@ export function AttendanceRecap({ practicum, session }: AttendanceRecapProps) {
         practicum={practicum}
         session={session}
         entries={entries}
-        loading={attendance.loading || leave.loading}
-        error={attendance.error ?? leave.error}
+        laboratory={laboratory}
+        loading={
+          attendance.loading ||
+          leave.loading ||
+          participantsState.loading ||
+          labs.loading
+        }
+        error={
+          attendance.error ??
+          leave.error ??
+          participantsState.error ??
+          labs.error
+        }
         onRetry={() => {
           attendance.retry();
           leave.retry();
+          participantsState.retry();
+          labs.retry();
         }}
       />
     </View>
