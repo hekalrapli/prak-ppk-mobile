@@ -11,11 +11,14 @@ import { SegmentedControl, SegmentOption } from '@/components/ui/segmented-contr
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useToast } from '@/components/ui/toast-provider';
 import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { useLaboratories } from '@/hooks/use-laboratories';
+import { usePracticumParticipants } from '@/hooks/use-practicum-participants';
 import { useSessionAttendance } from '@/hooks/use-session-attendance';
 import { useSessionLeave } from '@/hooks/use-session-leave';
 import { useTheme } from '@/hooks/use-theme';
-import { buildRecapEntries } from '@/lib/recap';
+import { buildRecapEntries, summarizeRecapEntries } from '@/lib/recap';
 import { formatTimestampToTime } from '@/services/attendanceService';
+import { findLaboratoryForSession } from '@/services/laboratoryService';
 import {
   closeSession,
   deleteSessionCascade,
@@ -87,29 +90,63 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
     isAsisten,
   });
 
+  const {
+    laboratories,
+    loading: laboratoriesLoading,
+    error: laboratoriesError,
+    retry: retryLaboratories,
+  } = useLaboratories(canManage);
+
+  const {
+    participants,
+    loading: participantsLoading,
+    error: participantsError,
+    retry: retryParticipants,
+  } = usePracticumParticipants(practicum.studentIds, canManage);
+
+  const laboratory = useMemo(
+    () => (canManage ? findLaboratoryForSession(laboratories, session) : null),
+    [canManage, laboratories, session]
+  );
+
   const recapEntries = useMemo(
-    () => buildRecapEntries(records, leaveRequests),
-    [records, leaveRequests]
+    () =>
+      buildRecapEntries(records, leaveRequests, {
+        participants,
+        studentIds: practicum.studentIds,
+        radiusMeter: laboratory?.radiusMeter,
+      }),
+    [records, leaveRequests, participants, practicum.studentIds, laboratory?.radiusMeter]
+  );
+
+  const recapSummary = useMemo(
+    () => summarizeRecapEntries(recapEntries),
+    [recapEntries]
   );
 
   const pendingLeaveCount = leaveRequests.filter(
     (request) => request.status === 'pending'
   ).length;
 
-  const tabOptions: SegmentOption<SessionTab>[] = isAsisten
+  const tabOptions: SegmentOption<SessionTab>[] = canManage
     ? [
         { value: 'ringkasan', label: 'Ringkasan' },
-        { value: 'kehadiran', label: 'Kehadiran', count: recapEntries.length },
+        { value: 'kehadiran', label: 'Kehadiran', count: recapSummary.inRadiusCount },
         { value: 'izin', label: 'Izin', count: pendingLeaveCount },
       ]
-    : [
-        { value: 'ringkasan', label: 'Ringkasan' },
-        { value: 'izin', label: 'Izin', count: myLeaveRequest ? 1 : 0 },
-      ];
+    : isAsisten
+      ? [
+          { value: 'ringkasan', label: 'Ringkasan' },
+          { value: 'izin', label: 'Izin', count: pendingLeaveCount },
+        ]
+      : [
+          { value: 'ringkasan', label: 'Ringkasan' },
+          { value: 'izin', label: 'Izin', count: myLeaveRequest ? 1 : 0 },
+        ];
 
-  // Jaga agar tab kehadiran (khusus asisten) tidak pernah aktif untuk praktikan.
+  // Jaga agar tab kehadiran (khusus asisten pengampu) tidak pernah aktif untuk selain pengampu.
   const visibleTab: SessionTab =
-    !isAsisten && activeTab === 'kehadiran' ? 'ringkasan' : activeTab;
+    !canManage && activeTab === 'kehadiran' ? 'ringkasan' : activeTab;
 
   const handleConfirm = async () => {
     if (!pendingAction || savingRef.current) {
@@ -337,16 +374,29 @@ export function SessionDetail({ role, practicum, session }: SessionDetailProps) 
           </ScrollView>
         ) : null}
 
-        {visibleTab === 'kehadiran' && isAsisten ? (
+        {visibleTab === 'kehadiran' && canManage ? (
           <SessionRecapList
             practicum={practicum}
             session={session}
             entries={recapEntries}
-            loading={attendanceLoading || leaveLoading}
-            error={attendanceError ?? leaveError}
+            laboratory={laboratory}
+            loading={
+              attendanceLoading ||
+              leaveLoading ||
+              participantsLoading ||
+              laboratoriesLoading
+            }
+            error={
+              attendanceError ??
+              leaveError ??
+              participantsError ??
+              laboratoriesError
+            }
             onRetry={() => {
               retryAttendance();
               retryLeave();
+              retryParticipants();
+              retryLaboratories();
             }}
           />
         ) : null}
