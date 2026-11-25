@@ -12,7 +12,7 @@ export default function AuthLayout() {
         headerShadowVisible: false,
         headerTintColor: theme.textPrimary,
         headerTitleStyle: { fontSize: 19, fontWeight: '600' },
-        contentStyle: { backgroundColor: theme.background },
+        contentStyle: { backgroundColor: theme.surfaceWarm },
       }}>
       <Stack.Screen
         name="login"

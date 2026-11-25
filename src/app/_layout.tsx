@@ -67,8 +67,10 @@ function RootContent() {
             screenOptions={{
               headerShown: false,
               contentStyle: { backgroundColor: theme.background },
-            }}
-          />
+            }}>
+            <Stack.Screen name="index" options={{ animation: 'fade' }} />
+            <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+          </Stack>
         </ToastProvider>
       </AuthProvider>
     </ThemeProvider>

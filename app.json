@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "prak-ppk-mobile",
+    "name": "Prakitiw",
     "slug": "prak-ppk-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -28,11 +28,11 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#1A1D21",
+          "backgroundColor": "#C9492B",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 96,
           "dark": {
-            "backgroundColor": "#101113",
+            "backgroundColor": "#141110",
             "image": "./assets/images/splash-icon.png"
           }
         }
@@ -43,13 +43,13 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "PrakPresensi menggunakan lokasi Anda hanya saat aplikasi terbuka untuk memverifikasi kehadiran di dalam radius laboratorium."
+          "locationWhenInUsePermission": "Prakitiw menggunakan lokasi Anda hanya saat aplikasi terbuka untuk memverifikasi kehadiran di dalam radius laboratorium."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "PrakPresensi memerlukan akses kamera untuk memindai kode QR presensi praktikum.",
+          "cameraPermission": "Prakitiw memerlukan akses kamera untuk memindai kode QR presensi praktikum.",
           "recordAudioAndroid": false
         }
       ]

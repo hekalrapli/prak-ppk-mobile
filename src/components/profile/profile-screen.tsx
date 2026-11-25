@@ -1,9 +1,11 @@
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/app-button';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
+import { useToast } from '@/components/ui/toast-provider';
 import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { usePracticumFeed } from '@/hooks/use-practicum-feed';
 import { useTheme } from '@/hooks/use-theme';
@@ -30,19 +32,30 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
   const router = useRouter();
   const theme = useTheme();
   const { profile, logout } = useAuth();
+  const { showToast } = useToast();
   const { practicums, loading, error } = usePracticumFeed(role, profile?.uid);
+  const [confirmLogoutVisible, setConfirmLogoutVisible] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [showAllPracticums, setShowAllPracticums] = useState(false);
+  const logoutBusyRef = useRef(false);
 
   const handleLogout = async () => {
-    if (leaving) {
+    if (logoutBusyRef.current) {
       return;
     }
 
+    logoutBusyRef.current = true;
     setLeaving(true);
     try {
       await logout();
+      setConfirmLogoutVisible(false);
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : 'Gagal keluar dari akun. Coba lagi.',
+        'error'
+      );
     } finally {
+      logoutBusyRef.current = false;
       setLeaving(false);
     }
   };
@@ -59,7 +72,8 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
   const hasHiddenPracticums = sortedPracticums.length > MAX_VISIBLE_PRACTICUMS;
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <>
+      <ScrollView contentContainerStyle={styles.content}>
       <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
         <View style={styles.identityRow}>
           <View style={[styles.avatar, { backgroundColor: theme.primarySoft }]}>
@@ -216,15 +230,32 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
         <AppButton
           label={leaving ? 'Keluar…' : 'Keluar dari akun'}
           loading={leaving}
-          onPress={handleLogout}
+          onPress={() => setConfirmLogoutVisible(true)}
           variant="destructive"
         />
       </View>
 
       <Text style={[styles.version, { color: theme.textTertiary }]}>
-        PrakPresensi · v{version}
+        Prakitiw · v{version}
       </Text>
     </ScrollView>
+
+      <ConfirmModal
+        visible={confirmLogoutVisible}
+        destructive
+        title="Keluar dari akun?"
+        message="Anda perlu masuk kembali untuk mengakses jadwal dan presensi praktikum."
+        confirmLabel={leaving ? 'Keluar…' : 'Keluar'}
+        onCancel={() => {
+          if (!leaving) {
+            setConfirmLogoutVisible(false);
+          }
+        }}
+        onConfirm={() => {
+          void handleLogout();
+        }}
+      />
+    </>
   );
 }
 

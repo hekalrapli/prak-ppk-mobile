@@ -1,7 +1,10 @@
 import { useRouter, useSegments } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/store/auth-context';
+
+/** Durasi minimal layar pembuka bermerek saat cold start agar transisi mulus. */
+const BRAND_SPLASH_MIN_MS = 850;
 
 /**
  * Gerbang autentikasi:
@@ -13,6 +16,7 @@ export function AuthGate() {
   const router = useRouter();
   const segments = useSegments();
   const { user, profile, initializing, profileLoading } = useAuth();
+  const [brandSplashDone, setBrandSplashDone] = useState(false);
 
   const segmentKey = segments.join('/');
   const inAuthGroup = segmentKey.startsWith('(auth)');
@@ -20,7 +24,17 @@ export function AuthGate() {
   const atRoot = segmentKey === '';
 
   useEffect(() => {
-    if (initializing) {
+    const timer = setTimeout(() => {
+      setBrandSplashDone(true);
+    }, BRAND_SPLASH_MIN_MS);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (initializing || (atRoot && !brandSplashDone)) {
       return;
     }
 
@@ -50,6 +64,7 @@ export function AuthGate() {
     profile,
     initializing,
     profileLoading,
+    brandSplashDone,
     inAuthGroup,
     onProfileMissing,
     atRoot,

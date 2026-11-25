@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -13,14 +14,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui/app-button';
 import { AppTextField } from '@/components/ui/app-text-field';
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth-context';
 
 export default function LoginScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { login } = useAuth();
+  const { user, profileLoading, login } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,9 +36,10 @@ export default function LoginScreen() {
       : undefined;
   const passwordError = !password ? 'Kata sandi wajib diisi.' : undefined;
   const isValid = !emailError && !passwordError;
+  const isSigningIn = submitting || (Boolean(user) && profileLoading);
 
   const handleSubmit = async () => {
-    if (submitting) {
+    if (isSigningIn) {
       return;
     }
 
@@ -71,7 +73,30 @@ export default function LoginScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.textPrimary }]}>PrakPresensi</Text>
+            <View
+              style={[
+                styles.brandBadge,
+                Shadow.soft,
+                { backgroundColor: theme.primary },
+              ]}>
+              <SymbolView
+                name={{
+                  ios: 'checkmark.seal.fill',
+                  android: 'verified',
+                  web: 'verified',
+                }}
+                size={24}
+                tintColor={theme.onPrimary}
+              />
+            </View>
+            <View style={styles.titleBlock}>
+              <Text style={[styles.title, { color: theme.textPrimary }]}>
+                Prakitiw
+              </Text>
+              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+                Masuk untuk mengakses jadwal dan presensi praktikum.
+              </Text>
+            </View>
           </View>
 
           <View style={styles.fields}>
@@ -79,6 +104,7 @@ export default function LoginScreen() {
               autoCapitalize="none"
               autoComplete="email"
               autoCorrect={false}
+              editable={!isSigningIn}
               error={touched.email ? emailError : undefined}
               keyboardType="email-address"
               label="Email"
@@ -92,6 +118,7 @@ export default function LoginScreen() {
               autoCapitalize="none"
               autoComplete="current-password"
               autoCorrect={false}
+              editable={!isSigningIn}
               error={touched.password ? passwordError : undefined}
               label="Kata sandi"
               onBlur={() => setTouched((current) => ({ ...current, password: true }))}
@@ -115,33 +142,32 @@ export default function LoginScreen() {
             </View>
           ) : null}
 
-          <View style={styles.registerRow}>
-            <Text style={[styles.registerPrompt, { color: theme.textSecondary }]}>
-              Belum punya akun?
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              hitSlop={8}
-              onPress={() => router.push('/register')}>
-              <Text style={[styles.registerLink, { color: theme.link }]}>Daftar</Text>
-            </Pressable>
-          </View>
-        </ScrollView>
-
-        <View
-          style={[
-            styles.footer,
-            { backgroundColor: theme.surfaceWarm, borderTopColor: theme.border },
-          ]}>
-          <View style={styles.footerContent}>
+          <View style={styles.actionBlock}>
             <AppButton
               disabled={!isValid}
               label="Masuk"
-              loading={submitting}
+              loading={isSigningIn}
               onPress={handleSubmit}
             />
+
+            <View style={styles.registerRow}>
+              <Text style={[styles.registerPrompt, { color: theme.textSecondary }]}>
+                Belum punya akun?
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isSigningIn}
+                hitSlop={8}
+                onPress={() => router.push('/register')}
+                style={({ pressed }) => [
+                  styles.registerTrigger,
+                  pressed && { opacity: 0.75 },
+                ]}>
+                <Text style={[styles.registerLink, { color: theme.link }]}>Daftar</Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -158,27 +184,45 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
   },
-  header: { gap: Spacing.two, marginTop: Spacing.four },
-  title: { fontSize: 30, fontWeight: '700', lineHeight: 38 },
+  header: {
+    gap: Spacing.three,
+    marginTop: Spacing.three,
+  },
+  brandBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleBlock: {
+    gap: Spacing.one,
+  },
+  title: {
+    ...Typography.display,
+  },
+  subtitle: {
+    ...Typography.body,
+  },
   fields: { gap: Spacing.three },
   errorPanel: {
     borderRadius: Radius.lg,
     padding: Spacing.three,
   },
-  errorText: { fontSize: 15, lineHeight: 22 },
+  errorText: { ...Typography.body },
+  actionBlock: {
+    gap: Spacing.three,
+  },
   registerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: Spacing.two,
   },
-  registerPrompt: { fontSize: 15, lineHeight: 22 },
-  registerLink: { fontSize: 15, fontWeight: '600', lineHeight: 22 },
-  footer: {
-    borderTopWidth: 1,
-    padding: Spacing.three,
-    paddingBottom: Spacing.four,
-    alignItems: 'center',
+  registerTrigger: {
+    minHeight: 44,
+    justifyContent: 'center',
   },
-  footerContent: { width: '100%', maxWidth: 560 },
+  registerPrompt: { ...Typography.body },
+  registerLink: { ...Typography.bodyStrong },
 });
