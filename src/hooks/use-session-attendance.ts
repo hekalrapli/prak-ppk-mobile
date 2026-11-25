@@ -6,7 +6,12 @@ import {
   subscribeOwnAttendance,
   subscribeSessionAttendance,
 } from '../services/attendanceService';
-import type { AttendanceDoc, AttendanceGeofence, UserRole } from '../types/attendance';
+import type {
+  AttendanceDoc,
+  AttendanceGeofence,
+  AttendanceQrVerification,
+  UserRole,
+} from '../types/attendance';
 
 interface UseSessionAttendanceOptions {
   role: UserRole;
@@ -88,6 +93,8 @@ export function useSessionAttendance(
       praktikanNim: string;
       /** FR-P1-02: jejak geofence yang ikut disimpan bersama presensi. */
       geofence?: AttendanceGeofence;
+      /** FR-P1-05: verifikasi token QR sesi. */
+      qrVerification?: AttendanceQrVerification;
     }) => {
       // Tidak ada fallback lokal: kegagalan Firestore harus terlihat oleh
       // pengguna, bukan dilaporkan sebagai "berhasil".

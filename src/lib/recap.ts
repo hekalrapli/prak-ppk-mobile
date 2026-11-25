@@ -1,11 +1,16 @@
 import { formatTimestampToTime } from '../services/attendanceService';
-import type { AttendanceDoc, LeaveRequest } from '../types/attendance';
+import type {
+  AttendanceDoc,
+  AttendanceVerificationMethod,
+  LeaveRequest,
+} from '../types/attendance';
 import type { UserProfile } from '../types/auth';
 
 export type RecapCategory = 'in_radius' | 'out_of_radius' | 'leave' | 'absent';
 
 export type RecapStatusLabel =
   | 'Dalam radius'
+  | 'Verifikasi QR'
   | 'Di luar radius'
   | 'Belum terverifikasi'
   | 'Izin'
@@ -19,6 +24,7 @@ export interface RecapEntry {
   category: RecapCategory;
   statusLabel: RecapStatusLabel;
   timeDisplay: string;
+  verificationMethod?: AttendanceVerificationMethod;
   distanceMeter?: number;
   isLocationVerified?: boolean;
   hasLocationData: boolean;
@@ -50,11 +56,21 @@ function classifyAttendance(
   radiusMeter?: number
 ): {
   category: 'in_radius' | 'out_of_radius';
-  statusLabel: 'Dalam radius' | 'Di luar radius' | 'Belum terverifikasi';
+  statusLabel: 'Dalam radius' | 'Verifikasi QR' | 'Di luar radius' | 'Belum terverifikasi';
+  verificationMethod?: AttendanceVerificationMethod;
   distanceMeter?: number;
   isLocationVerified?: boolean;
   hasLocationData: boolean;
 } {
+  if (record.verificationMethod === 'qr') {
+    return {
+      category: 'in_radius',
+      statusLabel: 'Verifikasi QR',
+      verificationMethod: 'qr',
+      hasLocationData: false,
+    };
+  }
+
   const distanceMeter =
     typeof record.distanceMeter === 'number' && Number.isFinite(record.distanceMeter)
       ? record.distanceMeter
@@ -121,6 +137,7 @@ export function buildRecapEntries(
       category: classification.category,
       statusLabel: classification.statusLabel,
       timeDisplay: formatTimestampToTime(record.recordedAt),
+      verificationMethod: classification.verificationMethod,
       distanceMeter: classification.distanceMeter,
       isLocationVerified: classification.isLocationVerified,
       hasLocationData: classification.hasLocationData,

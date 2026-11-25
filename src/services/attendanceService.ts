@@ -13,7 +13,13 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { AttendanceDoc, AttendanceGeofence, FirestoreTimestamp } from '../types/attendance';
+import {
+  AttendanceDoc,
+  AttendanceGeofence,
+  AttendanceQrVerification,
+  AttendanceVerificationMethod,
+  FirestoreTimestamp,
+} from '../types/attendance';
 import { getHumanReadableErrorMessage } from './errorHandler';
 
 /**
@@ -112,6 +118,10 @@ function mapAttendanceDoc(
   const latRaw = data.device_lat ?? data.deviceLat;
   const lngRaw = data.device_lng ?? data.deviceLng;
   const verifiedRaw = data.is_location_verified ?? data.isLocationVerified;
+  const methodRaw = data.verification_method ?? data.verificationMethod;
+  const qrTokenRaw = data.qr_token ?? data.qrToken;
+  const verificationMethod: AttendanceVerificationMethod | undefined =
+    methodRaw === 'geofence' || methodRaw === 'qr' ? methodRaw : undefined;
 
   return {
     id,
@@ -122,6 +132,8 @@ function mapAttendanceDoc(
     recordedAt: parseTimestampValue(data.recordedAt),
     sessionId,
     practicumId,
+    verificationMethod,
+    qrToken: typeof qrTokenRaw === 'string' ? qrTokenRaw : undefined,
     distanceMeter: typeof distanceRaw === 'number' ? distanceRaw : undefined,
     deviceLat: typeof latRaw === 'number' ? latRaw : undefined,
     deviceLng: typeof lngRaw === 'number' ? lngRaw : undefined,
@@ -137,6 +149,9 @@ function mapAttendanceDoc(
  * FR-P1-02: bila `geofence` dikirim, jarak dan koordinat perangkat ikut
  * disimpan sebagai jejak audit. Perhitungan radius dilakukan di klien
  * (Haversine) dan tidak dapat diverifikasi ulang oleh Security Rules.
+ *
+ * FR-P1-05: bila `qrVerification` dikirim, `verification_method: 'qr'` dan
+ * `qr_token` divalidasi langsung oleh Security Rules terhadap `qr_token/current`.
  */
 export async function recordAttendance(params: {
   practicumId: string;
@@ -145,9 +160,17 @@ export async function recordAttendance(params: {
   praktikanName: string;
   praktikanNim: string;
   geofence?: AttendanceGeofence;
+  qrVerification?: AttendanceQrVerification;
 }): Promise<{ success: boolean; recordedAtDisplay: string }> {
-  const { practicumId, sessionId, praktikanId, praktikanName, praktikanNim, geofence } =
-    params;
+  const {
+    practicumId,
+    sessionId,
+    praktikanId,
+    praktikanName,
+    praktikanNim,
+    geofence,
+    qrVerification,
+  } = params;
 
   try {
     // 1. Cek apakah ada izin yang sudah disetujui (approved) pada sesi ini
@@ -174,7 +197,10 @@ export async function recordAttendance(params: {
       recordedAt: serverTimestamp(),
     };
 
-    if (geofence) {
+    if (qrVerification) {
+      payload.verification_method = 'qr';
+      payload.qr_token = qrVerification.token;
+    } else if (geofence) {
       payload.distance_meter = geofence.distanceMeter;
       payload.device_lat = geofence.deviceLat;
       payload.device_lng = geofence.deviceLng;
@@ -186,6 +212,16 @@ export async function recordAttendance(params: {
     const displayTime = formatTimestampToTime(now);
     return { success: true, recordedAtDisplay: displayTime };
   } catch (error: any) {
+    const code = typeof error?.code === 'string' ? error.code : '';
+    const msg = typeof error?.message === 'string' ? error.message : '';
+    if (
+      qrVerification &&
+      (code.includes('permission-denied') || msg.includes('permission-denied'))
+    ) {
+      throw new Error(
+        'Kode QR kedaluwarsa, tidak cocok, atau sesi sudah ditutup. Pindai ulang QR terbaru dari asisten.'
+      );
+    }
     const message = getHumanReadableErrorMessage(error);
     throw new Error(message);
   }
@@ -287,24 +323,7 @@ export function subscribeUserAttendanceHistory(
           const pid = segments[1];
           const sid = segments[3];
 
-          records.push({
-            id: docSnap.id,
-            praktikanId: data.praktikanId,
-            praktikanName: data.praktikanName || '',
-            praktikanNim: data.praktikanNim || '',
-            status: data.status || 'present',
-            recordedAt: data.recordedAt,
-            sessionId: sid,
-            practicumId: pid,
-            distanceMeter:
-              typeof data.distance_meter === 'number' ? data.distance_meter : undefined,
-            deviceLat: typeof data.device_lat === 'number' ? data.device_lat : undefined,
-            deviceLng: typeof data.device_lng === 'number' ? data.device_lng : undefined,
-            isLocationVerified:
-              typeof data.is_location_verified === 'boolean'
-                ? data.is_location_verified
-                : undefined,
-          });
+          records.push(mapAttendanceDoc(docSnap.id, data, sid, pid));
         });
         onData(records);
       },

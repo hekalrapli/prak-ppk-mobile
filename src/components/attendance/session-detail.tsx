@@ -505,12 +505,26 @@ export function SessionDetail({
                     />
                   ) : null}
                   {canManage && session.status === 'open' ? (
-                    <AppButton
-                      label="Tutup sesi"
-                      onPress={() => setPendingAction('close')}
-                      variant="secondary"
-                      loading={isSaving && pendingAction === 'close'}
-                    />
+                    <>
+                      <AppButton
+                        label="Tampilkan QR Presensi"
+                        onPress={() =>
+                          router.push({
+                            pathname: '/asisten/session/[sessionId]/qr',
+                            params: {
+                              sessionId: session.id,
+                              practicumId: practicum.id,
+                            },
+                          })
+                        }
+                      />
+                      <AppButton
+                        label="Tutup sesi"
+                        onPress={() => setPendingAction('close')}
+                        variant="secondary"
+                        loading={isSaving && pendingAction === 'close'}
+                      />
+                    </>
                   ) : null}
                 </View>
               ) : (
@@ -544,18 +558,33 @@ export function SessionDetail({
                   !attendanceRecord &&
                   myLeaveRequest?.status !== 'approved' &&
                   session.status === 'open' ? (
-                    <AppButton
-                      label="Catat kehadiran"
-                      onPress={() =>
-                        router.push({
-                          pathname: '/praktikan/presence/[sessionId]',
-                          params: {
-                            sessionId: session.id,
-                            practicumId: practicum.id,
-                          },
-                        })
-                      }
-                    />
+                    <View style={styles.actionStack}>
+                      <AppButton
+                        label="Catat kehadiran"
+                        onPress={() =>
+                          router.push({
+                            pathname: '/praktikan/presence/[sessionId]',
+                            params: {
+                              sessionId: session.id,
+                              practicumId: practicum.id,
+                            },
+                          })
+                        }
+                      />
+                      <AppButton
+                        label="Pindai QR Presensi"
+                        variant="secondary"
+                        onPress={() =>
+                          router.push({
+                            pathname: '/praktikan/qr-scan/[sessionId]',
+                            params: {
+                              sessionId: session.id,
+                              practicumId: practicum.id,
+                            },
+                          })
+                        }
+                      />
+                    </View>
                   ) : null}
 
                   {!attendanceLoading &&

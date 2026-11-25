@@ -31,6 +31,26 @@ service cloud.firestore {
     function session(pid, sid) {
       return get(/databases/$(database)/documents/practicums/$(pid)/sessions/$(sid));
     }
+    function qrTokenPath(pid, sid) {
+      return /databases/$(database)/documents/practicums/$(pid)/sessions/$(sid)/qr_token/current;
+    }
+    function isValidQrData(qrData, submittedToken) {
+      return qrData.updated_at is timestamp
+        && (
+          (qrData.token == submittedToken
+            && request.time <= qrData.updated_at + duration.value(75, 's'))
+          ||
+          ('previous_token' in qrData
+            && qrData.previous_token is string
+            && qrData.previous_token == submittedToken
+            && request.time <= qrData.updated_at + duration.value(30, 's'))
+        );
+    }
+    function isValidQrToken(pid, sid, submittedToken) {
+      return str(submittedToken, 16, 64)
+        && exists(qrTokenPath(pid, sid))
+        && isValidQrData(get(qrTokenPath(pid, sid)).data, submittedToken);
+    }
     function onlyChanges(keys) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
@@ -161,6 +181,33 @@ service cloud.firestore {
 
         allow delete: if isPengampu(pid);
 
+        // ---------- Token QR aktif (hanya asisten pengampu) ----------
+        // Disimpan terpisah dari sessions/{sid} agar peserta tidak dapat membaca token lewat query sesi.
+        match /qr_token/{docId} {
+          allow read: if isPengampu(pid) && docId == 'current';
+
+          allow create: if isPengampu(pid)
+            && docId == 'current'
+            && session(pid, sid).data.status == 'open'
+            && request.resource.data.keys().hasAll(['token','updated_at','previous_token'])
+            && request.resource.data.keys().hasOnly(['token','updated_at','previous_token'])
+            && str(request.resource.data.token, 16, 64)
+            && request.resource.data.updated_at == request.time
+            && request.resource.data.previous_token == null;
+
+          allow update: if isPengampu(pid)
+            && docId == 'current'
+            && session(pid, sid).data.status == 'open'
+            && request.resource.data.keys().hasAll(['token','updated_at','previous_token'])
+            && request.resource.data.keys().hasOnly(['token','updated_at','previous_token'])
+            && str(request.resource.data.token, 16, 64)
+            && request.resource.data.token != resource.data.token
+            && request.resource.data.updated_at == request.time
+            && request.resource.data.previous_token == resource.data.token;
+
+          allow delete: if isPengampu(pid) && docId == 'current';
+        }
+
         // ---------- Attendance (ID dokumen = UID praktikan) ----------
         match /attendance/{uid} {
           allow read: if isPengampu(pid)
@@ -169,10 +216,12 @@ service cloud.firestore {
           allow create: if isPeserta(pid)
             && request.auth.uid == uid
             && session(pid, sid).data.status == 'open'
-            && request.resource.data.keys().hasOnly(['praktikanId','praktikanName','praktikanNim','status','recordedAt','distance_meter','device_lat','device_lng','is_location_verified'])
+            && request.resource.data.keys().hasOnly(['praktikanId','praktikanName','praktikanNim','status','recordedAt','distance_meter','device_lat','device_lng','is_location_verified','verification_method','qr_token'])
             && request.resource.data.praktikanId == uid
             && request.resource.data.status == 'present'
             && request.resource.data.recordedAt == request.time
+            && (!('verification_method' in request.resource.data)
+              || request.resource.data.verification_method in ['geofence', 'qr'])
             // FR-P1-02: jejak geofence opsional (presensi lama tetap sah),
             // tetapi bila dikirim harus bertipe benar dan tidak negatif.
             && (!('distance_meter' in request.resource.data)
@@ -187,7 +236,19 @@ service cloud.firestore {
                   && request.resource.data.device_lng >= -180
                   && request.resource.data.device_lng <= 180))
             && (!('is_location_verified' in request.resource.data)
-              || request.resource.data.is_location_verified == true);
+              || request.resource.data.is_location_verified == true)
+            // FR-P1-05: presensi QR wajib menyertakan token yang cocok dengan qr_token/current
+            // serta masih dalam batas waktu server (75 dtk token aktif, 30 dtk token sebelumnya).
+            && (
+              (!('qr_token' in request.resource.data)
+                && (!('verification_method' in request.resource.data)
+                  || request.resource.data.verification_method != 'qr'))
+              ||
+              ('verification_method' in request.resource.data
+                && request.resource.data.verification_method == 'qr'
+                && 'qr_token' in request.resource.data
+                && isValidQrToken(pid, sid, request.resource.data.qr_token))
+            );
 
           allow update, delete: if false;
         }
