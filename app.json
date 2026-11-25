@@ -45,6 +45,13 @@
         {
           "locationWhenInUsePermission": "PrakPresensi menggunakan lokasi Anda hanya saat aplikasi terbuka untuk memverifikasi kehadiran di dalam radius laboratorium."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "PrakPresensi memerlukan akses kamera untuk memindai kode QR presensi praktikum.",
+          "recordAudioAndroid": false
+        }
       ]
     ],
     "experiments": {

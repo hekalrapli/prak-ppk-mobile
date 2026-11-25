@@ -45,6 +45,9 @@ const CATEGORY_TONES: Record<RecapCategory, StatusTone> = {
 function getEntryDetailText(item: RecapEntry): string {
   switch (item.category) {
     case 'in_radius':
+      if (item.verificationMethod === 'qr') {
+        return 'Hadir · Verifikasi QR';
+      }
       return typeof item.distanceMeter === 'number'
         ? `Hadir · ${formatDistanceMeters(item.distanceMeter)} dari titik lab`
         : 'Hadir · Lokasi terverifikasi';

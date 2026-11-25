@@ -4,6 +4,7 @@ import type { FieldValue, Timestamp } from 'firebase/firestore';
 export type UserRole = 'praktikan' | 'asisten';
 export type SessionStatus = 'upcoming' | 'open' | 'closed';
 export type AttendanceStatus = 'present';
+export type AttendanceVerificationMethod = 'geofence' | 'qr';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 export type FirestoreTimestamp =
   | Timestamp
@@ -54,6 +55,11 @@ export interface AttendanceGeofence {
   isLocationVerified: boolean;
 }
 
+export interface AttendanceQrVerification {
+  /** Token acak aktif hasil pindai QR sesi. */
+  token: string;
+}
+
 export interface AttendanceDoc {
   id?: string; // UID praktikan
   praktikanId: string;
@@ -65,7 +71,11 @@ export interface AttendanceDoc {
   practicumId?: string;
   practicumName?: string;
   sessionDate?: string;
-  /** Jejak audit geofence; kosong untuk presensi lama sebelum Sprint 3. */
+  /** Metode verifikasi presensi; kosong untuk presensi lama sebelum Sprint 3. */
+  verificationMethod?: AttendanceVerificationMethod;
+  /** Token QR tervalidasi (hanya terisi bila `verificationMethod === 'qr'`). */
+  qrToken?: string;
+  /** Jejak audit geofence; kosong untuk presensi lama atau verifikasi QR. */
   distanceMeter?: number;
   deviceLat?: number;
   deviceLng?: number;
