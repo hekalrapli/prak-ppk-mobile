@@ -221,18 +221,46 @@ export default function AslabLabsScreen() {
             />
           }
           ListHeaderComponent={
-            labs.length > 0 ? (
-              <View style={styles.headerBlock}>
-                <Text style={[styles.headerHint, { color: theme.textSecondary }]}>
-                  Kelola daftar laboratorium, cakupan lokasi presensi, batasan
-                  keterlambatan, dan nominal denda per mata kuliah.
+            <View style={styles.headerBlock}>
+              <View style={[styles.bulkCard, Shadow.soft, { backgroundColor: theme.surface }]}>
+                <Text style={[styles.bulkTitle, { color: theme.textPrimary }]}>
+                  Insert Satuan & Bulk (Terpisah)
                 </Text>
-                <AppButton
-                  label="Tambah laboratorium"
-                  onPress={() => router.push('/aslab/labs/form')}
-                />
+                <Text style={[styles.bulkSubtitle, { color: theme.textSecondary }]}>
+                  Unduh template CSV atau tambah satuan per jenis data.
+                </Text>
+                <View style={styles.bulkActions}>
+                  <AppButton
+                    label="Insert Lab per Mata Kuliah"
+                    variant="secondary"
+                    onPress={() => router.push('/aslab/bulk/labs')}
+                  />
+                  <AppButton
+                    label="Insert Praktikan ke Lab"
+                    variant="secondary"
+                    onPress={() => router.push('/aslab/bulk/praktikan')}
+                  />
+                  <AppButton
+                    label="Insert Asprak ke Lab"
+                    variant="secondary"
+                    onPress={() => router.push('/aslab/bulk/asprak')}
+                  />
+                </View>
               </View>
-            ) : undefined
+
+              {labs.length > 0 ? (
+                <>
+                  <Text style={[styles.headerHint, { color: theme.textSecondary }]}>
+                    Kelola daftar laboratorium, cakupan lokasi presensi, batasan
+                    keterlambatan, dan nominal denda per mata kuliah.
+                  </Text>
+                  <AppButton
+                    label="Tambah laboratorium"
+                    onPress={() => router.push('/aslab/labs/form')}
+                  />
+                </>
+              ) : null}
+            </View>
           }
           ListEmptyComponent={
             <EmptyState
@@ -281,6 +309,14 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   headerBlock: { gap: Spacing.three },
+  bulkCard: {
+    borderRadius: Radius.card,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  bulkTitle: { ...Typography.cardTitle },
+  bulkSubtitle: { ...Typography.caption },
+  bulkActions: { gap: Spacing.two, marginTop: Spacing.one },
   headerHint: { ...Typography.body },
   card: {
     borderRadius: Radius.card,

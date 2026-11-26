@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   onSnapshot,
   query,
   serverTimestamp,
@@ -16,6 +17,7 @@ import {
 } from 'firebase/firestore';
 
 import type { FirestoreTimestamp, Laboratory } from '../types/attendance';
+import type { UserProfile } from '../types/auth';
 import { getHumanReadableErrorMessage } from './errorHandler';
 import { auth, db } from './firebase';
 
@@ -416,6 +418,123 @@ export async function updateLaboratory(
 export async function deleteLaboratory(labId: string): Promise<void> {
   try {
     await deleteDoc(doc(db, 'laboratorium', labId));
+  } catch (error) {
+    throw new Error(getHumanReadableErrorMessage(error));
+  }
+}
+
+/**
+ * FR-S4-P1-03: Mencari akun terdaftar berperan `praktikan` atau `asisten`
+ * berdasarkan NIM/NIP atau email dengan query sempit (limit <= 20).
+ */
+export async function searchUsersByRoleForLab(
+  role: 'praktikan' | 'asisten',
+  keyword: string
+): Promise<UserProfile[]> {
+  const trimmed = keyword.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  try {
+    const usersCol = collection(db, 'users');
+    const q = trimmed.includes('@')
+      ? query(
+          usersCol,
+          where('role', '==', role),
+          where('email', '==', trimmed.toLowerCase()),
+          limit(20)
+        )
+      : query(
+          usersCol,
+          where('role', '==', role),
+          where('identifier', '==', trimmed),
+          limit(20)
+        );
+
+    const snap = await getDocs(q);
+    const results: UserProfile[] = [];
+
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.role !== role) {
+        return;
+      }
+      results.push({
+        uid: docSnap.id,
+        name: typeof data.name === 'string' ? data.name : '',
+        identifier: typeof data.identifier === 'string' ? data.identifier : '',
+        email: typeof data.email === 'string' ? data.email : '',
+        role,
+      });
+    });
+
+    return results.sort((a, b) => a.name.localeCompare(b.name, 'id'));
+  } catch (error) {
+    throw new Error(getHumanReadableErrorMessage(error));
+  }
+}
+
+/**
+ * FR-S4-P1-03: Menambahkan satu anggota (`praktikan` ke `studentIds` atau `asprak` ke `assistantIds`)
+ * pada laboratorium tujuan dengan mempertahankan ke-12 field kontrak Firestore.
+ */
+export async function addLabMember(
+  labId: string,
+  kind: 'praktikan' | 'asprak',
+  uid: string
+): Promise<void> {
+  const trimmedUid = uid.trim();
+  if (!trimmedUid) {
+    throw new Error('UID pengguna tidak valid.');
+  }
+
+  try {
+    const docRef = doc(db, 'laboratorium', labId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) {
+      throw new Error('Laboratorium tujuan tidak ditemukan.');
+    }
+
+    const lab = mapLaboratory(snap.id, snap.data());
+    if (!lab.courseName.trim()) {
+      throw new Error(
+        'Lengkapi data mata kuliah laboratorium ini terlebih dahulu melalui menu Ubah laboratorium.'
+      );
+    }
+
+    const managedByAslabId =
+      lab.managedByAslabId.trim() || auth.currentUser?.uid || '';
+    if (!managedByAslabId) {
+      throw new Error('Sesi aslab tidak valid. Silakan masuk ulang.');
+    }
+
+    const field = kind === 'praktikan' ? 'studentIds' : 'assistantIds';
+    const currentIds = kind === 'praktikan' ? lab.studentIds : lab.assistantIds;
+    if (currentIds.includes(trimmedUid)) {
+      throw new Error(
+        kind === 'praktikan'
+          ? 'Praktikan ini sudah terdaftar di laboratorium tujuan.'
+          : 'Asprak ini sudah terdaftar di laboratorium tujuan.'
+      );
+    }
+
+    await updateDoc(docRef, {
+      nama: lab.nama,
+      gedung: lab.gedung,
+      courseName: lab.courseName,
+      latitude: lab.latitude,
+      longitude: lab.longitude,
+      radius_meter: lab.radius_meter,
+      grace_period_minutes: lab.grace_period_minutes,
+      late_fine_amount: lab.late_fine_amount,
+      managedByAslabId,
+      assistantIds:
+        field === 'assistantIds' ? [...lab.assistantIds, trimmedUid] : lab.assistantIds,
+      studentIds:
+        field === 'studentIds' ? [...lab.studentIds, trimmedUid] : lab.studentIds,
+      updated_at: serverTimestamp(),
+    });
   } catch (error) {
     throw new Error(getHumanReadableErrorMessage(error));
   }
