@@ -351,7 +351,7 @@ export function subscribePushTokenRefresh(uid: string): () => void {
   activeRefreshSubscription = null;
 
   try {
-    const subscription = addPushTokenListener(async (event) => {
+    const subscription = addPushTokenListener(async (event: any) => {
       if (isUnregistering || activeUserId !== uid) {
         return;
       }
@@ -496,7 +496,7 @@ export function subscribeForegroundNotifications(
 
   try {
     const subscription = addNotificationReceivedListener(
-      (notification) => {
+      (notification: any) => {
         const content = notification.request.content;
         onNotification({
           id: notification.request.identifier,
@@ -528,7 +528,7 @@ export function subscribeNotificationResponses(
   let active = true;
 
   getLastNotificationResponseAsync()
-    .then((lastResponse) => {
+    .then((lastResponse: any) => {
       if (!active || !lastResponse) return;
       const target = parseTargetPayload(
         lastResponse.notification.request.content.data
@@ -539,7 +539,7 @@ export function subscribeNotificationResponses(
 
   try {
     const subscription = addNotificationResponseReceivedListener(
-      (response) => {
+      (response: any) => {
         if (!active) return;
         const target = parseTargetPayload(
           response.notification.request.content.data

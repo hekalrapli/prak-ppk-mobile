@@ -14,7 +14,8 @@ export const EXPO_PUSH_TIMEOUT_MS = 10_000;
 export type PushEventType =
   | 'session_opened'
   | 'schedule_modified'
-  | 'leave_decision';
+  | 'leave_decision'
+  | 'fine_created';
 
 export interface ExpoPushMessage {
   to: string;
@@ -467,6 +468,40 @@ export async function notifyLeaveDecision(params: {
   } catch (error) {
     console.warn(
       '[PushDispatcher] Gagal memproses notifikasi leave_decision:',
+      error instanceof Error ? error.message : error
+    );
+  }
+}
+
+/**
+ * FR-S4-P3-03: Notifikasi Tagihan Denda Keterlambatan Baru (`fine_created`).
+ * Penerima: praktikan yang terlambat (`praktikanId`).
+ */
+export async function notifyFineCreated(params: {
+  praktikanId: string;
+  practicumName: string;
+  amount: number;
+  lateMinutes: number;
+  sessionId: string;
+  practicumId: string;
+}): Promise<void> {
+  try {
+    const { praktikanId, practicumName, amount, lateMinutes, sessionId, practicumId } = params;
+    const formattedAmount = `Rp ${amount.toLocaleString('id-ID')}`;
+
+    await dispatchExpoPushNotifications({
+      recipientUids: [praktikanId],
+      title: 'Tagihan Denda Keterlambatan',
+      body: `Anda terlambat ${lateMinutes} menit pada ${practicumName}. Tagihan denda ${formattedAmount} telah diterbitkan.`,
+      data: {
+        type: 'fine_created',
+        practicumId,
+        sessionId,
+      },
+    });
+  } catch (error) {
+    console.warn(
+      '[PushDispatcher] Gagal memproses notifikasi fine_created:',
       error instanceof Error ? error.message : error
     );
   }

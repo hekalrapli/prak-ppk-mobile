@@ -147,7 +147,7 @@ export default function AsistenLabsScreen() {
             disabled={isChecking || deleting}
             onPress={() =>
               router.push({
-                pathname: '/asisten/labs/form',
+                pathname: '/asisten/labs/form' as any,
                 params: { labId: item.id },
               })
             }
@@ -225,7 +225,7 @@ export default function AsistenLabsScreen() {
                   </Text>
                   <AppButton
                     label="Tambah lokasi lab"
-                    onPress={() => router.push('/asisten/labs/form')}
+                    onPress={() => router.push('/asisten/labs/form' as any)}
                   />
                 </View>
               ) : undefined
@@ -235,7 +235,7 @@ export default function AsistenLabsScreen() {
                 title="Belum ada lokasi lab"
                 description="Tambahkan titik koordinat dan radius geofence laboratorium untuk validasi presensi."
                 actionLabel="Tambah lokasi lab"
-                onAction={() => router.push('/asisten/labs/form')}
+                onAction={() => router.push('/asisten/labs/form' as any)}
               />
             }
             renderItem={renderCard}

@@ -25,6 +25,7 @@ import { useDevicePosition } from '@/hooks/use-device-position';
 import { useLaboratories } from '@/hooks/use-laboratories';
 import { useSessionAttendance } from '@/hooks/use-session-attendance';
 import { useSessionDetail } from '@/hooks/use-session-detail';
+import { useSessionLeave } from '@/hooks/use-session-leave';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDistanceMeters } from '@/lib/format-distance';
 import { formatTimestampToTime } from '@/services/attendanceService';
@@ -87,6 +88,13 @@ export default function PraktikanPresenceScreen() {
   } = useSessionAttendance(practicumId ?? '', sessionId ?? '', {
     role: 'praktikan',
     userId: profile?.uid,
+  });
+
+  const { myLeaveRequest } = useSessionLeave({
+    practicumId: practicumId ?? '',
+    sessionId: sessionId ?? '',
+    currentUserId: profile?.uid,
+    isAsisten: false,
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -212,10 +220,20 @@ export default function PraktikanPresenceScreen() {
         },
       });
 
-      showToast(
-        `Kehadiran berhasil dicatat pada pukul ${result.recordedAtDisplay}`,
-        'success'
-      );
+      if (result.punctualityStatus === 'late') {
+        const fineText = result.fineAmount
+          ? ` Denda Rp ${result.fineAmount.toLocaleString('id-ID')} diterbitkan.`
+          : '';
+        showToast(
+          `Kehadiran dicatat (Terlambat +${result.lateMinutes} mnt).${fineText}`,
+          'error'
+        );
+      } else {
+        showToast(
+          `Kehadiran berhasil dicatat (Tepat Waktu) pada pukul ${result.recordedAtDisplay}`,
+          'success'
+        );
+      }
       router.replace({
         pathname: '/praktikan/session/[sessionId]',
         params: { sessionId: session.id, practicumId: practicum.id },
@@ -238,6 +256,13 @@ export default function PraktikanPresenceScreen() {
     }
     if (myRecord) {
       return { label: 'Kehadiran sudah dicatat', disabled: true, loading: false };
+    }
+    if (myLeaveRequest?.status === 'approved') {
+      return {
+        label: 'Izin disetujui (Excused Absence) — bebas denda',
+        disabled: true,
+        loading: false,
+      };
     }
     if (session.status === 'upcoming') {
       return { label: 'Sesi belum dibuka', disabled: true, loading: false };
@@ -390,6 +415,9 @@ export default function PraktikanPresenceScreen() {
             {myRecord ? (
               <AttendanceSuccessPanel
                 recordedAt={formatTimestampToTime(myRecord.recordedAt)}
+                punctualityStatus={myRecord.punctualityStatus}
+                lateMinutes={myRecord.lateMinutes}
+                fineAmount={laboratory?.lateFineAmount}
               />
             ) : (
               <>

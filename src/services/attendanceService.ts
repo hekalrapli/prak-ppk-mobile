@@ -4,7 +4,7 @@ import {
   doc,
   getDoc,
   onSnapshot,
-  setDoc,
+  writeBatch,
   serverTimestamp,
   collectionGroup,
   query,
@@ -19,8 +19,11 @@ import {
   AttendanceQrVerification,
   AttendanceVerificationMethod,
   FirestoreTimestamp,
+  PunctualityStatus,
 } from '../types/attendance';
 import { getHumanReadableErrorMessage } from './errorHandler';
+import { calculateLateness, getDeterministicFineId } from '../lib/lateness';
+import { notifyFineCreated } from './pushDispatcher';
 
 /**
  * Format server timestamp atau Date menjadi format HH:mm WIB
@@ -120,6 +123,14 @@ function mapAttendanceDoc(
   const verifiedRaw = data.is_location_verified ?? data.isLocationVerified;
   const methodRaw = data.verification_method ?? data.verificationMethod;
   const qrTokenRaw = data.qr_token ?? data.qrToken;
+  const punctualityRaw = data.punctualityStatus ?? data.punctuality_status;
+  const punctualityStatus: PunctualityStatus | undefined =
+    punctualityRaw === 'on_time' || punctualityRaw === 'late'
+      ? punctualityRaw
+      : undefined;
+  const lateMinutesRaw = data.lateMinutes ?? data.late_minutes;
+  const lateMinutes =
+    typeof lateMinutesRaw === 'number' ? lateMinutesRaw : undefined;
   const verificationMethod: AttendanceVerificationMethod | undefined =
     methodRaw === 'geofence' || methodRaw === 'qr' ? methodRaw : undefined;
 
@@ -129,6 +140,8 @@ function mapAttendanceDoc(
     praktikanName: String(data.praktikanName ?? 'Praktikan'),
     praktikanNim: String(data.praktikanNim ?? ''),
     status: 'present',
+    punctualityStatus,
+    lateMinutes,
     recordedAt: parseTimestampValue(data.recordedAt),
     sessionId,
     practicumId,
@@ -142,16 +155,12 @@ function mapAttendanceDoc(
 }
 
 /**
- * FR-14: Presensi Terintegrasi
- * Menyimpan presensi di practicums/{pid}/sessions/{sid}/attendance/{uid}
+ * FR-14 & FR-S4-P2-03: Presensi Terintegrasi dengan Mesin Keterlambatan (Grace Period) & Denda.
+ * Menyimpan presensi di practicums/{pid}/sessions/{sid}/attendance/{uid}.
  * ID dokumen = UID praktikan, mencegah duplikasi di level Firestore.
  *
- * FR-P1-02: bila `geofence` dikirim, jarak dan koordinat perangkat ikut
- * disimpan sebagai jejak audit. Perhitungan radius dilakukan di klien
- * (Haversine) dan tidak dapat diverifikasi ulang oleh Security Rules.
- *
- * FR-P1-05: bila `qrVerification` dikirim, `verification_method: 'qr'` dan
- * `qr_token` divalidasi langsung oleh Security Rules terhadap `qr_token/current`.
+ * Bila terlambat (punctualityStatus === 'late') dan nominal denda laboratorium/praktikum > 0,
+ * membuat tepat satu tagihan denda di fines/{sessionId}_{praktikanId} secara atomik (writeBatch).
  */
 export async function recordAttendance(params: {
   practicumId: string;
@@ -161,7 +170,13 @@ export async function recordAttendance(params: {
   praktikanNim: string;
   geofence?: AttendanceGeofence;
   qrVerification?: AttendanceQrVerification;
-}): Promise<{ success: boolean; recordedAtDisplay: string }> {
+}): Promise<{
+  success: boolean;
+  recordedAtDisplay: string;
+  punctualityStatus: PunctualityStatus;
+  lateMinutes: number;
+  fineAmount?: number;
+}> {
   const {
     practicumId,
     sessionId,
@@ -173,27 +188,119 @@ export async function recordAttendance(params: {
   } = params;
 
   try {
-    // 1. Cek apakah ada izin yang sudah disetujui (approved) pada sesi ini
-    const leaveDocRef = doc(db, 'practicums', practicumId, 'sessions', sessionId, 'leaveRequests', praktikanId);
+    // 1. FR-S4-P2-04: Cek apakah ada izin yang sudah disetujui (approved) pada sesi ini
+    const leaveDocRef = doc(
+      db,
+      'practicums',
+      practicumId,
+      'sessions',
+      sessionId,
+      'leaveRequests',
+      praktikanId
+    );
     const leaveSnap = await getDoc(leaveDocRef);
     if (leaveSnap.exists() && leaveSnap.data()?.status === 'approved') {
-      throw new Error('Anda tidak dapat melakukan presensi karena pengajuan izin Anda untuk sesi ini telah disetujui.');
+      throw new Error(
+        'Anda tidak dapat melakukan presensi karena pengajuan izin Anda untuk sesi ini telah disetujui (Excused Absence) — bebas denda keterlambatan.'
+      );
     }
 
     // 2. Cek apakah dokumen presensi sudah ada
-    const attendanceDocRef = doc(db, 'practicums', practicumId, 'sessions', sessionId, 'attendance', praktikanId);
+    const attendanceDocRef = doc(
+      db,
+      'practicums',
+      practicumId,
+      'sessions',
+      sessionId,
+      'attendance',
+      praktikanId
+    );
     const existingSnap = await getDoc(attendanceDocRef);
     if (existingSnap.exists()) {
       throw new Error('Kehadiran sudah dicatat sebelumnya untuk sesi ini.');
     }
 
-    // 3. Simpan dokumen presensi
+    // 3. Ambil data sesi untuk tanggal, jam mulai, dan labId
+    const sessionDocRef = doc(
+      db,
+      'practicums',
+      practicumId,
+      'sessions',
+      sessionId
+    );
+    const sessionSnap = await getDoc(sessionDocRef);
+    if (!sessionSnap.exists()) {
+      throw new Error('Sesi praktikum tidak ditemukan.');
+    }
+    const sessionData = sessionSnap.data();
+
+    // 4. Ambil nama praktikum
+    const practicumDocRef = doc(db, 'practicums', practicumId);
+    const practicumSnap = await getDoc(practicumDocRef);
+    const practicumData = practicumSnap.exists() ? practicumSnap.data() : null;
+    const practicumName = String(practicumData?.name ?? 'Praktikum');
+
+    // 5. Ambil kebijakan laboratorium (grace period & nominal denda)
+    const labId =
+      sessionData.lab_id ?? sessionData.labId ?? practicumData?.labId ?? '';
+    let gracePeriodMinutes = 15;
+    let lateFineAmount = 0;
+    let labName = String(sessionData.room ?? 'Laboratorium');
+
+    if (labId) {
+      try {
+        const labSnap = await getDoc(doc(db, 'laboratorium', String(labId)));
+        if (labSnap.exists()) {
+          const labData = labSnap.data();
+          labName = String(labData.nama ?? labData.name ?? labName);
+          const gp = labData.grace_period_minutes ?? labData.gracePeriodMinutes;
+          if (typeof gp === 'number' && Number.isFinite(gp) && gp >= 0) {
+            gracePeriodMinutes = gp;
+          }
+          const fa = labData.late_fine_amount ?? labData.lateFineAmount;
+          if (typeof fa === 'number' && Number.isFinite(fa) && fa >= 0) {
+            lateFineAmount = fa;
+          }
+        }
+      } catch {
+        // Fallback ke default
+      }
+    }
+
+    // Fallback bila diatur di tingkat praktikum
+    if (
+      typeof practicumData?.gracePeriodMinutes === 'number' &&
+      practicumData.gracePeriodMinutes >= 0
+    ) {
+      gracePeriodMinutes = practicumData.gracePeriodMinutes;
+    }
+    if (
+      typeof practicumData?.lateFineAmount === 'number' &&
+      practicumData.lateFineAmount >= 0
+    ) {
+      lateFineAmount = practicumData.lateFineAmount;
+    }
+
+    // 6. Hitung status keterlambatan (FR-S4-P2-03)
     const now = new Date();
+    const lateness = calculateLateness({
+      sessionDate: String(sessionData.date ?? ''),
+      startTime: String(sessionData.startTime ?? ''),
+      recordedAt: now,
+      gracePeriodMinutes,
+      openedAt: sessionData.openedAt,
+    });
+
+    // 7. Simpan presensi & tagihan denda secara atomik (writeBatch)
+    const batch = writeBatch(db);
+
     const payload: Record<string, unknown> = {
       praktikanId,
       praktikanName,
       praktikanNim,
       status: 'present',
+      punctualityStatus: lateness.punctualityStatus,
+      lateMinutes: lateness.lateMinutes,
       recordedAt: serverTimestamp(),
     };
 
@@ -207,10 +314,57 @@ export async function recordAttendance(params: {
       payload.is_location_verified = geofence.isLocationVerified;
     }
 
-    await setDoc(attendanceDocRef, payload);
+    batch.set(attendanceDocRef, payload);
+
+    const fineId = getDeterministicFineId(sessionId, praktikanId);
+    let shouldCreateFine = false;
+
+    if (lateness.punctualityStatus === 'late' && lateFineAmount > 0) {
+      shouldCreateFine = true;
+      const fineDocRef = doc(db, 'fines', fineId);
+      const finePayload: Record<string, unknown> = {
+        id: fineId,
+        praktikanId,
+        praktikanName,
+        praktikanNim,
+        practicumId,
+        practicumName,
+        sessionId,
+        sessionDate: String(sessionData.date ?? ''),
+        labId: String(labId),
+        labName,
+        attendanceId: praktikanId,
+        lateMinutes: lateness.lateMinutes,
+        gracePeriodMinutes,
+        amount: lateFineAmount,
+        status: 'unpaid',
+        createdAt: serverTimestamp(),
+      };
+      batch.set(fineDocRef, finePayload);
+    }
+
+    await batch.commit();
+
+    // 8. Kirim notifikasi push jika denda diterbitkan (non-blocking)
+    if (shouldCreateFine) {
+      void notifyFineCreated({
+        praktikanId,
+        practicumName,
+        amount: lateFineAmount,
+        lateMinutes: lateness.lateMinutes,
+        sessionId,
+        practicumId,
+      }).catch(() => undefined);
+    }
 
     const displayTime = formatTimestampToTime(now);
-    return { success: true, recordedAtDisplay: displayTime };
+    return {
+      success: true,
+      recordedAtDisplay: displayTime,
+      punctualityStatus: lateness.punctualityStatus,
+      lateMinutes: lateness.lateMinutes,
+      fineAmount: shouldCreateFine ? lateFineAmount : undefined,
+    };
   } catch (error: any) {
     const code = typeof error?.code === 'string' ? error.code : '';
     const msg = typeof error?.message === 'string' ? error.message : '';

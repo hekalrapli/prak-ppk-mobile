@@ -44,6 +44,20 @@ export function mapLaboratory(id: string, data: DocumentData): Laboratory | null
     return null;
   }
 
+  const gracePeriodRaw = Number(
+    data.grace_period_minutes ?? data.gracePeriodMinutes
+  );
+  const lateFineRaw = Number(
+    data.late_fine_amount ?? data.lateFineAmount
+  );
+  const courseName = typeof data.courseName === 'string' ? data.courseName.trim() : undefined;
+  const assistantIds = Array.isArray(data.assistantIds)
+    ? data.assistantIds.filter((id: unknown): id is string => typeof id === 'string')
+    : undefined;
+  const studentIds = Array.isArray(data.studentIds)
+    ? data.studentIds.filter((id: unknown): id is string => typeof id === 'string')
+    : undefined;
+
   return {
     id,
     name: name || 'Laboratorium',
@@ -51,6 +65,13 @@ export function mapLaboratory(id: string, data: DocumentData): Laboratory | null
     latitude,
     longitude,
     radiusMeter: Number.isFinite(radiusRaw) && radiusRaw > 0 ? radiusRaw : 0,
+    gracePeriodMinutes:
+      Number.isFinite(gracePeriodRaw) && gracePeriodRaw >= 0 ? gracePeriodRaw : 15,
+    lateFineAmount:
+      Number.isFinite(lateFineRaw) && lateFineRaw >= 0 ? lateFineRaw : 0,
+    courseName,
+    assistantIds,
+    studentIds,
   };
 }
 

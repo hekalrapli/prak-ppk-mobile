@@ -2,12 +2,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import type { PunctualityStatus } from '@/types/attendance';
 import { StatusDot } from '../ui/status-dot';
 
 interface AttendanceRecordItemProps {
   name: string;
   meta: string;
   recordedAt: string;
+  punctualityStatus?: PunctualityStatus;
+  lateMinutes?: number;
   onPress?: () => void;
 }
 
@@ -15,9 +18,19 @@ export function AttendanceRecordItem({
   name,
   meta,
   recordedAt,
+  punctualityStatus,
+  lateMinutes,
   onPress,
 }: AttendanceRecordItemProps) {
   const theme = useTheme();
+
+  const isLate = punctualityStatus === 'late';
+  const label = isLate
+    ? `Terlambat (+${lateMinutes ?? 1}m)`
+    : punctualityStatus === 'on_time'
+      ? 'Tepat Waktu'
+      : 'Hadir';
+  const tone = isLate ? 'warning' : 'success';
 
   const content = (
     <View style={styles.row}>
@@ -28,7 +41,7 @@ export function AttendanceRecordItem({
         <Text style={[styles.meta, { color: theme.textSecondary }]}>{meta}</Text>
       </View>
       <View style={styles.end}>
-        <StatusDot label="Hadir" tone="success" />
+        <StatusDot label={label} tone={tone} />
         <Text style={[styles.time, { color: theme.textPrimary }]}>{recordedAt}</Text>
       </View>
     </View>

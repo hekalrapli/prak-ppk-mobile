@@ -4,6 +4,7 @@ import {
   arrayRemove,
   arrayUnion,
   collection,
+  collectionGroup,
   deleteDoc,
   deleteField,
   doc,
@@ -134,6 +135,47 @@ export function subscribePraktikanPracticums(
     onData,
     onError
   );
+}
+
+/**
+ * FR-S4-P2-02: Sinkronisasi seluruh praktikum untuk Aslab Dashboard
+ */
+export function subscribeAllPracticums(
+  onData: DataHandler<Practicum[]>,
+  onError?: ErrorHandler
+): Unsubscribe {
+  return subscribePracticumQuery(
+    collection(db, 'practicums'),
+    onData,
+    onError
+  );
+}
+
+/**
+ * FR-S4-P2-02: Sinkronisasi seluruh sesi lintas praktikum untuk Aslab Dashboard
+ */
+export function subscribeAllSessions(
+  onData: DataHandler<Session[]>,
+  onError?: ErrorHandler
+): Unsubscribe {
+  try {
+    return onSnapshot(
+      collectionGroup(db, 'sessions'),
+      (snapshot) => {
+        const sessions: Session[] = [];
+        snapshot.forEach((docSnap) => {
+          const pathSegments = docSnap.ref.path.split('/');
+          const practicumId = pathSegments[1] || '';
+          sessions.push(mapSession(practicumId, docSnap.id, docSnap.data()));
+        });
+        onData(sessions);
+      },
+      (error) => onError?.(getHumanReadableErrorMessage(error))
+    );
+  } catch (error) {
+    onError?.(getHumanReadableErrorMessage(error));
+    return () => {};
+  }
 }
 
 /**

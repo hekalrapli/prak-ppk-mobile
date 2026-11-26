@@ -156,10 +156,10 @@ export function useNotificationObserver(): void {
             params: destination.params,
           });
         } else {
-          router.replace(destination.pathname);
+          router.replace(destination.pathname as any);
         }
       } catch {
-        router.replace(getRoleHomeRoute(profile.role));
+        router.replace(getRoleHomeRoute(profile.role) as any);
       }
     };
 

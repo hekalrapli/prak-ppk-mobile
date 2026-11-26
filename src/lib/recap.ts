@@ -3,6 +3,7 @@ import type {
   AttendanceDoc,
   AttendanceVerificationMethod,
   LeaveRequest,
+  PunctualityStatus,
 } from '../types/attendance';
 import type { UserProfile } from '../types/auth';
 
@@ -28,6 +29,9 @@ export interface RecapEntry {
   distanceMeter?: number;
   isLocationVerified?: boolean;
   hasLocationData: boolean;
+  /** Status ketepatan waktu (FR-S4-P2-03) */
+  punctualityStatus?: PunctualityStatus;
+  lateMinutes?: number;
 }
 
 export interface RecapSummary {
@@ -36,6 +40,8 @@ export interface RecapSummary {
   outOfRadiusCount: number;
   leaveCount: number;
   absentCount: number;
+  onTimeCount: number;
+  lateCount: number;
 }
 
 export interface BuildRecapOptions {
@@ -141,6 +147,8 @@ export function buildRecapEntries(
       distanceMeter: classification.distanceMeter,
       isLocationVerified: classification.isLocationVerified,
       hasLocationData: classification.hasLocationData,
+      punctualityStatus: record.punctualityStatus,
+      lateMinutes: record.lateMinutes,
     });
   });
 
@@ -215,10 +223,17 @@ export function summarizeRecapEntries(entries: RecapEntry[]): RecapSummary {
   let outOfRadiusCount = 0;
   let leaveCount = 0;
   let absentCount = 0;
+  let onTimeCount = 0;
+  let lateCount = 0;
 
   entries.forEach((entry) => {
     if (entry.category === 'in_radius') {
       inRadiusCount += 1;
+      if (entry.punctualityStatus === 'late') {
+        lateCount += 1;
+      } else {
+        onTimeCount += 1;
+      }
     } else if (entry.category === 'out_of_radius') {
       outOfRadiusCount += 1;
     } else if (entry.category === 'leave') {
@@ -234,5 +249,7 @@ export function summarizeRecapEntries(entries: RecapEntry[]): RecapSummary {
     outOfRadiusCount,
     leaveCount,
     absentCount,
+    onTimeCount,
+    lateCount,
   };
 }

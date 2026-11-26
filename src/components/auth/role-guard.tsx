@@ -22,17 +22,13 @@ export function RoleGuard({ role, children }: { role: UserRole; children: ReactN
   }
 
   if (profile.role !== role) {
-    return (
-      <Redirect
-        href={
-          profile.role === 'praktikan'
-            ? '/praktikan'
-            : profile.role === 'aslab'
-              ? '/aslab'
-              : '/asisten'
-        }
-      />
-    );
+    const target =
+      profile.role === 'praktikan'
+        ? '/praktikan'
+        : profile.role === 'aslab'
+          ? '/aslab'
+          : '/asisten';
+    return <Redirect href={target as any} />;
   }
 
   return <>{children}</>;

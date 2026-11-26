@@ -4,8 +4,10 @@ import type { FieldValue, Timestamp } from 'firebase/firestore';
 export type UserRole = 'praktikan' | 'asisten' | 'aslab';
 export type SessionStatus = 'upcoming' | 'open' | 'closed';
 export type AttendanceStatus = 'present';
+export type PunctualityStatus = 'on_time' | 'late';
 export type AttendanceVerificationMethod = 'geofence' | 'qr';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
+export type FineStatus = 'unpaid' | 'pending' | 'success' | 'failed';
 export type FirestoreTimestamp =
   | Timestamp
   | FieldValue
@@ -66,6 +68,10 @@ export interface AttendanceDoc {
   praktikanName: string;
   praktikanNim: string;
   status: AttendanceStatus;
+  /** Status ketepatan waktu: on_time atau late (FR-S4-P2-03) */
+  punctualityStatus?: PunctualityStatus;
+  /** Jumlah menit keterlambatan (0 bila on_time) */
+  lateMinutes?: number;
   recordedAt: FirestoreTimestamp;
   sessionId?: string;
   practicumId?: string;
@@ -90,6 +96,10 @@ export interface Practicum {
   /** Nama asisten didenormalisasi agar praktikan dapat menampilkannya. */
   assistantName?: string;
   studentIds?: string[];
+  labId?: string;
+  managedByAslabId?: string;
+  gracePeriodMinutes?: number;
+  lateFineAmount?: number;
 }
 
 export interface Session {
@@ -114,5 +124,33 @@ export interface Laboratory {
   latitude: number;
   longitude: number;
   radius_meter: number;
+  grace_period_minutes?: number;
+  late_fine_amount?: number;
+  courseName?: string;
+  managedByAslabId?: string;
+  assistantIds?: string[];
+  studentIds?: string[];
   updated_at: FirestoreTimestamp;
+}
+
+export interface FineDoc {
+  id: string; // "<sessionId>_<praktikanId>"
+  praktikanId: string;
+  praktikanName: string;
+  praktikanNim: string;
+  practicumId: string;
+  practicumName: string;
+  sessionId: string;
+  sessionDate: string;
+  labId: string;
+  labName: string;
+  attendanceId: string; // = praktikanId
+  lateMinutes: number;
+  gracePeriodMinutes: number;
+  amount: number; // nominal denda tetap (Rp)
+  status: FineStatus;
+  latestOrderId?: string;
+  createdAt: FirestoreTimestamp;
+  paidAt?: FirestoreTimestamp;
+  updatedAt?: FirestoreTimestamp;
 }

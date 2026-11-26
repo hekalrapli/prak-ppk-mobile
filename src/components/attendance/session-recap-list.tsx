@@ -135,20 +135,20 @@ export function SessionRecapList({
       <View style={styles.statGrid}>
         <View style={styles.statRow}>
           {renderSummaryTile(
-            'Dalam radius',
-            summary.inRadiusCount,
+            'Tepat waktu',
+            summary.onTimeCount,
             theme.successSoft,
             theme.success
           )}
           {renderSummaryTile(
-            'Di luar radius',
-            summary.outOfRadiusCount,
-            theme.errorSoft,
-            theme.error
+            'Terlambat',
+            summary.lateCount,
+            theme.warningSoft,
+            theme.warning
           )}
         </View>
         <View style={styles.statRow}>
-          {renderSummaryTile('Izin', summary.leaveCount, theme.warningSoft, theme.warning)}
+          {renderSummaryTile('Izin (Excused)', summary.leaveCount, theme.warningSoft, theme.warning)}
           {renderSummaryTile(
             'Belum hadir',
             summary.absentCount,
@@ -249,7 +249,18 @@ export function SessionRecapList({
               </View>
 
               <View style={styles.badgeContainer}>
-                <StatusDot label={item.statusLabel} tone={tone} />
+                {item.category === 'in_radius' ? (
+                  <StatusDot
+                    label={
+                      item.punctualityStatus === 'late'
+                        ? `Terlambat (+${item.lateMinutes ?? 1}m)`
+                        : 'Tepat waktu'
+                    }
+                    tone={item.punctualityStatus === 'late' ? 'warning' : 'success'}
+                  />
+                ) : (
+                  <StatusDot label={item.statusLabel} tone={tone} />
+                )}
                 <Text style={[styles.timeText, { color: theme.textSecondary }]}>
                   {item.timeDisplay}
                 </Text>

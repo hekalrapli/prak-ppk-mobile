@@ -38,4 +38,14 @@ export interface Laboratory extends GeoCoordinates {
   building: string;
   /** Radius presensi dalam meter; 0 berarti laboratorium belum siap dipakai. */
   radiusMeter: number;
+  /** Batasan toleransi keterlambatan dalam menit (default 15). */
+  gracePeriodMinutes?: number;
+  /** Nominal denda keterlambatan tetap dalam Rupiah (>= 0). */
+  lateFineAmount?: number;
+  /** Nama mata kuliah laboratorium ini */
+  courseName?: string;
+  /** Daftar UID asprak yang ditugaskan */
+  assistantIds?: string[];
+  /** Daftar UID praktikan peserta */
+  studentIds?: string[];
 }

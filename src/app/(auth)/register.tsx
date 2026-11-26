@@ -173,7 +173,7 @@ export default function RegisterScreen() {
       });
 
       showToast('Akun berhasil dibuat. Selamat datang!', 'success');
-      router.replace(getRoleHomeRoute(profile.role));
+      router.replace(getRoleHomeRoute(profile.role) as any);
     } catch (error) {
       setFormError(
         error instanceof Error ? error.message : 'Pendaftaran gagal. Coba lagi.'

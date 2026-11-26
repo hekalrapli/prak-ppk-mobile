@@ -57,13 +57,13 @@ export function AuthGate() {
     }
 
     if (inAuthGroup || onProfileMissing || atRoot) {
-      router.replace(
+      const target =
         profile.role === 'praktikan'
           ? '/praktikan'
           : profile.role === 'aslab'
             ? '/aslab'
-            : '/asisten'
-      );
+            : '/asisten';
+      router.replace(target as any);
     }
   }, [
     user,

@@ -226,10 +226,20 @@ function PraktikanQrScanner({
         qrVerification: { token: parsed.token },
       });
 
-      showToast(
-        `Kehadiran berhasil dicatat pada pukul ${recorded.recordedAtDisplay}`,
-        'success'
-      );
+      if (recorded.punctualityStatus === 'late') {
+        const fineText = recorded.fineAmount
+          ? ` Denda Rp ${recorded.fineAmount.toLocaleString('id-ID')} diterbitkan.`
+          : '';
+        showToast(
+          `Kehadiran dicatat (Terlambat +${recorded.lateMinutes} mnt).${fineText}`,
+          'error'
+        );
+      } else {
+        showToast(
+          `Kehadiran berhasil dicatat (Tepat Waktu) pada pukul ${recorded.recordedAtDisplay}`,
+          'success'
+        );
+      }
       navigateBackToSession();
     } catch (err) {
       const message =
@@ -273,6 +283,8 @@ function PraktikanQrScanner({
         <ScrollView contentContainerStyle={styles.content}>
           <AttendanceSuccessPanel
             recordedAt={formatTimestampToTime(myRecord.recordedAt)}
+            punctualityStatus={myRecord.punctualityStatus}
+            lateMinutes={myRecord.lateMinutes}
           />
           <Text style={[styles.helperText, { color: theme.textSecondary }]}>
             Kehadiran Anda pada sesi {practicum.name} sudah tercatat. Pemindaian
@@ -292,8 +304,8 @@ function PraktikanQrScanner({
       <View style={[styles.sheet, { backgroundColor: theme.background }]}>
         <View style={styles.fallback}>
           <EmptyState
-            title="Izin Anda sudah diterima"
-            description="Anda tidak perlu memindai QR karena pengajuan izin untuk sesi ini telah disetujui."
+            title="Izin disetujui (Excused Absence)"
+            description="Anda tidak perlu memindai QR karena pengajuan izin untuk sesi ini telah disetujui (bebas denda keterlambatan)."
             actionLabel="Kembali ke detail sesi"
             onAction={navigateBackToSession}
           />
@@ -440,7 +452,7 @@ function PraktikanQrScanner({
             facing="back"
             enableTorch={torchEnabled}
             barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-            onMountError={(event) => setCameraError(event.message)}
+            onMountError={(event: any) => setCameraError(event.message)}
             onBarcodeScanned={scanFeedback ? undefined : handleBarcodeScanned}
           />
           <View pointerEvents="none" style={styles.reticleOverlay}>

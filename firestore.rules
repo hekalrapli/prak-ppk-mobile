@@ -80,8 +80,8 @@ service cloud.firestore {
 
     // ---------- Users ----------
     match /users/{uid} {
-      // Pemilik membaca profilnya sendiri; asisten boleh membaca profil (untuk mencari praktikan sebagai peserta).
-      allow read: if signedIn() && (request.auth.uid == uid || isAsisten());
+      // Pemilik membaca profilnya sendiri; asisten & aslab boleh membaca profil (untuk penugasan/distribusi).
+      allow read: if signedIn() && (request.auth.uid == uid || isAsisten() || isAslab());
 
       allow create: if signedIn()
         && request.auth.uid == uid
@@ -117,67 +117,42 @@ service cloud.firestore {
       // Asisten, praktikan, dan aslab yang terdaftar dapat membaca titik lokasi & radius lab.
       allow read: if isAsisten() || isPraktikan() || isAslab();
 
-      // Hanya asisten yang dapat membuat, mengubah, atau menghapus lokasi lab.
-      allow create, update: if isAsisten()
-        && request.resource.data.keys().hasAll(['nama','gedung','latitude','longitude','radius_meter','updated_at'])
-        && request.resource.data.keys().hasOnly(['nama','gedung','latitude','longitude','radius_meter','updated_at'])
-        && str(request.resource.data.nama, 1, 100)
-        && str(request.resource.data.gedung, 0, 100)
-        && request.resource.data.latitude is number
-        && request.resource.data.latitude >= -90
-        && request.resource.data.latitude <= 90
-        && request.resource.data.longitude is number
-        && request.resource.data.longitude >= -180
-        && request.resource.data.longitude <= 180
-        && request.resource.data.radius_meter is number
-        && request.resource.data.radius_meter > 0
-        && request.resource.data.radius_meter <= 1000
-        && request.resource.data.updated_at == request.time;
-
-      allow delete: if isAsisten();
+      // FR-S4-P1-02 & FR-S4-P2-01: Hak tulis hanya milik peran aslab (cabut dari asisten).
+      allow create, update, delete: if isAslab();
     }
 
     // ---------- Practicums ----------
     match /practicums/{pid} {
-      // Hanya asisten pengampu dan praktikan peserta yang boleh membaca.
-      // Asisten lain tidak dapat menemukan praktikum ini sama sekali.
-      allow read: if (isAsisten() && resource.data.assistantId == request.auth.uid)
+      // Aslab baca semua; asisten pengampu & praktikan peserta baca kelasnya.
+      allow read: if isAslab()
+        || (isAsisten() && resource.data.assistantId == request.auth.uid)
         || (isPraktikan() && request.auth.uid in resource.data.studentIds);
 
-      allow create: if isAsisten()
-        && request.resource.data.assistantId == request.auth.uid
-        && str(request.resource.data.name, 1, 100)
-        && str(request.resource.data.className, 1, 30)
-        && request.resource.data.studentIds is list;
-
-      allow update: if isAsisten() && resource.data.assistantId == request.auth.uid
-        && request.resource.data.assistantId == resource.data.assistantId
-        && str(request.resource.data.name, 1, 100)
-        && str(request.resource.data.className, 1, 30)
-        && request.resource.data.studentIds is list;
-
-      allow delete: if isAsisten() && resource.data.assistantId == request.auth.uid;
+      // FR-S4-P1-02 & FR-S4-P2-01: CRUD praktikum & distribusi peserta/asprak dilakukan oleh Aslab.
+      allow create, update, delete: if isAslab();
 
       // ---------- Sessions ----------
       match /sessions/{sid} {
-        allow read: if isPengampu(pid) || isPeserta(pid);
+        allow read: if isAslab() || isPengampu(pid) || isPeserta(pid);
 
-        allow create: if isPengampu(pid)
+        allow create: if (isAslab() || isPengampu(pid))
           && request.resource.data.status == 'upcoming'
           && str(request.resource.data.room, 1, 60)
           && str(request.resource.data.date, 8, 30)
           && str(request.resource.data.startTime, 4, 5)
           && str(request.resource.data.endTime, 4, 5)
           && request.resource.data.endTime > request.resource.data.startTime
-          && (!('lab_id' in request.resource.data) || str(request.resource.data.lab_id, 1, 100));
+          && (!('lab_id' in request.resource.data) || str(request.resource.data.lab_id, 1, 100))
+          && (!('labId' in request.resource.data) || str(request.resource.data.labId, 1, 100));
 
-        // Edit jadwal (status tidak berubah) ATAU transisi status upcoming->open / open->closed.
-        allow update: if isPengampu(pid) && (
+        // Edit jadwal ATAU transisi status upcoming->open / open->closed.
+        allow update: if (isAslab() || isPengampu(pid)) && (
           (request.resource.data.status == resource.data.status
              && resource.data.status != 'closed'
              && str(request.resource.data.room, 1, 60)
              && request.resource.data.endTime > request.resource.data.startTime
-             && (!('lab_id' in request.resource.data) || str(request.resource.data.lab_id, 1, 100)))
+             && (!('lab_id' in request.resource.data) || str(request.resource.data.lab_id, 1, 100))
+             && (!('labId' in request.resource.data) || str(request.resource.data.labId, 1, 100)))
           ||
           (resource.data.status == 'upcoming' && request.resource.data.status == 'open'
              && onlyChanges(['status','openedAt']))
@@ -186,12 +161,11 @@ service cloud.firestore {
              && onlyChanges(['status','closedAt']))
         );
 
-        allow delete: if isPengampu(pid);
+        allow delete: if isAslab() || isPengampu(pid);
 
         // ---------- Token QR aktif (hanya asisten pengampu) ----------
-        // Disimpan terpisah dari sessions/{sid} agar peserta tidak dapat membaca token lewat query sesi.
         match /qr_token/{docId} {
-          allow read: if isPengampu(pid) && docId == 'current';
+          allow read: if (isAslab() || isPengampu(pid)) && docId == 'current';
 
           allow create: if isPengampu(pid)
             && docId == 'current'
@@ -212,25 +186,32 @@ service cloud.firestore {
             && request.resource.data.updated_at == request.time
             && request.resource.data.previous_token == resource.data.token;
 
-          allow delete: if isPengampu(pid) && docId == 'current';
+          allow delete: if (isAslab() || isPengampu(pid)) && docId == 'current';
         }
 
         // ---------- Attendance (ID dokumen = UID praktikan) ----------
         match /attendance/{uid} {
-          allow read: if isPengampu(pid)
+          allow read: if isAslab()
+            || isPengampu(pid)
             || (isPraktikan() && request.auth.uid == uid);
 
           allow create: if isPeserta(pid)
             && request.auth.uid == uid
             && session(pid, sid).data.status == 'open'
-            && request.resource.data.keys().hasOnly(['praktikanId','praktikanName','praktikanNim','status','recordedAt','distance_meter','device_lat','device_lng','is_location_verified','verification_method','qr_token'])
+            && request.resource.data.keys().hasOnly([
+                'praktikanId','praktikanName','praktikanNim','status','recordedAt',
+                'distance_meter','device_lat','device_lng','is_location_verified',
+                'verification_method','qr_token','punctualityStatus','lateMinutes'
+               ])
             && request.resource.data.praktikanId == uid
             && request.resource.data.status == 'present'
             && request.resource.data.recordedAt == request.time
+            && (!('punctualityStatus' in request.resource.data)
+              || request.resource.data.punctualityStatus in ['on_time', 'late'])
+            && (!('lateMinutes' in request.resource.data)
+              || (request.resource.data.lateMinutes is number && request.resource.data.lateMinutes >= 0))
             && (!('verification_method' in request.resource.data)
               || request.resource.data.verification_method in ['geofence', 'qr'])
-            // FR-P1-02: jejak geofence opsional (presensi lama tetap sah),
-            // tetapi bila dikirim harus bertipe benar dan tidak negatif.
             && (!('distance_meter' in request.resource.data)
               || (request.resource.data.distance_meter is number
                   && request.resource.data.distance_meter >= 0))
@@ -244,8 +225,6 @@ service cloud.firestore {
                   && request.resource.data.device_lng <= 180))
             && (!('is_location_verified' in request.resource.data)
               || request.resource.data.is_location_verified == true)
-            // FR-P1-05: presensi QR wajib menyertakan token yang cocok dengan qr_token/current
-            // serta masih dalam batas waktu server (75 dtk token aktif, 30 dtk token sebelumnya).
             && (
               (!('qr_token' in request.resource.data)
                 && (!('verification_method' in request.resource.data)
@@ -257,12 +236,14 @@ service cloud.firestore {
                 && isValidQrToken(pid, sid, request.resource.data.qr_token))
             );
 
+          // FR-S4-P2-04: Status presensi bersifat immutable (tidak berubah setelah bayar denda)
           allow update, delete: if false;
         }
 
         // ---------- Leave requests (ID dokumen = UID praktikan) ----------
         match /leaveRequests/{uid} {
-          allow read: if isPengampu(pid)
+          allow read: if isAslab()
+            || isPengampu(pid)
             || (isPraktikan() && request.auth.uid == uid);
 
           allow create: if isPeserta(pid)
@@ -294,16 +275,12 @@ service cloud.firestore {
               && (request.resource.data.status == 'approved' || str(request.resource.data.reviewNote, 1, 200))
             );
 
-          // Praktikan boleh membatalkan selama pending.
           allow delete: if isPeserta(pid) && request.auth.uid == uid && resource.data.status == 'pending';
         }
 
-        // ---------- Hasil klasifikasi AI (hanya asisten pengampu) ----------
-        // Dokumen terpisah dari leaveRequests agar praktikan tidak dapat melihat
-        // maupun memalsukan hasil klasifikasi. Sejak FR-18 direvisi, hanya
-        // asisten pengampu yang boleh menulis dokumen ini.
+        // ---------- Hasil klasifikasi AI (hanya asisten pengampu & aslab) ----------
         match /leaveClassifications/{uid} {
-          allow read: if isPengampu(pid);
+          allow read: if isAslab() || isPengampu(pid);
 
           allow create: if isPengampu(pid)
             && request.resource.data.keys().hasOnly(['ai','updatedAt'])
@@ -320,14 +297,45 @@ service cloud.firestore {
       }
     }
 
-    // ---------- Collection group: riwayat & izin pribadi lintas sesi ----------
-    // Collection-group query wajib dibatasi where('praktikanId','==',uid);
-    // aturan memakai field tersebut agar query dapat dibuktikan aman.
+    // ---------- Fines (Tagihan Denda Keterlambatan) ----------
+    // FR-S4-P2-03: ID dokumen = "<sessionId>_<praktikanId>" (deterministik)
+    match /fines/{fineId} {
+      allow read: if isAslab()
+        || (signedIn() && (
+            (isPraktikan() && resource.data.praktikanId == request.auth.uid)
+            || isAsisten()
+           ));
+
+      // Dibuat otomatis saat presensi terlambat
+      allow create: if isPraktikan()
+        && request.auth.uid == request.resource.data.praktikanId
+        && request.resource.data.status == 'unpaid'
+        && request.resource.data.amount is number
+        && request.resource.data.amount >= 0
+        && request.resource.data.createdAt == request.time;
+
+      // Status tagihan diubah eksklusif oleh webhook backend via Admin SDK
+      allow update, delete: if false;
+    }
+
+    // ---------- Payment Transactions ----------
+    match /paymentTransactions/{orderId} {
+      allow read: if isAslab()
+        || (isPraktikan() && resource.data.praktikanId == request.auth.uid);
+
+      // Hanya dibuat & diperbarui oleh Backend Admin SDK via webhook Midtrans
+      allow write: if false;
+    }
+
+    // ---------- Collection group queries ----------
     match /{path=**}/attendance/{uid} {
-      allow read: if isPraktikan() && resource.data.praktikanId == request.auth.uid;
+      allow read: if isAslab() || (isPraktikan() && resource.data.praktikanId == request.auth.uid);
     }
     match /{path=**}/leaveRequests/{uid} {
-      allow read: if isPraktikan() && resource.data.praktikanId == request.auth.uid;
+      allow read: if isAslab() || (isPraktikan() && resource.data.praktikanId == request.auth.uid);
+    }
+    match /{path=**}/sessions/{sid} {
+      allow read: if isAslab();
     }
   }
 }

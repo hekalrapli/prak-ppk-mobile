@@ -95,7 +95,7 @@ export default function LabFormScreen() {
             title="Lokasi lab tidak ditemukan"
             description="Data laboratorium yang ingin Anda ubah tidak tersedia atau sudah dihapus."
             actionLabel="Kembali ke daftar lab"
-            onAction={() => router.replace('/asisten/labs')}
+            onAction={() => router.replace('/asisten/labs' as any)}
           />
         </View>
       </DetailScreen>

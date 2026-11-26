@@ -510,7 +510,7 @@ export function SessionDetail({
                         label="Tampilkan QR Presensi"
                         onPress={() =>
                           router.push({
-                            pathname: '/asisten/session/[sessionId]/qr',
+                            pathname: '/asisten/session/[sessionId]/qr' as any,
                             params: {
                               sessionId: session.id,
                               practicumId: practicum.id,
@@ -576,7 +576,7 @@ export function SessionDetail({
                         variant="secondary"
                         onPress={() =>
                           router.push({
-                            pathname: '/praktikan/qr-scan/[sessionId]',
+                            pathname: '/praktikan/qr-scan/[sessionId]' as any,
                             params: {
                               sessionId: session.id,
                               practicumId: practicum.id,

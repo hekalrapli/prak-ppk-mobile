@@ -41,7 +41,7 @@ export function TabScreen({ title, children }: { title: string; children: ReactN
     if (!profileRoute || isOnProfile) {
       return;
     }
-    router.navigate(profileRoute);
+    router.navigate(profileRoute as any);
   };
 
   return (
