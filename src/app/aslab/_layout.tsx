@@ -17,6 +17,8 @@ export default function AslabLayout() {
           contentStyle: { backgroundColor: theme.background },
         }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="labs/form" options={{ headerShown: false }} />
+        <Stack.Screen name="labs/[labId]" options={{ headerShown: false }} />
       </Stack>
     </RoleGuard>
   );

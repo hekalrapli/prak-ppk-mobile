@@ -82,6 +82,12 @@ export interface AttendanceDoc {
   isLocationVerified?: boolean;
 }
 
+export interface LabPolicy {
+  radiusMeter: number;
+  gracePeriodMinutes: number;
+  lateFineAmount: number;
+}
+
 export interface Practicum {
   id: string;
   name: string;
@@ -90,6 +96,10 @@ export interface Practicum {
   /** Nama asisten didenormalisasi agar praktikan dapat menampilkannya. */
   assistantName?: string;
   studentIds?: string[];
+  labId?: string;
+  managedByAslabId?: string;
+  gracePeriodMinutes?: number;
+  lateFineAmount?: number;
 }
 
 export interface Session {
@@ -111,8 +121,14 @@ export interface Laboratory {
   id: string;
   nama: string;
   gedung: string;
+  courseName: string;
   latitude: number;
   longitude: number;
   radius_meter: number;
+  grace_period_minutes: number;
+  late_fine_amount: number;
+  managedByAslabId: string;
+  assistantIds: string[];
+  studentIds: string[];
   updated_at: FirestoreTimestamp;
 }

@@ -35,12 +35,15 @@ function toLocationLaboratory(lab: Laboratory): LocationLaboratory | null {
     id: lab.id,
     name: lab.nama.trim() || 'Laboratorium',
     building: lab.gedung.trim(),
+    courseName: lab.courseName.trim() || undefined,
     latitude: lab.latitude,
     longitude: lab.longitude,
     radiusMeter:
       Number.isFinite(lab.radius_meter) && lab.radius_meter > 0
         ? lab.radius_meter
         : 0,
+    gracePeriodMinutes: lab.grace_period_minutes,
+    lateFineAmount: lab.late_fine_amount,
   };
 }
 
