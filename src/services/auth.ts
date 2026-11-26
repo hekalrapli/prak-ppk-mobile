@@ -45,9 +45,13 @@ function mapAuthError(error: unknown) {
 
 function mapProfileError(error: unknown, role: UserProfile['role']) {
   if (errorCode(error) === 'permission-denied') {
-    return role === 'asisten'
-      ? 'Kode undangan asisten salah atau tidak valid.'
-      : 'Pendaftaran ditolak. Periksa kembali data Anda.';
+    if (role === 'asisten') {
+      return 'Kode undangan asisten salah atau tidak valid.';
+    }
+    if (role === 'aslab') {
+      return 'Kode undangan aslab salah atau tidak valid.';
+    }
+    return 'Pendaftaran ditolak. Periksa kembali data Anda.';
   }
   return 'Profil gagal disimpan sehingga pendaftaran dibatalkan. Coba lagi.';
 }
@@ -122,7 +126,9 @@ export async function registerUser(input: RegisterInput): Promise<UserProfile> {
       role: profile.role,
       createdAt: serverTimestamp(),
       // Firestore Rules memvalidasi nilai ini terhadap config/registration.
-      ...(profile.role === 'asisten' ? { inviteCode: input.inviteCode?.trim() ?? '' } : {}),
+      ...(profile.role === 'asisten' || profile.role === 'aslab'
+        ? { inviteCode: input.inviteCode?.trim() ?? '' }
+        : {}),
     });
   } catch (error) {
     await deleteUser(credential.user).catch(() => undefined);

@@ -29,7 +29,7 @@ export type NotificationNavigationTarget =
     }
   | {
       kind: 'home';
-      pathname: '/praktikan' | '/asisten';
+      pathname: '/praktikan' | '/asisten' | '/aslab';
     };
 
 /**
@@ -38,7 +38,7 @@ export type NotificationNavigationTarget =
  */
 export const NOTIFICATION_EVENT_ROUTES: Record<
   string,
-  Record<UserRole, SessionRoutePathname>
+  Partial<Record<UserRole, SessionRoutePathname>>
 > = {
   session_opened: {
     praktikan: '/praktikan/session/[sessionId]',
@@ -54,14 +54,23 @@ export const NOTIFICATION_EVENT_ROUTES: Record<
   },
 };
 
-function getRoleHomeRoute(role: UserRole): '/praktikan' | '/asisten' {
-  return role === 'asisten' ? '/asisten' : '/praktikan';
+function getRoleHomeRoute(role: UserRole): '/praktikan' | '/asisten' | '/aslab' {
+  if (role === 'asisten') {
+    return '/asisten';
+  }
+  if (role === 'aslab') {
+    return '/aslab';
+  }
+  return '/praktikan';
 }
 
 export function resolveNotificationNavigation(
   target: NotificationTargetPayload,
   role: UserRole
 ): NotificationNavigationTarget {
+  if (role === 'aslab') {
+    return { kind: 'home', pathname: '/aslab' };
+  }
   const sessionId = target.sessionId?.trim();
   const practicumId = target.practicumId?.trim();
 

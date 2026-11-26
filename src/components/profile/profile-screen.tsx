@@ -61,6 +61,7 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
   };
 
   const isAsisten = role === 'asisten';
+  const isAslab = role === 'aslab';
   const version = Constants.expoConfig?.version ?? '1.0.0';
   const sortedPracticums = useMemo(
     () => [...practicums].sort((a, b) => a.name.localeCompare(b.name)),
@@ -94,10 +95,20 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
         <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
         <ProfileRow label="Email" value={profile?.email ?? '—'} />
-        <ProfileRow label="Peran" value={isAsisten ? 'Asisten pengampu' : 'Praktikan'} />
+        <ProfileRow
+          label="Peran"
+          value={
+            isAslab
+              ? 'Asisten Laboratorium (Aslab)'
+              : isAsisten
+                ? 'Asisten pengampu'
+                : 'Praktikan'
+          }
+        />
       </View>
 
-      <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
+      {!isAslab ? (
+        <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
             {isAsisten ? 'Praktikum yang Anda ampu' : 'Praktikum yang Anda ikuti'}
@@ -214,7 +225,8 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
             </Text>
           </Pressable>
         ) : null}
-      </View>
+        </View>
+      ) : null}
 
       <View style={styles.actions}>
         <AppButton

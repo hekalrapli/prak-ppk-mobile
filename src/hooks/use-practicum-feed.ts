@@ -37,7 +37,7 @@ export function usePracticumFeed(role: UserRole, userId?: string) {
   const practicumKey = `${role}|${userId ?? ''}`;
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || role === 'aslab') {
       return;
     }
 
@@ -60,7 +60,7 @@ export function usePracticumFeed(role: UserRole, userId?: string) {
     () => loadedPracticums?.practicums ?? [],
     [loadedPracticums]
   );
-  const practicumsLoading = Boolean(userId) && !loadedPracticums;
+  const practicumsLoading = Boolean(userId) && role !== 'aslab' && !loadedPracticums;
   const practicumsError = loadedPracticums?.error ?? null;
 
   const practicumIdsKey = useMemo(
@@ -134,10 +134,13 @@ export function usePracticumFeed(role: UserRole, userId?: string) {
   }, []);
 
   const refresh = useCallback(() => {
+    if (role === 'aslab') {
+      return;
+    }
     setRefreshing(true);
     setPracticumAttempt((value) => value + 1);
     setSessionsAttempt((value) => value + 1);
-  }, []);
+  }, [role]);
 
   return {
     practicums,
