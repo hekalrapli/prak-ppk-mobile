@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { BulkReviewList } from '@/components/aslab/bulk-review-list';
 import { AppButton } from '@/components/ui/app-button';
 import { useToast } from '@/components/ui/toast-provider';
 import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
@@ -14,12 +15,20 @@ import {
   downloadBulkTemplate,
   getBulkTemplateSpec,
 } from '@/lib/bulk-templates';
+import {
+  commitBulkLabs,
+  commitBulkMembers,
+  validateBulkLabRows,
+  validateBulkMemberRows,
+  type BulkCommitSummary,
+} from '@/services/bulkInsertService';
 import type {
   BulkInsertKind,
   BulkLabRowData,
   BulkMemberRowData,
   BulkParseResult,
   BulkRowItem,
+  Laboratory,
 } from '@/types/attendance';
 
 interface BulkCsvPanelProps<K extends BulkInsertKind> {
@@ -29,40 +38,10 @@ interface BulkCsvPanelProps<K extends BulkInsertKind> {
   contextBlockedHint: string;
   parseResult: BulkParseResult<BulkRowForKind<K>> | null;
   onParsed: (result: BulkParseResult<BulkRowForKind<K>> | null) => void;
-}
-
-const MAX_PREVIEW_ROWS = 20;
-
-function formatRowTitle<K extends BulkInsertKind>(
-  kind: K,
-  item: BulkRowItem<BulkRowForKind<K>>
-): string {
-  if (kind === 'labs') {
-    const data = item.data as BulkLabRowData;
-    return data.nama || '(Nama lab kosong)';
-  }
-  const data = item.data as BulkMemberRowData;
-  return data.nama || data.identifier || data.email || '(Data kosong)';
-}
-
-function formatRowMeta<K extends BulkInsertKind>(
-  kind: K,
-  item: BulkRowItem<BulkRowForKind<K>>
-): string {
-  if (kind === 'labs') {
-    const data = item.data as BulkLabRowData;
-    const parts = [
-      data.gedung || 'Tanpa gedung',
-      `Lat ${data.latitude || '—'}, Lng ${data.longitude || '—'}`,
-      `Radius ${data.radius_meter || '—'} m`,
-      `Toleransi ${data.grace_period_minutes || '—'} mnt`,
-      `Denda Rp ${data.late_fine_amount || '—'}`,
-    ];
-    return parts.join(' · ');
-  }
-  const data = item.data as BulkMemberRowData;
-  const idLabel = kind === 'praktikan' ? 'NIM' : 'NIP';
-  return `${idLabel}: ${data.identifier || '—'} · Email: ${data.email || '—'}`;
+  courseName?: string;
+  existingLabs?: Laboratory[];
+  targetLab?: Laboratory | null;
+  managedByAslabId?: string;
 }
 
 export function BulkCsvPanel<K extends BulkInsertKind>({
@@ -72,14 +51,101 @@ export function BulkCsvPanel<K extends BulkInsertKind>({
   contextBlockedHint,
   parseResult,
   onParsed,
+  courseName,
+  existingLabs,
+  targetLab,
+  managedByAslabId,
 }: BulkCsvPanelProps<K>) {
   const theme = useTheme();
   const { showToast } = useToast();
   const [downloading, setDownloading] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [stagingRows, setStagingRows] = useState<
+    BulkRowItem<BulkRowForKind<K>>[]
+  >([]);
+  const [commitSummary, setCommitSummary] = useState<BulkCommitSummary | null>(
+    null
+  );
+
+  const stagingRowsRef = useRef<BulkRowItem<BulkRowForKind<K>>[]>([]);
+  const validationRunRef = useRef(0);
+  const manualCounterRef = useRef(1);
+  const savingRef = useRef(false);
 
   const spec = getBulkTemplateSpec(kind);
   const columns = BULK_TEMPLATE_COLUMNS[kind];
+
+  const runValidation = useCallback(
+    async (candidateRows: BulkRowItem<BulkRowForKind<K>>[]) => {
+      const currentRun = ++validationRunRef.current;
+
+      if (kind === 'labs') {
+        const validated = validateBulkLabRows(
+          candidateRows as BulkRowItem<BulkLabRowData>[],
+          courseName ?? '',
+          existingLabs ?? []
+        ) as BulkRowItem<BulkRowForKind<K>>[];
+        if (validationRunRef.current === currentRun) {
+          stagingRowsRef.current = validated;
+          setStagingRows(validated);
+        }
+        return;
+      }
+
+      if (!targetLab) {
+        return;
+      }
+
+      setValidating(true);
+      try {
+        const validated = (await validateBulkMemberRows(
+          kind as 'praktikan' | 'asprak',
+          candidateRows as BulkRowItem<BulkMemberRowData>[],
+          targetLab
+        )) as BulkRowItem<BulkRowForKind<K>>[];
+        if (validationRunRef.current === currentRun) {
+          stagingRowsRef.current = validated;
+          setStagingRows(validated);
+        }
+      } catch (err) {
+        if (validationRunRef.current === currentRun) {
+          showToast(
+            err instanceof Error
+              ? err.message
+              : 'Gagal memvalidasi baris staging.',
+            'error'
+          );
+          stagingRowsRef.current = candidateRows;
+          setStagingRows(candidateRows);
+        }
+      } finally {
+        if (validationRunRef.current === currentRun) {
+          setValidating(false);
+        }
+      }
+    },
+    [kind, courseName, existingLabs, targetLab, showToast]
+  );
+
+  useEffect(() => {
+    if (!parseResult || !parseResult.ok || stagingRowsRef.current.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (!cancelled && !savingRef.current) {
+        void runValidation(stagingRowsRef.current);
+      }
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [parseResult, runValidation]);
 
   const handleDownloadTemplate = async () => {
     if (downloading) {
@@ -100,7 +166,7 @@ export function BulkCsvPanel<K extends BulkInsertKind>({
   };
 
   const handlePickFile = async () => {
-    if (picking || !contextReady) {
+    if (picking || saving || !contextReady) {
       return;
     }
     setPicking(true);
@@ -109,14 +175,24 @@ export function BulkCsvPanel<K extends BulkInsertKind>({
       if (outcome.canceled) {
         return;
       }
-      onParsed(outcome.result);
+      setCommitSummary(null);
       if (outcome.result.ok) {
+        stagingRowsRef.current = outcome.result.rows;
+        setStagingRows(outcome.result.rows);
+        onParsed(outcome.result);
         showToast(
           `${outcome.result.rows.length} baris berhasil dibaca dari ${outcome.result.fileName}`,
           'success'
         );
+      } else {
+        stagingRowsRef.current = [];
+        setStagingRows([]);
+        onParsed(outcome.result);
       }
     } catch (err) {
+      stagingRowsRef.current = [];
+      setStagingRows([]);
+      setCommitSummary(null);
       onParsed({
         ok: false,
         error:
@@ -128,12 +204,152 @@ export function BulkCsvPanel<K extends BulkInsertKind>({
     }
   };
 
-  const validCount =
-    parseResult && parseResult.ok
-      ? parseResult.rows.filter((row) => Object.keys(row.errors).length === 0).length
-      : 0;
-  const invalidCount =
-    parseResult && parseResult.ok ? parseResult.rows.length - validCount : 0;
+  const handleReset = () => {
+    validationRunRef.current += 1;
+    stagingRowsRef.current = [];
+    setStagingRows([]);
+    setCommitSummary(null);
+    setValidating(false);
+    onParsed(null);
+  };
+
+  const handleToggleDecision = useCallback(
+    (rowId: string, next: 'accepted' | 'denied') => {
+      const updated = stagingRowsRef.current.map((row) => {
+        if (row.rowId !== rowId) {
+          return row;
+        }
+        const hasErrors = Object.values(row.errors).some((msg) => Boolean(msg));
+        if (next === 'accepted' && hasErrors) {
+          return row;
+        }
+        return {
+          ...row,
+          decision: row.decision === next ? ('pending' as const) : next,
+        };
+      });
+      stagingRowsRef.current = updated;
+      setCommitSummary(null);
+      void runValidation(updated);
+    },
+    [runValidation]
+  );
+
+  const handleAcceptAllValid = useCallback(() => {
+    const updated = stagingRowsRef.current.map((row) => {
+      const hasErrors = Object.values(row.errors).some((msg) => Boolean(msg));
+      if (hasErrors || row.decision === 'denied') {
+        return row;
+      }
+      return {
+        ...row,
+        decision: 'accepted' as const,
+      };
+    });
+    stagingRowsRef.current = updated;
+    setCommitSummary(null);
+    void runValidation(updated);
+  }, [runValidation]);
+
+  const handleSaveRowEdit = useCallback(
+    (rowId: string | null, data: BulkRowForKind<K>) => {
+      let updated: BulkRowItem<BulkRowForKind<K>>[];
+      if (rowId === null) {
+        const nextRowNum =
+          stagingRowsRef.current.reduce(
+            (max, item) => Math.max(max, item.rowNumber),
+            1
+          ) + 1;
+        const newId = `manual-${kind}-${manualCounterRef.current++}`;
+        const newRow: BulkRowItem<BulkRowForKind<K>> = {
+          rowId: newId,
+          rowNumber: nextRowNum,
+          data,
+          decision: 'pending',
+          errors: {},
+        };
+        updated = [...stagingRowsRef.current, newRow];
+      } else {
+        updated = stagingRowsRef.current.map((row) =>
+          row.rowId === rowId ? { ...row, data } : row
+        );
+      }
+
+      stagingRowsRef.current = updated;
+      setCommitSummary(null);
+      void runValidation(updated);
+    },
+    [kind, runValidation]
+  );
+
+  const handleDeleteRow = useCallback(
+    (rowId: string) => {
+      const updated = stagingRowsRef.current.filter((row) => row.rowId !== rowId);
+      stagingRowsRef.current = updated;
+      setCommitSummary(null);
+      if (updated.length === 0) {
+        setStagingRows([]);
+        return;
+      }
+      void runValidation(updated);
+    },
+    [runValidation]
+  );
+
+  const handleCommitAccepted = async () => {
+    if (savingRef.current || validating || !contextReady) {
+      return;
+    }
+
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      const summary =
+        kind === 'labs'
+          ? await commitBulkLabs({
+              courseName: courseName ?? '',
+              rows: stagingRowsRef.current as BulkRowItem<BulkLabRowData>[],
+              managedByAslabId,
+            })
+          : await commitBulkMembers({
+              kind: kind as 'praktikan' | 'asprak',
+              labId: targetLab?.id ?? '',
+              rows: stagingRowsRef.current as BulkRowItem<BulkMemberRowData>[],
+            });
+
+      setCommitSummary(summary);
+      if (summary.savedRowIds.length > 0) {
+        const savedSet = new Set(summary.savedRowIds);
+        const remaining = stagingRowsRef.current.filter(
+          (row) => !savedSet.has(row.rowId)
+        );
+        stagingRowsRef.current = remaining;
+        setStagingRows(remaining);
+      }
+
+      if (summary.savedCount > 0 && summary.failedCount === 0) {
+        showToast(
+          `${summary.savedCount} data berhasil disimpan ke Firestore`,
+          'success'
+        );
+      } else if (summary.savedCount > 0) {
+        showToast(
+          `${summary.savedCount} tersimpan, ${summary.failedCount} gagal`,
+          'error'
+        );
+      } else if (summary.errorMessages.length > 0) {
+        showToast(summary.errorMessages[0], 'error');
+      }
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : 'Gagal menyimpan data batch.',
+        'error'
+      );
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
 
   return (
     <View style={styles.stack}>
@@ -156,6 +372,7 @@ export function BulkCsvPanel<K extends BulkInsertKind>({
           label={downloading ? 'Menyiapkan template…' : 'Unduh Template (.csv)'}
           variant="secondary"
           loading={downloading}
+          disabled={saving}
           onPress={handleDownloadTemplate}
         />
       </View>
@@ -173,7 +390,7 @@ export function BulkCsvPanel<K extends BulkInsertKind>({
         </Text>
         <AppButton
           label={picking ? 'Membaca file…' : 'Pilih File CSV'}
-          disabled={!contextReady || picking}
+          disabled={!contextReady || picking || saving}
           loading={picking}
           onPress={handlePickFile}
         />
@@ -181,8 +398,8 @@ export function BulkCsvPanel<K extends BulkInsertKind>({
           <AppButton
             label="Reset hasil baca"
             variant="secondary"
-            disabled={picking}
-            onPress={() => onParsed(null)}
+            disabled={picking || saving}
+            onPress={handleReset}
           />
         ) : null}
       </View>
@@ -206,100 +423,21 @@ export function BulkCsvPanel<K extends BulkInsertKind>({
       ) : null}
 
       {parseResult && parseResult.ok ? (
-        <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.cardTitle, { color: theme.textPrimary }]}>
-            Pratinjau Hasil Parsing ({parseResult.rows.length} baris)
-          </Text>
-          <Text style={[styles.meta, { color: theme.textSecondary }]}>
-            File: {parseResult.fileName}
-          </Text>
-
-          <View style={styles.summaryRow}>
-            <View style={[styles.summaryChip, { backgroundColor: theme.successSoft }]}>
-              <Text style={[styles.summaryValue, { color: theme.success }]}>
-                {validCount} format valid
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.summaryChip,
-                {
-                  backgroundColor:
-                    invalidCount > 0 ? theme.warningSoft : theme.surfaceSubtle,
-                },
-              ]}>
-              <Text
-                style={[
-                  styles.summaryValue,
-                  {
-                    color: invalidCount > 0 ? theme.warning : theme.textSecondary,
-                  },
-                ]}>
-                {invalidCount} perlu dilengkapi
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.infoBanner, { backgroundColor: theme.surfaceSubtle }]}>
-            <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-              Data belum disimpan ke Firestore. Review interaktif (Accept / Deny / Edit
-              baris) dan simpan batch terhubung pada FR-S4-P1-04.
-            </Text>
-          </View>
-
-          <View style={styles.previewList}>
-            {parseResult.rows.slice(0, MAX_PREVIEW_ROWS).map((row) => {
-              const errorEntries = Object.values(row.errors).filter(
-                (msg): msg is string => Boolean(msg)
-              );
-              const hasErrors = errorEntries.length > 0;
-
-              return (
-                <View
-                  key={row.rowId}
-                  style={[
-                    styles.previewItem,
-                    {
-                      backgroundColor: hasErrors
-                        ? theme.warningSoft
-                        : theme.surfaceSubtle,
-                    },
-                  ]}>
-                  <View style={styles.previewTop}>
-                    <Text style={[styles.previewRowNum, { color: theme.textSecondary }]}>
-                      Baris #{row.rowNumber}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.previewStatus,
-                        { color: hasErrors ? theme.warning : theme.success },
-                      ]}>
-                      {hasErrors ? 'Perlu dilengkapi' : 'Siap direview'}
-                    </Text>
-                  </View>
-                  <Text
-                    numberOfLines={2}
-                    style={[styles.previewTitle, { color: theme.textPrimary }]}>
-                    {formatRowTitle(kind, row)}
-                  </Text>
-                  <Text style={[styles.previewMeta, { color: theme.textSecondary }]}>
-                    {formatRowMeta(kind, row)}
-                  </Text>
-                  {hasErrors ? (
-                    <Text style={[styles.previewError, { color: theme.error }]}>
-                      {errorEntries.join(' · ')}
-                    </Text>
-                  ) : null}
-                </View>
-              );
-            })}
-            {parseResult.rows.length > MAX_PREVIEW_ROWS ? (
-              <Text style={[styles.meta, { color: theme.textSecondary }]}>
-                Menampilkan {MAX_PREVIEW_ROWS} dari {parseResult.rows.length} baris.
-              </Text>
-            ) : null}
-          </View>
-        </View>
+        <BulkReviewList
+          kind={kind}
+          fileName={parseResult.fileName}
+          rows={stagingRows}
+          validating={validating}
+          saving={saving}
+          contextReady={contextReady}
+          contextBlockedHint={contextBlockedHint}
+          commitSummary={commitSummary}
+          onToggleDecision={handleToggleDecision}
+          onAcceptAllValid={handleAcceptAllValid}
+          onSaveRowEdit={handleSaveRowEdit}
+          onDeleteRow={handleDeleteRow}
+          onCommitAccepted={handleCommitAccepted}
+        />
       ) : null}
     </View>
   );
@@ -330,37 +468,4 @@ const styles = StyleSheet.create({
   alertTitle: { ...Typography.cardTitle },
   alertBody: { ...Typography.body },
   alertHint: { ...Typography.caption },
-  summaryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-  },
-  summaryChip: {
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
-  },
-  summaryValue: { ...Typography.caption, fontWeight: '700' },
-  infoBanner: {
-    borderRadius: Radius.md,
-    padding: Spacing.two,
-  },
-  infoText: { ...Typography.caption },
-  previewList: { gap: Spacing.two },
-  previewItem: {
-    borderRadius: Radius.lg,
-    padding: Spacing.two,
-    gap: 4,
-  },
-  previewTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  previewRowNum: { ...Typography.caption },
-  previewStatus: { ...Typography.caption, fontWeight: '700' },
-  previewTitle: { ...Typography.bodyStrong },
-  previewMeta: { ...Typography.caption },
-  previewError: { ...Typography.caption, fontWeight: '600' },
 });

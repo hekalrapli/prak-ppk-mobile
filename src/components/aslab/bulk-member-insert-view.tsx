@@ -361,11 +361,16 @@ export function BulkMemberInsertView({ kind }: BulkMemberInsertViewProps) {
             ) : (
               <BulkCsvPanel
                 kind={kind}
-                contextReady={Boolean(selectedLab)}
+                contextReady={Boolean(selectedLab) && !missingCourse}
                 contextLabel={`Laboratorium tujuan: ${selectedLab.nama}`}
-                contextBlockedHint="Pilih laboratorium tujuan terlebih dahulu."
+                contextBlockedHint={
+                  missingCourse
+                    ? 'Lengkapi mata kuliah laboratorium tujuan sebelum mengimpor anggota.'
+                    : 'Pilih laboratorium tujuan terlebih dahulu.'
+                }
                 parseResult={parseResult}
                 onParsed={setParseResult}
+                targetLab={selectedLab}
               />
             )}
           </ScrollView>

@@ -436,9 +436,12 @@ export default function AslabBulkLabsScreen() {
                 kind="labs"
                 contextReady={courseReady}
                 contextLabel={`Mata kuliah terpilih: ${trimmedCourse}`}
-                contextBlockedHint="Isi mata kuliah di atas terlebih dahulu sebelum memilih file CSV."
+                contextBlockedHint="Isi mata kuliah di atas terlebih dahulu sebelum memilih atau menyimpan file CSV."
                 parseResult={parseResult}
                 onParsed={setParseResult}
+                courseName={trimmedCourse}
+                existingLabs={labs}
+                managedByAslabId={profile?.uid}
               />
             )}
           </ScrollView>

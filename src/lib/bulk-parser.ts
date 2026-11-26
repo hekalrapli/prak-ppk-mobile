@@ -123,26 +123,9 @@ export function parseCsvMatrix(content: string): string[][] {
   return rows;
 }
 
-function buildLabRow(
-  rowNumber: number,
-  rawRow: string[],
-  colIndex: Map<string, number>
-): BulkRowItem<BulkLabRowData> {
-  const get = (col: string) => {
-    const idx = colIndex.get(col);
-    return idx === undefined ? '' : (rawRow[idx] ?? '').trim();
-  };
-
-  const data: BulkLabRowData = {
-    nama: get('nama'),
-    gedung: get('gedung'),
-    latitude: get('latitude'),
-    longitude: get('longitude'),
-    radius_meter: get('radius_meter'),
-    grace_period_minutes: get('grace_period_minutes'),
-    late_fine_amount: get('late_fine_amount'),
-  };
-
+export function validateLabRowData(
+  data: BulkLabRowData
+): Partial<Record<keyof BulkLabRowData, string>> {
   const { errors } = validateLaboratoryInput({
     nama: data.nama,
     gedung: data.gedung,
@@ -164,13 +147,63 @@ function buildLabRow(
     rowErrors.grace_period_minutes = errors.grace_period_minutes;
   }
   if (errors.late_fine_amount) rowErrors.late_fine_amount = errors.late_fine_amount;
+  return rowErrors;
+}
+
+export function validateMemberRowData(
+  kind: 'praktikan' | 'asprak',
+  data: BulkMemberRowData
+): Partial<Record<keyof BulkMemberRowData, string>> {
+  const idLabel = kind === 'praktikan' ? 'NIM' : 'NIP';
+  const rowErrors: Partial<Record<keyof BulkMemberRowData, string>> = {};
+  const identifier = data.identifier.trim();
+  const email = data.email.trim().toLowerCase();
+  const nama = data.nama.trim();
+
+  if (!identifier && !email) {
+    rowErrors.identifier = `${idLabel} atau email wajib diisi salah satu.`;
+  } else {
+    if (identifier && !IDENTIFIER_REGEX.test(identifier)) {
+      rowErrors.identifier = `${idLabel} harus 8–20 digit angka.`;
+    }
+    if (email && !EMAIL_REGEX.test(email)) {
+      rowErrors.email = 'Format email tidak valid.';
+    }
+  }
+
+  if (nama.length > 60) {
+    rowErrors.nama = 'Nama maksimal 60 karakter.';
+  }
+
+  return rowErrors;
+}
+
+function buildLabRow(
+  rowNumber: number,
+  rawRow: string[],
+  colIndex: Map<string, number>
+): BulkRowItem<BulkLabRowData> {
+  const get = (col: string) => {
+    const idx = colIndex.get(col);
+    return idx === undefined ? '' : (rawRow[idx] ?? '').trim();
+  };
+
+  const data: BulkLabRowData = {
+    nama: get('nama'),
+    gedung: get('gedung'),
+    latitude: get('latitude'),
+    longitude: get('longitude'),
+    radius_meter: get('radius_meter'),
+    grace_period_minutes: get('grace_period_minutes'),
+    late_fine_amount: get('late_fine_amount'),
+  };
 
   return {
     rowId: `labs-${rowNumber}`,
     rowNumber,
     data,
     decision: 'pending',
-    errors: rowErrors,
+    errors: validateLabRowData(data),
   };
 }
 
@@ -181,7 +214,6 @@ function buildMemberRow(
   colIndex: Map<string, number>
 ): BulkRowItem<BulkMemberRowData> {
   const idColumn = kind === 'praktikan' ? 'nim' : 'nip';
-  const idLabel = kind === 'praktikan' ? 'NIM' : 'NIP';
   const get = (col: string) => {
     const idx = colIndex.get(col);
     return idx === undefined ? '' : (rawRow[idx] ?? '').trim();
@@ -193,28 +225,12 @@ function buildMemberRow(
     nama: get('nama'),
   };
 
-  const rowErrors: Partial<Record<keyof BulkMemberRowData, string>> = {};
-  if (!data.identifier && !data.email) {
-    rowErrors.identifier = `${idLabel} atau email wajib diisi salah satu.`;
-  } else {
-    if (data.identifier && !IDENTIFIER_REGEX.test(data.identifier)) {
-      rowErrors.identifier = `${idLabel} harus 8–20 digit angka.`;
-    }
-    if (data.email && !EMAIL_REGEX.test(data.email)) {
-      rowErrors.email = 'Format email tidak valid.';
-    }
-  }
-
-  if (data.nama.length > 60) {
-    rowErrors.nama = 'Nama maksimal 60 karakter.';
-  }
-
   return {
     rowId: `${kind}-${rowNumber}`,
     rowNumber,
     data,
     decision: 'pending',
-    errors: rowErrors,
+    errors: validateMemberRowData(kind, data),
   };
 }
 
