@@ -117,24 +117,49 @@ service cloud.firestore {
       // Asisten, praktikan, dan aslab yang terdaftar dapat membaca titik lokasi & radius lab.
       allow read: if isAsisten() || isPraktikan() || isAslab();
 
-      // Hanya asisten yang dapat membuat, mengubah, atau menghapus lokasi lab.
-      allow create, update: if isAsisten()
-        && request.resource.data.keys().hasAll(['nama','gedung','latitude','longitude','radius_meter','updated_at'])
-        && request.resource.data.keys().hasOnly(['nama','gedung','latitude','longitude','radius_meter','updated_at'])
-        && str(request.resource.data.nama, 1, 100)
-        && str(request.resource.data.gedung, 0, 100)
-        && request.resource.data.latitude is number
-        && request.resource.data.latitude >= -90
-        && request.resource.data.latitude <= 90
-        && request.resource.data.longitude is number
-        && request.resource.data.longitude >= -180
-        && request.resource.data.longitude <= 180
-        && request.resource.data.radius_meter is number
-        && request.resource.data.radius_meter > 0
-        && request.resource.data.radius_meter <= 1000
-        && request.resource.data.updated_at == request.time;
+      function validLaboratoryData(data) {
+        return data.keys().hasAll([
+            'nama','gedung','courseName','latitude','longitude',
+            'radius_meter','grace_period_minutes','late_fine_amount',
+            'managedByAslabId','assistantIds','studentIds','updated_at'
+          ])
+          && data.keys().hasOnly([
+            'nama','gedung','courseName','latitude','longitude',
+            'radius_meter','grace_period_minutes','late_fine_amount',
+            'managedByAslabId','assistantIds','studentIds','updated_at'
+          ])
+          && str(data.nama, 1, 100)
+          && str(data.gedung, 0, 100)
+          && str(data.courseName, 1, 100)
+          && data.latitude is number
+          && data.latitude >= -90
+          && data.latitude <= 90
+          && data.longitude is number
+          && data.longitude >= -180
+          && data.longitude <= 180
+          && data.radius_meter is number
+          && data.radius_meter >= 1
+          && data.radius_meter <= 1000
+          && data.grace_period_minutes is int
+          && data.grace_period_minutes >= 0
+          && data.grace_period_minutes <= 120
+          && data.late_fine_amount is int
+          && data.late_fine_amount >= 0
+          && str(data.managedByAslabId, 1, 128)
+          && data.assistantIds is list
+          && data.studentIds is list
+          && data.updated_at == request.time;
+      }
 
-      allow delete: if isAsisten();
+      // Hanya aslab yang dapat membuat, mengubah, atau menghapus lokasi & kebijakan lab.
+      allow create: if isAslab()
+        && validLaboratoryData(request.resource.data)
+        && request.resource.data.managedByAslabId == request.auth.uid;
+
+      allow update: if isAslab()
+        && validLaboratoryData(request.resource.data);
+
+      allow delete: if isAslab();
     }
 
     // ---------- Practicums ----------

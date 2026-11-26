@@ -29,6 +29,9 @@ export function mapLaboratory(id: string, data: DocumentData): Laboratory | null
   const latitude = Number(data.latitude ?? data.lat);
   const longitude = Number(data.longitude ?? data.lng ?? data.lon);
   const radiusRaw = Number(data.radius_meter ?? data.radiusMeter ?? data.radius);
+  const graceRaw = Number(data.grace_period_minutes ?? data.gracePeriodMinutes ?? 15);
+  const fineRaw = Number(data.late_fine_amount ?? data.lateFineAmount ?? 0);
+  const courseNameRaw = data.courseName ?? data.course_name;
   const name = String(data.nama ?? data.name ?? '').trim();
 
   const validCoordinate =
@@ -48,9 +51,14 @@ export function mapLaboratory(id: string, data: DocumentData): Laboratory | null
     id,
     name: name || 'Laboratorium',
     building: String(data.gedung ?? data.building ?? '').trim(),
+    courseName: typeof courseNameRaw === 'string' ? courseNameRaw.trim() : undefined,
     latitude,
     longitude,
     radiusMeter: Number.isFinite(radiusRaw) && radiusRaw > 0 ? radiusRaw : 0,
+    gracePeriodMinutes:
+      Number.isFinite(graceRaw) && graceRaw >= 0 ? Math.trunc(graceRaw) : 15,
+    lateFineAmount:
+      Number.isFinite(fineRaw) && fineRaw >= 0 ? Math.trunc(fineRaw) : 0,
   };
 }
 

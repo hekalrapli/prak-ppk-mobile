@@ -39,6 +39,10 @@ function currentClockTime(): string {
 }
 
 export function mapPracticum(id: string, data: DocumentData): Practicum {
+  const labIdRaw = data.labId ?? data.lab_id;
+  const graceRaw = Number(data.gracePeriodMinutes ?? data.grace_period_minutes);
+  const fineRaw = Number(data.lateFineAmount ?? data.late_fine_amount);
+
   return {
     id,
     name: typeof data.name === 'string' ? data.name : '',
@@ -48,6 +52,15 @@ export function mapPracticum(id: string, data: DocumentData): Practicum {
     studentIds: Array.isArray(data.studentIds)
       ? data.studentIds.filter((value: unknown): value is string => typeof value === 'string')
       : [],
+    labId: typeof labIdRaw === 'string' && labIdRaw.trim() ? labIdRaw.trim() : undefined,
+    managedByAslabId:
+      typeof data.managedByAslabId === 'string' && data.managedByAslabId.trim()
+        ? data.managedByAslabId.trim()
+        : undefined,
+    gracePeriodMinutes:
+      Number.isFinite(graceRaw) && graceRaw >= 0 ? Math.trunc(graceRaw) : undefined,
+    lateFineAmount:
+      Number.isFinite(fineRaw) && fineRaw >= 0 ? Math.trunc(fineRaw) : undefined,
   };
 }
 
