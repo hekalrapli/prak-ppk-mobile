@@ -132,3 +132,45 @@ export interface Laboratory {
   studentIds: string[];
   updated_at: FirestoreTimestamp;
 }
+
+export type BulkInsertKind = 'labs' | 'praktikan' | 'asprak';
+export type BulkRowDecision = 'pending' | 'accepted' | 'denied';
+
+export interface BulkLabRowData {
+  nama: string;
+  gedung: string;
+  latitude: string;
+  longitude: string;
+  radius_meter: string;
+  grace_period_minutes: string;
+  late_fine_amount: string;
+}
+
+export interface BulkMemberRowData {
+  identifier: string; // NIM untuk praktikan, NIP untuk asprak
+  email: string;
+  nama: string;
+}
+
+export interface BulkRowItem<T = BulkLabRowData | BulkMemberRowData> {
+  rowId: string;
+  rowNumber: number;
+  data: T;
+  decision: BulkRowDecision;
+  errors: Partial<Record<keyof T & string, string>>;
+  matchedUserId?: string;
+  statusNote?: string;
+}
+
+export type BulkParseResult<T> =
+  | {
+      ok: true;
+      fileName: string;
+      headers: string[];
+      rows: BulkRowItem<T>[];
+    }
+  | {
+      ok: false;
+      error: string;
+      expectedColumns: string[];
+    };

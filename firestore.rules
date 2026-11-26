@@ -80,8 +80,19 @@ service cloud.firestore {
 
     // ---------- Users ----------
     match /users/{uid} {
-      // Pemilik membaca profilnya sendiri; asisten boleh membaca profil (untuk mencari praktikan sebagai peserta).
-      allow read: if signedIn() && (request.auth.uid == uid || isAsisten());
+      // Pemilik membaca profilnya sendiri; asisten tetap membaca profil peserta;
+      // aslab hanya boleh membaca profil praktikan & asisten (dibatasi limit <= 50 untuk query).
+      allow get: if signedIn() && (
+        request.auth.uid == uid
+        || isAsisten()
+        || (isAslab() && resource.data.role in ['praktikan', 'asisten'])
+      );
+      allow list: if signedIn() && (
+        isAsisten()
+        || (isAslab()
+            && resource.data.role in ['praktikan', 'asisten']
+            && request.query.limit <= 50)
+      );
 
       allow create: if signedIn()
         && request.auth.uid == uid
