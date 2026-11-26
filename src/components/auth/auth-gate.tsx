@@ -57,7 +57,13 @@ export function AuthGate() {
     }
 
     if (inAuthGroup || onProfileMissing || atRoot) {
-      router.replace(profile.role === 'praktikan' ? '/praktikan' : '/asisten');
+      router.replace(
+        profile.role === 'praktikan'
+          ? '/praktikan'
+          : profile.role === 'aslab'
+            ? '/aslab'
+            : '/asisten'
+      );
     }
   }, [
     user,

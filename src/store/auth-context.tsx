@@ -70,7 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           const data = snapshot.data();
-          const role = data.role === 'asisten' || data.role === 'praktikan' ? data.role : null;
+          const role =
+            data.role === 'asisten' || data.role === 'praktikan' || data.role === 'aslab'
+              ? data.role
+              : null;
 
           if (!role) {
             // Dokumen ada tetapi peran tidak valid: perlakukan sebagai profil belum lengkap.

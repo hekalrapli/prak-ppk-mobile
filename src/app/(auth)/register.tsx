@@ -39,6 +39,20 @@ interface FormValues {
   inviteCode: string;
 }
 
+function requiresInviteCode(role: UserRole) {
+  return role === 'asisten' || role === 'aslab';
+}
+
+function getRoleHomeRoute(role: UserRole) {
+  if (role === 'praktikan') {
+    return '/praktikan' as const;
+  }
+  if (role === 'aslab') {
+    return '/aslab' as const;
+  }
+  return '/asisten' as const;
+}
+
 function validate(values: FormValues, role: UserRole): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -77,6 +91,8 @@ function validate(values: FormValues, role: UserRole): FieldErrors {
 
   if (role === 'asisten' && !values.inviteCode.trim()) {
     errors.inviteCode = 'Kode undangan asisten wajib diisi.';
+  } else if (role === 'aslab' && !values.inviteCode.trim()) {
+    errors.inviteCode = 'Kode undangan aslab wajib diisi.';
   }
 
   return errors;
@@ -116,6 +132,16 @@ export default function RegisterScreen() {
 
   const visibleError = (field: FieldKey) => (touched[field] ? errors[field] : undefined);
 
+  const handleSelectRole = (nextRole: UserRole) => {
+    if (nextRole === role) {
+      return;
+    }
+    setRole(nextRole);
+    setInviteCode('');
+    setFormError(null);
+    setTouched((current) => ({ ...current, inviteCode: false }));
+  };
+
   const handleSubmit = async () => {
     if (submitting) {
       return;
@@ -128,7 +154,7 @@ export default function RegisterScreen() {
         email: true,
         password: true,
         confirmPassword: true,
-        ...(role === 'asisten' ? { inviteCode: true } : {}),
+        ...(requiresInviteCode(role) ? { inviteCode: true } : {}),
       });
       return;
     }
@@ -143,11 +169,11 @@ export default function RegisterScreen() {
         email,
         password,
         role,
-        inviteCode: role === 'asisten' ? inviteCode : undefined,
+        inviteCode: requiresInviteCode(role) ? inviteCode : undefined,
       });
 
       showToast('Akun berhasil dibuat. Selamat datang!', 'success');
-      router.replace(profile.role === 'praktikan' ? '/praktikan' : '/asisten');
+      router.replace(getRoleHomeRoute(profile.role));
     } catch (error) {
       setFormError(
         error instanceof Error ? error.message : 'Pendaftaran gagal. Coba lagi.'
@@ -181,12 +207,17 @@ export default function RegisterScreen() {
               <RoleCard
                 role="praktikan"
                 selected={role === 'praktikan'}
-                onSelect={() => setRole('praktikan')}
+                onSelect={() => handleSelectRole('praktikan')}
               />
               <RoleCard
                 role="asisten"
                 selected={role === 'asisten'}
-                onSelect={() => setRole('asisten')}
+                onSelect={() => handleSelectRole('asisten')}
+              />
+              <RoleCard
+                role="aslab"
+                selected={role === 'aslab'}
+                onSelect={() => handleSelectRole('aslab')}
               />
             </View>
           </View>
@@ -211,11 +242,11 @@ export default function RegisterScreen() {
               <AppTextField
                 error={visibleError('identifier')}
                 keyboardType="number-pad"
-                label={role === 'asisten' ? 'NIP' : 'NIM'}
+                label={role === 'praktikan' ? 'NIM' : 'NIP'}
                 maxLength={20}
                 onBlur={() => markTouched('identifier')}
                 onChangeText={setIdentifier}
-                placeholder={role === 'asisten' ? 'Contoh: 2211101008' : 'Contoh: 2211102034'}
+                placeholder={role === 'praktikan' ? 'Contoh: 2211102034' : 'Contoh: 2211101008'}
                 required
                 value={identifier}
               />
@@ -260,7 +291,7 @@ export default function RegisterScreen() {
             </View>
           </View>
 
-          {role === 'asisten' ? (
+          {requiresInviteCode(role) ? (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
                 Kode undangan
@@ -269,11 +300,17 @@ export default function RegisterScreen() {
                 autoCapitalize="characters"
                 autoCorrect={false}
                 error={visibleError('inviteCode')}
-                helper="Dapatkan kode ini dari asisten pengampu atau dosen."
-                label="Kode undangan asisten"
+                helper={
+                  role === 'aslab'
+                    ? 'Dapatkan kode ini dari kepala atau koordinator laboratorium.'
+                    : 'Dapatkan kode ini dari asisten pengampu atau dosen.'
+                }
+                label={role === 'aslab' ? 'Kode undangan aslab' : 'Kode undangan asisten'}
                 onBlur={() => markTouched('inviteCode')}
                 onChangeText={setInviteCode}
-                placeholder="Contoh: ASISTEN-PPK-2026"
+                placeholder={
+                  role === 'aslab' ? 'Masukkan kode undangan aslab' : 'Contoh: ASISTEN-PPK-2026'
+                }
                 required
                 value={inviteCode}
               />
@@ -337,7 +374,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '700', lineHeight: 34 },
   section: { gap: Spacing.three },
   sectionTitle: { fontSize: 19, fontWeight: '600', lineHeight: 27 },
-  roleContainer: { flexDirection: 'row', gap: Spacing.three },
+  roleContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
   fields: { gap: Spacing.three },
   errorPanel: {
     borderRadius: Radius.lg,

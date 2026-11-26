@@ -1,7 +1,7 @@
 // src/types/attendance.tsx
 import type { FieldValue, Timestamp } from 'firebase/firestore';
 
-export type UserRole = 'praktikan' | 'asisten';
+export type UserRole = 'praktikan' | 'asisten' | 'aslab';
 export type SessionStatus = 'upcoming' | 'open' | 'closed';
 export type AttendanceStatus = 'present';
 export type AttendanceVerificationMethod = 'geofence' | 'qr';

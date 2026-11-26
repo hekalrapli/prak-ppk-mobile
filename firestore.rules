@@ -19,6 +19,9 @@ service cloud.firestore {
     function isPraktikan() {
       return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && role() == 'praktikan';
     }
+    function isAslab() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && role() == 'aslab';
+    }
     function practicum(pid) {
       return get(/databases/$(database)/documents/practicums/$(pid));
     }
@@ -93,6 +96,10 @@ service cloud.firestore {
           (request.resource.data.role == 'asisten'
             && request.resource.data.inviteCode ==
                get(/databases/$(database)/documents/config/registration).data.asistenCode)
+          ||
+          (request.resource.data.role == 'aslab'
+            && request.resource.data.inviteCode ==
+               get(/databases/$(database)/documents/config/registration).data.aslabCode)
         );
 
       // Hanya pemilik yang boleh mengubah nama atau fcm_tokens miliknya; peran & identitas terkunci.
@@ -107,8 +114,8 @@ service cloud.firestore {
 
     // ---------- Laboratorium & Geofence ----------
     match /laboratorium/{labId} {
-      // Asisten dan praktikan yang terdaftar dapat membaca titik lokasi & radius lab.
-      allow read: if isAsisten() || isPraktikan();
+      // Asisten, praktikan, dan aslab yang terdaftar dapat membaca titik lokasi & radius lab.
+      allow read: if isAsisten() || isPraktikan() || isAslab();
 
       // Hanya asisten yang dapat membuat, mengubah, atau menghapus lokasi lab.
       allow create, update: if isAsisten()

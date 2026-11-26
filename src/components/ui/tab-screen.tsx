@@ -30,9 +30,11 @@ export function TabScreen({ title, children }: { title: string; children: ReactN
   const profileRoute =
     profile?.role === 'asisten'
       ? '/asisten/profile'
-      : profile?.role === 'praktikan'
-        ? '/praktikan/profile'
-        : null;
+      : profile?.role === 'aslab'
+        ? '/aslab/profile'
+        : profile?.role === 'praktikan'
+          ? '/praktikan/profile'
+          : null;
   const isOnProfile = profileRoute !== null && pathname === profileRoute;
 
   const handleOpenProfile = () => {
