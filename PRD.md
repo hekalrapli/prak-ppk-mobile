@@ -1210,3 +1210,699 @@ Saran pembagian: (A) Auth + navigasi + Rules; (B) CRUD asisten + sesi; (C) prese
 5. Waktu presensi memakai waktu server Firestore, ditampilkan dalam WIB.
 6. Bahasa UI Indonesia; kode dan dokumentasi teknis berbahasa Inggris.
 
+---
+
+# 8. Sprint 4 — Manajemen Laboratorium (Aslab), Fokus Sesi Asprak, Sistem Denda & Pembayaran Midtrans (SRS & Pembagian 3 Programmer)
+
+> **Konteks Nama Aplikasi & Basis Kode:** Aplikasi telah di-rebrand menjadi **PrakYuks** (`prak-ppk-mobile`, Expo SDK 58, React Native 0.88, Expo Router, Firebase Auth & Cloud Firestore). Dokumen bagian §8 ini berfungsi sebagai **SRS (Software Requirements Specification)** sekaligus **PRD & pembagian kerja teknis** untuk **3 Programmer** pada Sprint 4.
+
+---
+
+## 8.1 Ringkasan Sprint 4 & Perubahan Arsitektur Peran
+
+### Latar belakang & koreksi pemisahan peran (Penting!)
+Pada Sprint 2 dan Sprint 3, aplikasi hanya memiliki **2 peran** (`praktikan` dan `asisten`), sehingga seluruh fitur manajemen laboratorium (`src/app/asisten/labs/*`, `src/services/labService.ts`), pembuatan praktikum, dan pengaturan peserta (`studentIds`) sebelumnya diimplementasikan di dalam peran `asisten` (termasuk tab `Kelola` di `src/app/asisten/(tabs)/manage.tsx`).
+
+Pada **Sprint 4**, struktur peran dipecah tegas menjadi **3 peran**:
+
+| Peran (`UserRole`) | Label UI | Fokus Kewenangan di Sprint 4 |
+| --- | --- | --- |
+| **`aslab`** *(Role Baru)* | **Asisten Laboratorium (Aslab)** | Pemegang penuh **Manajemen Laboratorium (#1)** dan **Dashboard Keberlangsungan Laboratorium (#2)**: CRUD lab, bulk/single insert terpisah (lab per mata kuliah, praktikan, asprak), template download, preview interaktif (`ScrollView`), perpindahan praktikan & asprak/aslab antar lab, konfigurasi cakupan lokasi presensi & batasan keterlambatan + nominal denda, serta pemantauan dashboard & riwayat keuangan denda. |
+| **`asisten`** *(Dipersempit)* | **Asisten Praktikum (Asprak)** | Fokus penuh pada **Pengelolaan Sesi (#3)**: melihat daftar kelas/jadwal/sesi yang menjadi tanggung jawabnya, membuka sesi, memantau & mengelola presensi praktikan (termasuk status tepat waktu/terlambat & keputusan izin *excused absence*), dan menutup sesi secara real-time. **Tidak lagi memiliki kewenangan mengelola distribusi praktikan maupun konfigurasi seluruh laboratorium.** |
+| **`praktikan`** | **Praktikan** | Melihat jadwal, melakukan presensi (geofence/QR) dengan evaluasi tepat waktu vs terlambat (*grace period*), mengajukan izin, melihat daftar tagihan denda, membayar denda via **Midtrans Sandbox** melalui backend, menerima push notification transaksi/denda, dan melihat riwayat pembayaran persisten. |
+
+### Tujuan utama Sprint 4
+1. Memperkenalkan peran baru **`aslab`** dan memigrasikan seluruh manajemen laboratorium serta distribusi praktikan/asprak dari peran `asisten` ke `aslab` (UI, routing, service, dan `firestore.rules`).
+2. Menyediakan **3 alur bulk/single insert terpisah** (Laboratorium per mata kuliah, Praktikan ke lab, Asprak ke lab) lengkap dengan **downloadable file template** dan **staging list interaktif berbasis `ScrollView`** (accept/deny per baris, edit & lengkapi data kosong).
+3. Menyediakan fitur **perpindahan praktikan dan asprak/aslab antar laboratorium** tanpa perpindahan jadwal praktikum.
+4. Menyediakan **Dashboard Keberlangsungan Laboratorium** untuk Aslab dengan filter **Hari / Minggu / Bulan**, termasuk **riwayat keuangan hasil denda**.
+5. Memfokuskan peran **Asprak (`asisten`)** murni pada pelaksanaan sesi praktikum yang diampunya dengan sinkronisasi real-time ke praktikan.
+6. Menerapkan **perhitungan keterlambatan berbasis *grace period***, penagihan **denda nominal tetap** (1 tagihan per kejadian keterlambatan), aturan ***excused absence*** (izin disetujui bebas denda & tidak mengubah kehadiran menjadi hadir), dan menjaga agar pembayaran denda tidak mengubah status kehadiran.
+7. Mengintegrasikan pembayaran denda melalui **Midtrans Sandbox** dengan arsitektur aman **`Client (React Native) ↔ Backend Server ↔ Midtrans`** (tanpa menyimpan secret key di klien; status diverifikasi melalui callback/webhook backend).
+8. Mengintegrasikan **push notification** siklus denda/pembayaran dan menyediakan **halaman Riwayat Pembayaran** yang persisten, sekaligus **finalisasi antarmuka** aplikasi secara menyeluruh.
+
+---
+
+## 8.2 Peta Migrasi & Refactor Kode Eksisting (Asisten → Aslab)
+
+Sebelum/saat fitur baru dibangun, tim wajib mengeksekusi pemindahan wewenang berikut agar tidak ada fitur ganda atau celah hak akses:
+
+| Komponen / File Eksisting | Kondisi Saat Ini (Sprint 3) | Perubahan Wajib di Sprint 4 | Penanggung Jawab |
+| --- | --- | --- | --- |
+| `src/types/attendance.tsx` | `UserRole = 'praktikan' \| 'asisten'` | Perluas menjadi `'praktikan' \| 'asisten' \| 'aslab'` + tambah tipe `FineDoc`, `PaymentTransaction`, `LabPolicy`, `BulkRowItem` | Programmer 1 & 2 |
+| `src/app/(auth)/register.tsx` & `src/services/auth.ts` | Hanya registrasi `praktikan` & `asisten` (`asistenCode`) | Tambah opsi peran **Aslab** dengan kode undangan `config/registration.aslabCode` | Programmer 1 |
+| `src/components/auth/auth-gate.tsx` & `role-guard.tsx` | Routing hanya ke `/praktikan` & `/asisten` | Tambah routing `/aslab` dan guard peran `'aslab'` | Programmer 1 |
+| `src/app/asisten/labs/*` | CRUD lokasi lab dimiliki `asisten` | **Pindahkan** ke `src/app/aslab/labs/*` (dan perkaya dengan mata kuliah, grace period, nominal denda); **hapus** rute tulis lab dari `/asisten` | Programmer 1 |
+| `src/app/asisten/(tabs)/manage.tsx` & `_layout.tsx` | Asisten punya tombol tambah praktikum, kelola peserta, dan kelola lokasi lab | Cabut manajemen lab & distribusi peserta dari `asisten`; fokuskan `asisten` pada daftar kelas/jadwal/sesi yang diampu (lihat `FR-S4-P2-01`) | Programmer 2 |
+| `src/app/asisten/practicum/*` | Asisten bisa CRUD praktikum & tambah/hapus `studentIds` | Ubah menjadi **read-only** bagi `asisten` (hanya melihat kelas, peserta, & mengelola sesi di bawahnya); manajemen praktikum & distribusi peserta (`studentIds`, `assistantId`) dipindah ke `/aslab` | Programmer 1 & 2 |
+| `firestore.rules` | `laboratorium` boleh ditulis `isAsisten()`; `practicums` CRUD oleh `isAsisten()` | Ubah write `laboratorium` & distribusi peserta/asprak di `practicums` **hanya `isAslab()`**; tambah aturan ketat koleksi `fines` & `paymentTransactions` | Programmer 1, 2, 3 |
+| `src/components/ui/tab-screen.tsx` | Avatar header hanya mengarah ke `/asisten/profile` & `/praktikan/profile` | Tambah dukungan `profile?.role === 'aslab'` → `/aslab/profile` | Programmer 1 |
+
+---
+
+## 8.3 Matriks Pembagian Tugas (3 Programmer)
+
+Pembagian dirancang agar **beban setara**, **batas kepemilikan file jelas** (minim konflik merge), dan **alur integrasi terstruktur**:
+
+| Ticket ID | Modul & Fitur Utama | Assignee | Estimasi (SP) | Dependensi | Saran Branch |
+| --- | --- | :---: | :---: | :---: | --- |
+| **FR-S4-P1-01** | Fondasi Role `aslab`, Auth, Routing & Security Rules Lab | **Programmer 1** | 3 | — | `feat/s4-p1-aslab-role-foundation` |
+| **FR-S4-P1-02** | Migrasi & CRUD Laboratorium + Set Cakupan Lokasi & Batas Keterlambatan/Denda | **Programmer 1** | 5 | FR-S4-P1-01 | `feat/s4-p1-lab-management` |
+| **FR-S4-P1-03** | Downloadable Templates & 3 Modul Bulk/Single Insert Terpisah (Lab, Praktikan, Asprak) | **Programmer 1** | 5 | FR-S4-P1-02 | `feat/s4-p1-bulk-insert-templates` |
+| **FR-S4-P1-04** | Interactive Bulk Staging List (`ScrollView`: Accept/Deny, Inline Edit & Validasi) | **Programmer 1** | 5 | FR-S4-P1-03 | `feat/s4-p1-bulk-review-scrollview` |
+| **FR-S4-P1-05** | Perpindahan (Transfer) Praktikan & Asprak/Aslab Antar Laboratorium | **Programmer 1** | 3 | FR-S4-P1-02 | `feat/s4-p1-lab-transfer` |
+| **FR-S4-P2-01** | Refactor & Fokus Ruang Kerja Asprak (`asisten`) Khusus Pengelolaan Sesi | **Programmer 2** | 5 | FR-S4-P1-01 | `feat/s4-p2-asprak-session-focus` |
+| **FR-S4-P2-02** | Dashboard Keberlangsungan Laboratorium & Keuangan Denda (Filter Hari/Minggu/Bulan) | **Programmer 2** | 5 | FR-S4-P1-02, FR-S4-P2-03 | `feat/s4-p2-aslab-dashboard` |
+| **FR-S4-P2-03** | Mesin Perhitungan Keterlambatan (*Grace Period*) & Pembuatan Tagihan Denda | **Programmer 2** | 5 | FR-S4-P1-02 | `feat/s4-p2-late-fine-engine` |
+| **FR-S4-P2-04** | Aturan *Excused Absence* (Izin Bebas Denda) & Immutabilitas Status Kehadiran | **Programmer 2** | 3 | FR-S4-P2-03 | `feat/s4-p2-excused-absence-rules` |
+| **FR-S4-P3-01** | Backend Pembayaran Midtrans Sandbox (Create Transaction + Webhook Verifier) | **Programmer 3** | 5 | FR-S4-P2-03 | `feat/s4-p3-midtrans-backend` |
+| **FR-S4-P3-02** | Layar Tagihan Denda & Alur Pembayaran Midtrans di Aplikasi Praktikan | **Programmer 3** | 5 | FR-S4-P3-01 | `feat/s4-p3-praktikan-fine-payment` |
+| **FR-S4-P3-03** | Integrasi Push Notification Siklus Denda & Pembayaran | **Programmer 3** | 3 | FR-S4-P3-01, FR-S4-P2-03 | `feat/s4-p3-payment-notifications` |
+| **FR-S4-P3-04** | Riwayat Pembayaran Persisten & Finalisasi Antarmuka Lintas Peran | **Programmer 3** | 5 | FR-S4-P3-02 | `feat/s4-p3-payment-history-ui-polish` |
+
+**Ringkasan Distribusi Beban:**
+- **Programmer 1 (21 SP):** Domain **Aslab & Manajemen Laboratorium** — Role baru `aslab`, migrasi lab dari `asisten`, single/bulk insert terpisah + template download, staging `ScrollView` interaktif, dan transfer praktikan/asprak antar lab.
+- **Programmer 2 (18 SP):** Domain **Operasional Sesi, Dashboard & Mesin Denda** — Refactor peran `asisten` khusus sesi (#3), Dashboard Keberlangsungan Lab + Keuangan Denda (#2), mesin *grace period* & pencatatan tagihan denda (#4), serta aturan *excused absence*.
+- **Programmer 3 (18 SP):** Domain **Payment Gateway, Notifikasi & UI Finalisasi** — Backend Midtrans Sandbox + webhook (#5), layar bayar praktikan (#5), push notification denda/pembayaran (#6), halaman Riwayat Pembayaran persisten (#6), dan finalisasi antarmuka modern/konsisten lintas 3 peran.
+
+---
+
+## 8.4 Spesifikasi Kebutuhan Fungsional (SRS / FR) per Programmer
+
+### 👨‍💻 Programmer 1 — Role `Aslab` & Manajemen Laboratorium (Kebutuhan #1)
+
+#### `FR-S4-P1-01` — Fondasi Role `aslab`, Autentikasi & Routing Terpisah
+| Field | Value |
+| --- | --- |
+| Role | Semua (belum login), `aslab` |
+| Priority | Must Have |
+| Target Files | `src/types/attendance.tsx`, `src/app/(auth)/register.tsx`, `src/services/auth.ts`, `src/components/auth/auth-gate.tsx`, `src/components/auth/role-guard.tsx`, `src/components/ui/tab-screen.tsx`, `src/components/ui/app-tab-bar.tsx`, `src/app/aslab/_layout.tsx`, `src/app/aslab/(tabs)/_layout.tsx`, `firestore.rules` |
+
+**Deskripsi.** Memperkenalkan peran ke-3 yaitu **Asisten Laboratorium (`aslab`)** dengan alur registrasi, autentikasi, route guard, dan shell navigasi tab tersendiri (`/aslab`).
+
+**Yang harus diimplementasikan:**
+1. Perluas `UserRole` menjadi `'praktikan' | 'asisten' | 'aslab'`.
+2. Tambah pilihan peran **Aslab** pada `RoleCard` di layar registrasi, dengan validasi kode undangan `config/registration.aslabCode` di `firestore.rules`.
+3. Perbarui `AuthGate`, `RoleGuard`, dan `TabScreen` agar `aslab` otomatis diarahkan ke `/aslab`, tidak bisa mengakses rute tulis milik `praktikan`, dan ikon avatar header mengarah ke `/aslab/profile`.
+4. Siapkan layout tab `src/app/aslab/(tabs)/_layout.tsx` berisi: **Dashboard** (`index`), **Lab** (`labs`), **Peta** (`maps`), **Profil** (`profile`).
+5. Tambahkan helper `isAslab()` pada `firestore.rules`.
+
+**Acceptance Criteria:**
+- [ ] Pengguna dapat mendaftar sebagai `aslab` hanya dengan `aslabCode` yang benar; kode salah ditolak Rules dan akun Auth di-rollback.
+- [ ] Login sebagai `aslab` langsung masuk ke `/aslab` (Dashboard), login sebagai `asisten` ke `/asisten`, login sebagai `praktikan` ke `/praktikan`.
+- [ ] Pengguna `praktikan` atau `asisten` yang mencoba membuka `/aslab/*` langsung dialihkan ke beranda perannya masing-masing.
+
+---
+
+#### `FR-S4-P1-02` — Migrasi & CRUD Laboratorium + Kebijakan Lokasi & Keterlambatan
+| Field | Value |
+| --- | --- |
+| Role | `aslab` (tulis & baca), `asisten` & `praktikan` (baca terbatas) |
+| Priority | Must Have |
+| Target Files | `src/app/aslab/(tabs)/labs.tsx`, `src/app/aslab/labs/form.tsx`, `src/app/aslab/labs/[labId].tsx`, `src/services/labService.ts`, `src/hooks/use-laboratories.ts`, `firestore.rules` |
+
+**Deskripsi.** Memindahkan seluruh pengelolaan laboratorium yang sebelumnya ada di `src/app/asisten/labs/` ke peran `aslab`, serta melengkapinya dengan **mata kuliah**, **cakupan lokasi presensi**, **batasan keterlambatan (*grace period*)**, dan **nominal denda tetap**.
+
+**Yang harus diimplementasikan:**
+1. Pindahkan fitur daftar, tambah (single insert), ubah, dan hapus laboratorium ke rute `/aslab/labs/*` (hapus `src/app/asisten/labs/*`).
+2. Perluas form & model `laboratorium/{labId}` agar mencakup:
+   - `courseName` (mata kuliah yang menjadi tanggung jawab lab/kelas tersebut)
+   - `nama` (nama laboratorium / kelas lab, maks 100 karakter)
+   - `gedung` / lokasi (maks 100 karakter)
+   - `latitude` & `longitude` (termasuk tombol *"Gunakan Lokasi Saya Saat Ini"*)
+   - `radius_meter` — **cakupan lokasi presensi** (1–1000 meter)
+   - `grace_period_minutes` — **batasan keterlambatan waktu** (bilangan bulat 0–120 menit; default mis. `15` menit)
+   - `late_fine_amount` — **nominal denda tetap** per kejadian keterlambatan (Rupiah, mis. `5000`, `10000`, `>= 0`)
+   - `managedByAslabId` (UID aslab penanggung jawab), `assistantIds[]` (daftar UID asprak ditugaskan), `studentIds[]` (daftar UID praktikan peserta), `updated_at`.
+3. Perbarui `firestore.rules` pada `match /laboratorium/{labId}`: `allow create, update, delete: if isAslab();` (cabut hak tulis dari `isAsisten()`).
+4. Jaga kompatibilitas ke belakang dengan `practicums/{pid}` (atau tautkan `practicums/{pid}.labId` ke `laboratorium/{labId}`) agar peta (`FR-P1-03`), presensi geofence (`FR-P1-02`), dan sesi tetap berjalan tanpa error.
+
+**Acceptance Criteria:**
+- [ ] Aslab dapat menambah, melihat, mengubah, dan menghapus laboratorium beserta koordinat, radius presensi, durasi toleransi keterlambatan, dan nominal denda.
+- [ ] Perubahan `radius_meter`, koordinat, `grace_period_minutes`, atau `late_fine_amount` langsung tersinkronisasi real-time ke peta, layar presensi praktikan, dan mesin denda.
+- [ ] Asprak (`asisten`) tidak dapat membuat, mengubah, atau menghapus dokumen `laboratorium` baik dari UI maupun langsung melalui Firestore Rules (`permission-denied`).
+
+---
+
+#### `FR-S4-P1-03` — Downloadable Template & 3 Modul Bulk/Single Insert Terpisah
+| Field | Value |
+| --- | --- |
+| Role | `aslab` |
+| Priority | Must Have |
+| Target Files | `src/lib/bulk-templates.ts`, `src/lib/bulk-parser.ts`, `src/app/aslab/bulk/labs.tsx`, `src/app/aslab/bulk/praktikan.tsx`, `src/app/aslab/bulk/asprak.tsx` |
+
+**Deskripsi.** Menyediakan **3 fitur bulk/single insert yang dipisah secara tegas** (bukan satu file/form gabungan), masing-masing dilengkapi **file template yang dapat diunduh** oleh Aslab.
+
+**Aturan Wajib (sesuai soal Sprint 4):**
+- **Tiga alur bulk insert WAJIB terpisah:**
+  1. **Bulk / Single Insert Laboratorium (per satu mata kuliah):** Aslab memilih/mengisi **satu mata kuliah** terlebih dahulu, lalu membuat sejumlah laboratorium sekaligus (mis. Lab A, Lab B, Lab C) untuk mata kuliah tersebut.
+  2. **Bulk / Single Insert Praktikan ke Laboratorium tertentu:** Aslab memilih **satu laboratorium tujuan**, lalu memasukkan satu atau banyak praktikan (berdasarkan NIM/email akun terdaftar) ke laboratorium tersebut.
+  3. **Bulk / Single Insert Asprak (`asisten`) ke Laboratorium tertentu:** Aslab memilih **satu laboratorium tujuan**, lalu memasukkan satu atau banyak asprak (berdasarkan NIP/email akun terdaftar berperan `asisten`) ke laboratorium tersebut.
+- **Downloadable File Template:**
+  - Setiap layar bulk menyediakan tombol **"Unduh Template (.csv)"** (menggunakan `expo-file-system` + `expo-sharing` di mobile dan blob download di web; instal paket Expo kompatibel via `npx expo install`).
+  - Format kolom tiap template didefinisikan jelas pada §8.5.2.
+- **Pemilihan & Parsing File:**
+  - Gunakan `expo-document-picker` untuk memilih file `.csv` (dan opsional `.xlsx` jika dibutuhkan) dari perangkat, lalu parsing seluruh baris ke array staging object untuk diserahkan ke `FR-S4-P1-04`.
+- **Single Insert tetap tersedia** di layar yang sama (tombol/tab "Tambah Satuan" vs "Import Bulk").
+
+**Acceptance Criteria:**
+- [ ] Terdapat 3 pintu masuk & layar terpisah: (1) Insert Laboratorium per Mata Kuliah, (2) Insert Praktikan ke Lab, (3) Insert Asprak ke Lab — tidak digabung dalam satu form/template.
+- [ ] Ketiga tombol **Unduh Template** menghasilkan file `.csv` valid dengan header & 1–2 baris contoh yang dapat dibuka di Excel/Google Sheets dan langsung bisa di-upload balik.
+- [ ] Upload file yang salah kolom/format/kosong menampilkan pesan error yang jelas tanpa crash.
+
+---
+
+#### `FR-S4-P1-04` — Interactive Bulk Staging & Review List (`ScrollView`)
+| Field | Value |
+| --- | --- |
+| Role | `aslab` |
+| Priority | Must Have |
+| Target Files | `src/components/aslab/bulk-review-list.tsx`, `src/services/bulkInsertService.ts` |
+
+**Deskripsi.** Setelah file bulk diunggah pada salah satu dari 3 alur `FR-S4-P1-03`, data **tidak langsung disimpan membabi-buta ke Firestore**. Setiap baris (row) berubah menjadi kartu/list interaktif dalam **`ScrollView`** yang dapat direview dan diatur secara fleksibel oleh Aslab.
+
+**Yang harus diimplementasikan:**
+1. Render setiap baris hasil parsing sebagai item kartu di dalam `ScrollView` (bukan tabel kaku yang terpotong di layar 360px).
+2. Setiap item baris memiliki:
+   - Status keputusan per baris: **`Accepted` (Terima)** atau **`Denied` (Tolak)** — dapat ditoggle satu per satu (plus aksi massal *"Terima semua yang valid"*).
+   - Indikator validasi otomatis per baris: menyorot field yang masih kosong (mis. koordinat/radius/NIM kosong) atau tidak valid (mis. email tidak ditemukan di `users`, role tidak cocok, duplikat di lab tujuan).
+   - **Mode Edit Inline / Modal Edit Baris:** Aslab dapat langsung memperbarui nilai atau mengisi data yang masih kosong pada baris tersebut sebelum disetujui.
+   - Kemampuan menambahkan baris baru manual ke dalam staging list atau menghapus baris.
+3. Ringkasan di bagian atas/bawah staging: total baris, jumlah **Diterima**, **Ditolak**, dan **Perlu Dilengkapi**.
+4. Tombol **Simpan Data Diterima (`N`)** hanya aktif jika minimal 1 baris berstatus `Accepted` dan seluruh baris `Accepted` lolos validasi; penyimpanan dilakukan menggunakan `writeBatch` Firestore (dipecah per 400 operasi bila banyak) dengan feedback ringkasan sukses/gagal.
+
+**Acceptance Criteria:**
+- [ ] Setiap row file bulk tampil sebagai kartu interaktif dalam `ScrollView` yang nyaman digulir di layar 360px.
+- [ ] Aslab dapat menandai tiap row sebagai **Accept** atau **Deny** secara independen.
+- [ ] Row yang punya kolom kosong/error tidak dapat di-Accept sebelum dilengkapi/diperbaiki lewat form edit row.
+- [ ] Hanya row berstatus **Accept** dan valid yang benar-benar tersimpan ke Firestore; row **Deny** diabaikan.
+
+---
+
+#### `FR-S4-P1-05` — Perpindahan (Transfer) Praktikan & Asprak/Aslab Antar Laboratorium
+| Field | Value |
+| --- | --- |
+| Role | `aslab` |
+| Priority | Must Have |
+| Target Files | `src/app/aslab/labs/transfer.tsx`, `src/services/labTransferService.ts` |
+
+**Deskripsi.** Memungkinkan Aslab memindahkan **praktikan** maupun **asprak/aslab** dari satu laboratorium ke laboratorium lainnya secara aman dan atomik.
+
+**Batasan eksplisit (sesuai soal Sprint 4):**
+- **TIDAK perlu ada perpindahan jadwal praktikum.** Fitur ini hanya memindahkan keanggotaan **praktikan** dan/atau penugasan **asprak/aslab** antar laboratorium.
+
+**Yang harus diimplementasikan:**
+1. Layar **Pindah Laboratorium** dengan dua mode (segmented control): **Pindah Praktikan** dan **Pindah Asprak / Aslab**.
+2. Pilih **Laboratorium Asal** → tampilkan daftar praktikan (atau asprak/aslab) yang saat ini berada di lab tersebut (mendukung pilih 1 atau multi-select).
+3. Pilih **Laboratorium Tujuan** (tidak boleh sama dengan lab asal).
+4. Konfirmasi pemindahan melalui `ConfirmModal` yang merangkum siapa saja yang dipindahkan dari Lab A ke Lab B.
+5. Eksekusi perpindahan secara **atomik (`writeBatch` / transaksi Firestore)**:
+   - Hapus UID dari lab/praktikum asal (`arrayRemove`) dan tambahkan ke lab/praktikum tujuan (`arrayUnion`) dalam satu commit batch agar tidak terjadi data hilang atau duplikasi.
+   - Jadwal/sesi di kedua laboratorium tetap utuh dan tidak dipindahkan.
+
+**Acceptance Criteria:**
+- [ ] Aslab dapat memindahkan praktikan dari Lab A ke Lab B; daftar peserta di kedua lab (dan layar jadwal praktikan tersebut) langsung berubah real-time.
+- [ ] Aslab dapat memindahkan asprak/aslab dari Lab A ke Lab B; tanggung jawab kelas pada layar Asprak langsung ter-update real-time.
+- [ ] Tidak ada jadwal/sesi praktikum yang ikut berpindah atau terhapus saat transfer dilakukan.
+- [ ] Tidak bisa memilih lab tujuan yang sama dengan lab asal; percobaan transfer atomik gagal seluruhnya bila salah satu operasi ditolak.
+
+---
+
+### 👨‍💻 Programmer 2 — Fokus Asprak, Dashboard Aslab & Mesin Keterlambatan/Denda (Kebutuhan #2, #3, #4)
+
+#### `FR-S4-P2-01` — Refactor & Fokus Ruang Kerja Asprak (`asisten`) Khusus Pengelolaan Sesi
+| Field | Value |
+| --- | --- |
+| Role | `asisten` (Asprak) |
+| Priority | Must Have |
+| Target Files | `src/app/asisten/(tabs)/_layout.tsx`, `src/app/asisten/(tabs)/index.tsx`, `src/app/asisten/(tabs)/manage.tsx` *(refactor/hapus fitur terlarang)*, `src/app/asisten/practicum/[practicumId].tsx`, `src/app/asisten/session/[sessionId]/index.tsx`, `src/app/asisten/session/[sessionId]/recap.tsx`, `src/components/attendance/session-detail.tsx`, `firestore.rules` |
+
+**Deskripsi.** Menyelaraskan peran `asisten` (Asprak) dengan **Kebutuhan #3 Sprint 4** setelah manajemen laboratorium & distribusi praktikan dipindahkan ke `aslab`.
+
+**Yang harus diimplementasikan:**
+1. **Cabut wewenang non-sesi dari UI `asisten`:**
+   - Hapus seluruh tautan/tombol *Kelola lokasi lab*, *Tambah praktikum*, *Ubah/Hapus praktikum*, serta *Tambah/Hapus peserta praktikan* dari layar `asisten` (termasuk dari tab `Kelola` / `practicum/[practicumId]`).
+   - Sederhanakan navigasi tab `asisten` menjadi fokus operasional sesi: **Jadwal** (`index`), **Peta** (`maps` — read-only), **Riwayat** (`history`), **Profil** (`profile`). *(Bila tab `Kelola` dihapus, pastikan tidak ada tautan mati seperti `router.replace('/asisten/manage')`.)*
+2. **Fokus penuh 4 kemampuan inti Asprak:**
+   - Melihat daftar kelas, jadwal, dan sesi praktikum yang menjadi tanggung jawabnya (berdasarkan penugasan dari Aslab).
+   - Membuka sesi saat kegiatan praktikum dimulai (`upcoming` → `open`, tersinkronisasi real-time ke aplikasi praktikan + trigger push notif).
+   - Memantau & mengelola presensi praktikan secara real-time (daftar hadir, metode geofence/QR, badge **Tepat Waktu** vs **Terlambat (+X menit)**, serta memeriksa & menyetujui/menolak pengajuan izin praktikan).
+   - Menutup sesi setelah kegiatan praktikum selesai (`open` → `closed`, tersinkronisasi real-time ke praktikan).
+3. **Kunci di `firestore.rules`:**
+   - `asisten` tidak lagi bisa `create/update/delete` di `laboratorium` maupun mengubah `studentIds`/`assistantId` di `practicums`.
+   - `asisten` pengampu tetap boleh mengelola sesi (`create/update` jadwal sesi tanggung jawabnya jika diizinkan kebijakan kelas, `open/close` sesi, kelola QR, baca `attendance`, putuskan `leaveRequests`).
+
+**Acceptance Criteria:**
+- [ ] Asprak hanya melihat kelas, jadwal, dan sesi yang ditugaskan kepadanya.
+- [ ] Tidak ada lagi tombol/menu untuk menambah/mengubah laboratorium atau menambah/memindahkan peserta di seluruh layar Asprak.
+- [ ] Buka sesi, pantau presensi (termasuk status tepat waktu/terlambat), keputusan izin, dan tutup sesi berjalan lancar dan tersinkronisasi real-time ke layar Praktikan.
+- [ ] Percobaan akses tulis ke `laboratorium` atau `practicums.studentIds` dari akun `asisten` ditolak `firestore.rules`.
+
+---
+
+#### `FR-S4-P2-02` — Dashboard Keberlangsungan Laboratorium & Keuangan Denda (`aslab`)
+| Field | Value |
+| --- | --- |
+| Role | `aslab` |
+| Priority | Must Have |
+| Target Files | `src/app/aslab/(tabs)/index.tsx`, `src/hooks/use-aslab-dashboard.ts`, `src/services/dashboardService.ts`, `src/components/aslab/dashboard-summary-cards.tsx`, `src/components/aslab/finance-summary-card.tsx` |
+
+**Deskripsi.** Menyediakan layar utama **Dashboard** bagi Aslab untuk memantau seluruh kegiatan praktikum pada laboratorium yang dikelola secara real-time berdasarkan data jadwal, sesi, presensi, dan denda di Firebase.
+
+**Yang harus diimplementasikan:**
+1. **Filter Periode Waktu** menggunakan `SegmentedControl` di bagian atas Dashboard:
+   - **Hari ini** (`day`)
+   - **Minggu ini** (`week`)
+   - **Bulan ini** (`month`)
+   Seluruh daftar jadwal, riwayat kegiatan, dan ringkasan keuangan denda bereaksi langsung terhadap filter aktif.
+2. **Metrik & Bagian Wajib Dashboard:**
+   - **Ringkasan Utama:** Total **jumlah laboratorium** dan **total praktikan** (unik/terdaftar) pada lab yang dikelola.
+   - **Status Kegiatan per Laboratorium:** Kartu per lab yang menampilkan nama lab, lokasi/gedung, asprak bertugas, dan badge status live (`Dibuka / Berlangsung`, `Akan Datang`, `Kosong / Selesai`) beserta waktu pelaksanaan.
+   - **Jadwal Praktikum Berlangsung & Akan Datang:** Daftar sesi berstatus `open` dan `upcoming` dalam rentang filter, menampilkan mata kuliah, lab, lokasi, dan jam pelaksanaan.
+   - **Riwayat Kegiatan Laboratorium:** Daftar sesi berstatus `closed` dalam rentang filter beserta ringkasan kehadiran (hadir tepat waktu, terlambat, izin).
+   - **Riwayat Keuangan Hasil Denda Praktikum:** Ringkasan total denda terkumpul (`success`), total tertunggak (`unpaid`/`pending`), jumlah kejadian keterlambatan, serta daftar riwayat transaksi/tagihan denda yang masuk pada periode filter.
+3. Mendukung `RefreshControl` (pull-to-refresh), `SkeletonCardList`, `EmptyState`, dan `ErrorState`.
+
+**Acceptance Criteria:**
+- [ ] Dashboard menampilkan keenam elemen wajib: jumlah lab & praktikan, status per lab, lokasi & waktu pelaksanaan, jadwal berlangsung/mendatang, riwayat kegiatan lab, dan riwayat keuangan denda.
+- [ ] Mengubah filter **Hari / Minggu / Bulan** langsung memfilter jadwal, riwayat kegiatan, dan agregasi keuangan denda secara akurat.
+- [ ] Ketika Asprak membuka/menutup sesi atau ketika pembayaran denda diverifikasi `success`, angka dan status di Dashboard Aslab ter-update real-time dari Firebase tanpa perlu reload manual.
+
+---
+
+#### `FR-S4-P2-03` — Mesin Perhitungan Keterlambatan (*Grace Period*) & Pembuatan Tagihan Denda
+| Field | Value |
+| --- | --- |
+| Role | Sistem (dipicu saat presensi `praktikan`), dibaca oleh `praktikan`, `asisten`, `aslab` |
+| Priority | Must Have |
+| Target Files | `src/lib/lateness.ts`, `src/services/attendanceService.ts`, `src/services/fineService.ts`, `src/app/praktikan/presence/[sessionId].tsx`, `src/app/praktikan/qr-scan/[sessionId].tsx`, `firestore.rules` |
+
+**Deskripsi.** Menentukan apakah presensi praktikan **Tepat Waktu** atau **Terlambat** berdasarkan mekanisme ***grace period***, lalu secara otomatis dan idempoten membuat tepat **satu tagihan denda** bila terlambat.
+
+**Aturan Bisnis Wajib:**
+1. **Perhitungan *Grace Period*:**
+   - Waktu mulai sesi = `sessionStartAt` (gabungan tanggal sesi + `startTime` WIB, atau `openedAt` bila dikonfigurasi mengikuti jam mulai terjadwal — standar utama: `session.date + session.startTime` WIB, dengan fallback aman).
+   - Durasi toleransi = `gracePeriodMinutes` (diambil dari konfigurasi laboratorium/praktikum yang diatur Aslab pada `FR-S4-P1-02`; default `15` menit bila belum diisi).
+   - Batas akhir tepat waktu = `deadlineAt = sessionStartAt + gracePeriodMinutes`.
+   - Jika `recordedAt <= deadlineAt` → **`punctualityStatus = 'on_time'`** (`lateMinutes = 0`), **tidak** ada denda.
+   - Jika `recordedAt > deadlineAt` → **`punctualityStatus = 'late'`** (`lateMinutes = ceil((recordedAt - deadlineAt) / 60_000)`).
+2. **Pembuatan Tagihan Denda (Tepat Satu Tagihan per Kejadian):**
+   - Menggunakan nominal tetap `amount = lab.late_fine_amount` (Rp).
+   - ID dokumen tagihan di koleksi `fines/{fineId}` **WAJIB deterministik**: `fineId = "<sessionId>_<praktikanId>"` (atau `"<practicumId>_<sessionId>_<praktikanId>"`), sehingga secara struktural **mustahil** tercipta lebih dari satu tagihan untuk satu kejadian keterlambatan!
+   - Setiap dokumen `fines/{fineId}` wajib menyimpan referensi lengkap: `praktikanId`, `praktikanName`, `praktikanNim`, `practicumId`, `practicumName`, `sessionId`, `sessionDate`, `labId`, `labName`, `attendanceId` (= `praktikanId`), `lateMinutes`, `gracePeriodMinutes`, `amount`, `status: 'unpaid'`, `createdAt: serverTimestamp()`.
+   - Penulisan dokumen presensi (`attendance/{uid}`) dan tagihan denda (`fines/{fineId}`) dilakukan dalam **satu `writeBatch` atomik** (bila `late_fine_amount > 0` dan status `late`) agar tidak pernah terjadi presensi terlambat tanpa tagihan, lalu memicu notifikasi `fine_created` (`FR-S4-P3-03`).
+3. Tampilkan status **Tepat Waktu** atau **Terlambat (terkena denda Rp X)** secara jelas pada layar konfirmasi presensi praktikan dan rekap Asprak.
+
+**Acceptance Criteria:**
+- [ ] Presensi sebelum atau **tepat pada** batas akhir *grace period* (`recordedAt <= deadlineAt`) tercatat **Tepat Waktu** dan tidak membuat dokumen di `fines`.
+- [ ] Presensi **setelah** melewati *grace period* (`recordedAt > deadlineAt`) tercatat **Terlambat** dan membuat **tepat satu** dokumen `fines/{fineId}` dengan nominal tetap sesuai konfigurasi lab/praktikum.
+- [ ] Percobaan membuat tagihan kedua untuk `(sessionId, praktikanId)` yang sama ditolak oleh ID deterministik dan `firestore.rules` (`allow create` hanya jika dokumen belum ada).
+- [ ] Setiap tagihan di `fines` terhubung valid ke `praktikanId`, `sessionId`, `practicumId`, dan `attendanceId`.
+
+---
+
+#### `FR-S4-P2-04` — Aturan *Excused Absence* (Izin Bebas Denda) & Immutabilitas Status Kehadiran
+| Field | Value |
+| --- | --- |
+| Role | Sistem, `asisten`, `praktikan` |
+| Priority | Must Have |
+| Target Files | `src/services/leaveService.ts`, `src/services/fineService.ts`, `src/app/asisten/session/[sessionId]/recap.tsx`, `src/components/attendance/session-detail.tsx`, `firestore.rules` |
+
+**Deskripsi.** Menegakkan aturan integritas data antara **Izin (*excused absence*)**, **Status Kehadiran**, dan **Pembayaran Denda**.
+
+**Aturan Bisnis Wajib:**
+1. **Izin yang disetujui Asprak (`leaveRequests/{uid}.status == 'approved'`):**
+   - Dicatat sebagai **Tidak Hadir dengan Izin (*Excused Absence*)** pada rekap dan riwayat.
+   - **Dilarang keras** membuat atau mengubah dokumen `attendance/{uid}` menjadi `present` (hadir). Keputusan izin **tidak pernah** mengubah catatan kehadiran menjadi hadir.
+   - **Dibebaskan dari denda keterlambatan:** praktikan dengan izin `approved` pada sesi tersebut tidak boleh dikenai denda; jika praktikan tidak presensi karena izin disetujui, tidak ada tagihan denda yang dibuat.
+   - Saat izin disetujui, tombol presensi praktikan untuk sesi tersebut tetap dinonaktifkan dengan keterangan *"Izin disetujui (Excused Absence) — bebas denda keterlambatan"*.
+2. **Pembayaran Denda tidak mengubah status kehadiran:**
+   - Saat tagihan `fines/{fineId}` berubah status menjadi `paid` / `success` (oleh webhook backend di `FR-S4-P3-01`), dokumen `attendance/{uid}` **tidak disentuh sama sekali** (`punctualityStatus: 'late'` dan `status: 'present'` tetap persis seperti saat presensi tercatat).
+   - Di `firestore.rules`, `match /attendance/{uid}` tetap `allow update, delete: if false;`.
+
+**Acceptance Criteria:**
+- [ ] Menyetujui izin praktikan menampilkan label **"Izin (Tidak Hadir dengan Izin)"** di rekap Asprak & riwayat Praktikan, **tanpa** menambah jumlah "Hadir" dan **tanpa** membuat dokumen `attendance`.
+- [ ] Praktikan dengan izin disetujui tidak memiliki tagihan denda untuk sesi tersebut.
+- [ ] Setelah praktikan melunasi tagihan denda keterlambatan, status presensinya pada rekap Asprak & riwayat Praktikan tetap **Hadir (Terlambat)**, tidak berubah menjadi Tepat Waktu.
+
+---
+
+### 👨‍💻 Programmer 3 — Payment Gateway Midtrans Sandbox, Notifikasi Pembayaran, Riwayat & Finalisasi UI (Kebutuhan #5 & #6)
+
+#### `FR-S4-P3-01` — Backend Pembayaran Midtrans Sandbox & Webhook Verifier
+| Field | Value |
+| --- | --- |
+| Role | Backend Server ↔ Midtrans Sandbox ↔ Firestore |
+| Priority | Must Have |
+| Target Files | `backend/` *(server Node.js + Express / TypeScript terpisah, deployable ke Vercel/Railway/Render/Cloud Run)*, `backend/.env.example`, `src/services/paymentApi.ts` |
+
+**Deskripsi.** Membangun layanan backend perantara untuk seluruh alur **`Client ↔ Backend ↔ Midtrans Sandbox`** agar informasi sensitif (`MIDTRANS_SERVER_KEY`, Firebase Admin credentials) **tidak pernah ada di aplikasi React Native**, dan status pembayaran **hanya** ditentukan berdasarkan verifikasi webhook/callback yang sah dari Midtrans.
+
+**Yang harus diimplementasikan:**
+1. **Keamanan & Variabel Lingkungan Backend (`backend/.env` — di-gitignore):**
+   - `MIDTRANS_SERVER_KEY` (Sandbox Server Key — **hanya di backend!**)
+   - `MIDTRANS_IS_PRODUCTION=false`
+   - `FIREBASE_SERVICE_ACCOUNT_JSON` (atau kredensial Firebase Admin SDK untuk menulis status pembayaran terverifikasi ke Firestore)
+2. **Endpoint 1 — `POST /api/payments/create-transaction`:**
+   - Header `Authorization: Bearer <Firebase_ID_Token>` diverifikasi lewat `admin.auth().verifyIdToken()`.
+   - Body: `{ fineId: string }`.
+   - Backend membaca `fines/{fineId}` dari Firestore, memastikan:
+     - Tagihan ada, milik `uid` pemanggil, dan statusnya belum `success` (`unpaid` atau `failed` → boleh buat order baru).
+   - Membuat `orderId` unik (mis. `PRAKYUKS-${fineId}-${timestamp}`), memanggil **Midtrans Snap API Sandbox** (`https://app.sandbox.midtrans.com/snap/v1/transactions`) dengan nominal `gross_amount` yang diambil **dari Firestore** (bukan nominal kiriman client!).
+   - Menyimpan dokumen baru `paymentTransactions/{orderId}` berstatus `pending` (`snapToken`, `redirectUrl`, `fineId`, `praktikanId`, `amount`, `createdAt`) dan mengupdate `fines/{fineId}` (`status: 'pending'`, `latestOrderId: orderId`).
+   - Mengembalikan `{ orderId, snapToken, redirectUrl }` ke aplikasi React Native.
+3. **Endpoint 2 — `POST /api/payments/webhook`:**
+   - Menerima HTTP notification webhook dari Midtrans Sandbox.
+   - **Verifikasi Signature Wajib:** menghitung `SHA-512(order_id + status_code + gross_amount + MIDTRANS_SERVER_KEY)` dan membandingkan secara *constant-time* dengan `req.body.signature_key`. Tolak dengan HTTP `403` bila tidak cocok!
+   - Pemetaan status Midtrans → status aplikasi:
+     - `settlement` atau (`capture` & `fraud_status === 'accept'`) → **`success`**
+     - `pending` → **`pending`**
+     - `deny`, `cancel`, `expire`, `failure` → **`failed`**
+   - Update atomik (transaksi Admin SDK) pada `paymentTransactions/{orderId}` (`status`, `paymentType`, `paidAt`/`updatedAt`, `gatewayStatus`) dan `fines/{fineId}` (`status`, `paidAt` bila `success`) — **tidak menyentuh `attendance/{uid}`!**
+   - Idempoten: bila webhook untuk status final yang sama dikirim ulang Midtrans, tidak mengirim notifikasi ganda.
+   - Setelah status berubah ke `success` atau `failed`, backend memicu push notification (`payment_success` / `payment_failed`) ke Expo Push API menggunakan `users/{praktikanId}.fcm_tokens`.
+4. **Endpoint 3 (Opsional fallback verifikasi) — `GET /api/payments/status/:orderId`:**
+   - Terautentikasi Firebase ID Token; backend menanyakan status langsung ke Midtrans Status API (`/v2/{orderId}/status`) menggunakan `MIDTRANS_SERVER_KEY` (bukan percaya klaim client!) lalu menyinkronkan ke Firestore — sangat membantu saat demo lokal apabila URL webhook ngrok sedang tidak aktif, namun tetap 100% terverifikasi server-to-server!
+
+**Acceptance Criteria:**
+- [ ] Tidak ada `MIDTRANS_SERVER_KEY` atau kunci rahasia apa pun di kode React Native (`src/`, `app.json`, `.env` Expo).
+- [ ] Nominal transaksi selalu diambil dari dokumen `fines` di Firestore oleh backend, tidak dapat dimanipulasi oleh client.
+- [ ] Webhook dengan `signature_key` palsu ditolak (`403 Forbidden`) dan tidak mengubah status tagihan.
+- [ ] Webhook sah dari Midtrans Sandbox memperbarui status di `paymentTransactions` dan `fines` menjadi `pending`, `success`, atau `failed` secara real-time di aplikasi praktikan.
+- [ ] `firestore.rules` melarang client (`praktikan`, `asisten`, `aslab`) menulis langsung status `success` pada `fines` atau `paymentTransactions` — hanya backend Admin SDK yang dapat memverifikasi pembayaran.
+
+---
+
+#### `FR-S4-P3-02` — Layar Tagihan Denda & Alur Pembayaran Midtrans di Aplikasi Praktikan
+| Field | Value |
+| --- | --- |
+| Role | `praktikan` |
+| Priority | Must Have |
+| Target Files | `src/app/praktikan/fines/index.tsx`, `src/app/praktikan/fines/[fineId].tsx`, `src/hooks/use-praktikan-fines.ts`, `src/services/paymentApi.ts` |
+
+**Deskripsi.** Menyediakan antarmuka bagi praktikan untuk melihat daftar tagihan denda keterlambatan, memeriksa rincian nominal, melakukan pembayaran melalui Midtrans Sandbox, dan memantau status pembayaran secara real-time.
+
+**Yang harus diimplementasikan:**
+1. Tambahkan pintu masuk yang jelas ke **Tagihan & Pembayaran** (mis. kartu ringkasan tagihan aktif pada tab `Jadwal` atau tab/bagian khusus di `Riwayat` & `Profil` praktikan, menampilkan badge jumlah tagihan belum lunas).
+2. Layar **Daftar Tagihan Denda**:
+   - Menampilkan semua tagihan milik praktikan (`fines` where `praktikanId == uid`), rincian praktikum, sesi, tanggal, menit keterlambatan, nominal denda (format `Rp 5.000`), dan badge status berlabel teks (`Belum Dibayar`, `Menunggu Pembayaran (pending)`, `Berhasil (success)`, `Gagal (failed)`).
+3. Alur **Bayar Denda**:
+   - Saat praktikan menekan **Bayar Sekarang**:
+     1. Ambil Firebase ID Token pengguna (`auth.currentUser.getIdToken()`).
+     2. Panggil `POST /api/payments/create-transaction` di backend.
+     3. Buka `redirectUrl` halaman pembayaran **Midtrans Snap Sandbox** menggunakan `expo-web-browser` (`WebBrowser.openBrowserAsync` / `openAuthSessionAsync`).
+     4. Setelah praktikan menyelesaikan simulasi pembayaran (mis. VA BCA/BNI/QRIS Simulator Midtrans Sandbox) dan kembali ke aplikasi, **aplikasi TIDAK langsung menyatakan sukses berdasarkan redirect client** — melainkan menampilkan status *"Menunggu verifikasi pembayaran…"* sembari mendengarkan update real-time dari Firestore `fines/{fineId}` & `paymentTransactions/{orderId}` (disertai tombol *"Periksa Status"* yang memanggil endpoint verifikasi backend bila dibutuhkan).
+   - Jika status berakhir `failed` / kedaluwarsa, sediakan tombol **Bayar Ulang** yang membuat transaksi baru melalui backend.
+
+**Acceptance Criteria:**
+- [ ] Praktikan melihat seluruh tagihan dendanya beserta detail sesi, durasi keterlambatan, dan nominal.
+- [ ] Menekan **Bayar Sekarang** membuka halaman Midtrans Sandbox tanpa menyimpan secret key di aplikasi.
+- [ ] Menutup browser pembayaran sebelum membayar tidak mengubah status menjadi `success` (tetap `pending` / `unpaid`).
+- [ ] Setelah webhook backend memverifikasi pembayaran, status di layar praktikan otomatis berubah ke **Berhasil (`success`)** secara real-time.
+- [ ] Tagihan yang `failed` dapat dicoba bayar ulang dengan transaksi baru.
+
+---
+
+#### `FR-S4-P3-03` — Integrasi Push Notification Siklus Denda & Pembayaran
+| Field | Value |
+| --- | --- |
+| Role | Sistem (Backend & Dispatcher) → `praktikan` |
+| Priority | Must Have |
+| Target Files | `src/services/pushDispatcher.ts`, `src/hooks/use-push-notifications.ts`, `backend/src/services/pushNotifier.ts` |
+
+**Deskripsi.** Memperluas sistem push notification Sprint 3 (`FR-P2-01` & `FR-P2-02`) agar praktikan otomatis menerima pemberitahuan untuk 3 peristiwa denda & pembayaran.
+
+**3 Event Notifikasi Wajib:**
+1. **`fine_created` (Tagihan denda baru dibuat):**
+   - Dipicu saat presensi terlambat menghasilkan tagihan baru di `fines/{fineId}`.
+   - Judul: `"Tagihan Denda Keterlambatan"`
+   - Isi: `"Anda tercatat terlambat pada <Nama Praktikum> (<Tanggal>). Tagihan denda sebesar Rp <Nominal> telah dibuat."`
+   - Navigasi saat diketuk: membuka detail tagihan `/praktikan/fines/[fineId]`.
+2. **`payment_success` (Pembayaran berhasil):**
+   - Dipicu oleh backend **hanya setelah** webhook Midtrans terverifikasi `success`.
+   - Judul: `"Pembayaran Denda Berhasil"`
+   - Isi: `"Pembayaran denda <Nama Praktikum> sebesar Rp <Nominal> telah berhasil diverifikasi."`
+   - Navigasi saat diketuk: membuka riwayat pembayaran `/praktikan/payments` (atau detail tagihan).
+3. **`payment_failed` (Pembayaran gagal / membutuhkan penyelesaian lebih lanjut):**
+   - Dipicu oleh backend saat webhook Midtrans melaporkan `failed` / `expire` / `cancel` / `deny`.
+   - Judul: `"Pembayaran Denda Belum Berhasil"`
+   - Isi: `"Pembayaran denda <Nama Praktikum> gagal atau kedaluwarsa. Silakan lakukan pembayaran ulang."`
+   - Navigasi saat diketuk: membuka detail tagihan `/praktikan/fines/[fineId]` agar praktikan dapat langsung bayar ulang.
+
+**Acceptance Criteria:**
+- [ ] Ketiga jenis notifikasi diterima praktikan baik saat foreground (banner + in-app toast) maupun background (notifikasi sistem).
+- [ ] Mengetuk notifikasi langsung mengarahkan praktikan ke layar tagihan atau riwayat pembayaran yang tepat (termasuk dari cold start).
+- [ ] Pengiriman notifikasi bersifat non-blocking dan tidak menyebabkan crash bila praktikan belum memiliki `fcm_tokens`.
+
+---
+
+#### `FR-S4-P3-04` — Halaman Riwayat Pembayaran Persisten & Finalisasi Antarmuka Lintas Peran
+| Field | Value |
+| --- | --- |
+| Role | `praktikan` (riwayat pembayaran), Semua peran (finalisasi UI) |
+| Priority | Must Have |
+| Target Files | `src/app/praktikan/payments/index.tsx` *(atau segmen di `src/app/praktikan/(tabs)/history.tsx`)*, `src/hooks/use-payment-history.ts`, audit visual lintas `src/app/aslab/`, `src/app/asisten/`, `src/app/praktikan/` |
+
+**Deskripsi.** Menyediakan halaman **Riwayat Pembayaran** yang lengkap dan persisten untuk praktikan, sekaligus melakukan **finalisasi antarmuka** aplikasi **PrakYuks** agar modern, konsisten dengan `DESIGN.md`, dan mudah digunakan oleh seluruh peran.
+
+**Yang harus diimplementasikan:**
+1. **Halaman Riwayat Pembayaran Praktikan:**
+   - Bersumber real-time dari koleksi Firestore `paymentTransactions` (filtered `where('praktikanId', '==', uid)` urut terbaru di atas) sehingga **tetap tersedia meski aplikasi ditutup dan dibuka kembali**.
+   - Setiap item menampilkan: **informasi sesi & praktikum**, **tanggal tagihan**, **nominal (Rp)**, **waktu transaksi** (WIB), metode pembayaran/Order ID, dan **badge status berlabel teks** (`pending` = Menunggu, `success` = Berhasil, `failed` = Gagal).
+   - Mendukung filter status sederhana (Semua / Menunggu / Berhasil / Gagal), pull-to-refresh, `SkeletonCardList`, `EmptyState`, dan `ErrorState`.
+2. **Finalisasi Antarmuka Lintas Peran (`praktikan`, `asisten`, `aslab`):**
+   - Pastikan seluruh layar baru Sprint 4 mematuhi token `src/constants/theme.ts` & `DESIGN.md` (tanpa hex hardcode di layar, kontras WCAG AA di mode terang & gelap, radius `card: 20` / `sheet: 28` / `pill: 999`, shadow standar).
+   - Verifikasi layout responsif di layar sempit (`360px`) maupun besar, bebas horizontal overflow, seluruh area sentuh minimal `44×44 dp`, keyboard tidak menutupi tombol submit, serta konsistensi ikon & copy Bahasa Indonesia di seluruh aplikasi **PrakYuks**.
+
+**Acceptance Criteria:**
+- [ ] Halaman Riwayat Pembayaran menampilkan informasi sesi, tanggal tagihan, nominal, waktu transaksi, dan status (`pending` / `success` / `failed`).
+- [ ] Setelah aplikasi ditutup total (force close) dan dibuka kembali, seluruh riwayat pembayaran tetap tampil utuh dari Firestore.
+- [ ] Seluruh layar pada ketiga peran (`praktikan`, `asisten`, `aslab`) tampil konsisten di light mode & dark mode, responsif pada lebar 360px, tanpa teks terpotong atau elemen tumpang tindih.
+
+---
+
+## 8.5 Kontrak Model Data Firestore, Template Bulk & API Backend
+
+### 8.5.1 Struktur Koleksi Firestore Sprint 4
+
+```text
+config/registration                     { asistenCode, aslabCode }                 // tidak bisa dibaca klien
+
+users/{uid}                             {
+                                          name, identifier, email,
+                                          role: "praktikan" | "asisten" | "aslab",
+                                          fcm_tokens?: string[],
+                                          createdAt
+                                        }
+
+laboratorium/{labId}                    {
+                                          nama, gedung, courseName,
+                                          latitude, longitude,
+                                          radius_meter,                            // cakupan lokasi presensi (m)
+                                          grace_period_minutes,                    // batasan keterlambatan (menit)
+                                          late_fine_amount,                        // nominal denda tetap (Rp)
+                                          managedByAslabId,                        // UID aslab pengelola
+                                          assistantIds: string[],                  // daftar UID asprak di lab ini
+                                          studentIds: string[],                    // daftar UID praktikan di lab ini
+                                          updated_at
+                                        }
+
+practicums/{pid}                        {
+                                          name, className, labId,
+                                          managedByAslabId,
+                                          assistantId, assistantName,
+                                          studentIds: string[],
+                                          gracePeriodMinutes?, lateFineAmount?,
+                                          createdAt
+                                        }
+  sessions/{sid}                        {
+                                          date, startTime, endTime, room, lab_id,
+                                          status: "upcoming" | "open" | "closed",
+                                          openedAt?, closedAt?
+                                        }
+    qr_token/current                    { token, updated_at, previous_token }
+    attendance/{uid}                    {
+                                          praktikanId, praktikanName, praktikanNim,
+                                          status: "present",                       // tidak pernah diubah oleh izin/denda
+                                          punctualityStatus: "on_time" | "late",   // baru di Sprint 4
+                                          lateMinutes: number,                     // 0 jika tepat waktu
+                                          recordedAt,
+                                          verification_method?, distance_meter?,
+                                          device_lat?, device_lng?, is_location_verified?, qr_token?
+                                        }
+    leaveRequests/{uid}                 {
+                                          praktikanId, praktikanName, praktikanNim,
+                                          reason, status: "pending" | "approved" | "rejected",
+                                          // approved = excused absence (bebas denda, bukan hadir)
+                                          createdAt, decidedBy?, decidedAt?, reviewNote?
+                                        }
+    leaveClassifications/{uid}          { ai, updatedAt }
+
+fines/{sessionId}_{praktikanId}         {                                          // ID deterministik: 1 tagihan per kejadian
+                                          id, praktikanId, praktikanName, praktikanNim,
+                                          practicumId, practicumName,
+                                          sessionId, sessionDate,
+                                          labId, labName,
+                                          attendanceId,                            // = praktikanId
+                                          lateMinutes, gracePeriodMinutes,
+                                          amount,                                  // nominal tetap (Rp)
+                                          status: "unpaid" | "pending" | "success" | "failed",
+                                          latestOrderId?,
+                                          createdAt, paidAt?, updatedAt
+                                        }
+
+paymentTransactions/{orderId}           {                                          // ditulis & diverifikasi hanya oleh backend Admin SDK
+                                          orderId, fineId,
+                                          praktikanId, praktikanName, praktikanNim,
+                                          practicumId, practicumName,
+                                          sessionId, sessionDate,
+                                          amount,
+                                          status: "pending" | "success" | "failed",
+                                          paymentType?,                            // mis. "bank_transfer", "qris", "gopay"
+                                          snapToken?, redirectUrl?,
+                                          gatewayTransactionId?, gatewayStatus?,
+                                          fineCreatedAt,                           // tanggal tagihan
+                                          createdAt, paidAt?, updatedAt
+                                        }
+```
+
+### 8.5.2 Format 3 File Template Bulk Insert (Terpisah)
+
+| Jenis Bulk Insert | Nama File Template | Header Kolom CSV | Konteks Pemilihan Sebelum Import |
+| --- | --- | --- | --- |
+| **1. Bulk Laboratorium** | `template-bulk-laboratorium.csv` | `nama,gedung,latitude,longitude,radius_meter,grace_period_minutes,late_fine_amount` | Aslab memilih/mengisi **1 Mata Kuliah (`courseName`)** terlebih dahulu |
+| **2. Bulk Praktikan** | `template-bulk-praktikan.csv` | `nim,email,nama` | Aslab memilih **1 Laboratorium tujuan (`labId`)** terlebih dahulu |
+| **3. Bulk Asprak** | `template-bulk-asprak.csv` | `nip,email,nama` | Aslab memilih **1 Laboratorium tujuan (`labId`)** terlebih dahulu |
+
+> Catatan: pada Bulk Praktikan dan Bulk Asprak, pencocokan akun dilakukan berdasarkan `email` atau `identifier` (`nim`/`nip`) terhadap dokumen `users/{uid}` dengan role yang sesuai (`praktikan` untuk bulk praktikan, `asisten` untuk bulk asprak). Baris yang belum lengkap atau tidak ditemukan ditandai kuning/merah di `ScrollView` staging agar dapat diperbaiki atau di-**Deny** oleh Aslab.
+
+### 8.5.3 Kontrak REST API Backend Pembayaran (Midtrans Sandbox)
+
+| Method & Endpoint | Autentikasi | Request | Response / Efek |
+| --- | --- | --- | --- |
+| `POST /api/payments/create-transaction` | `Bearer <Firebase ID Token>` | `{ "fineId": "<sessionId>_<uid>" }` | Validasi kepemilikan & status tagihan di Firestore → panggil Midtrans Snap Sandbox → simpan `paymentTransactions/{orderId}` (`pending`) → balas `{ orderId, snapToken, redirectUrl }` |
+| `POST /api/payments/webhook` | Midtrans SHA-512 `signature_key` | Payload JSON standar Midtrans Notification | Validasi signature → petakan status (`pending` / `success` / `failed`) → update `paymentTransactions` & `fines` via Admin SDK → kirim push notification `payment_success` / `payment_failed` → balas `200 OK` |
+| `GET /api/payments/status/:orderId` | `Bearer <Firebase ID Token>` | Path param `orderId` | Backend query status ke Midtrans Status API (server-to-server) → sinkronkan ke Firestore jika berubah → balas `{ orderId, status, fineStatus }` |
+
+### 8.5.4 Matriks Hak Akses & Firestore Security Rules Sprint 4
+
+| Resource | Praktikan | Asprak (`asisten`) | Aslab (`aslab`) | Backend (Admin SDK) |
+| --- | --- | --- | --- | --- |
+| `users/{uid}` | baca & ubah nama/`fcm_tokens` sendiri | idem; baca profil praktikan kelasnya | baca semua profil (`praktikan` & `asisten`) untuk bulk insert & transfer | akses penuh |
+| `laboratorium/{labId}` | baca | **hanya baca** *(cabut hak tulis!)* | **CRUD penuh** (nama, lokasi, koordinat, radius, grace period, denda, transfer) | akses penuh |
+| `practicums/{pid}` | baca jika peserta | **baca kelas tanggung jawabnya saja** *(tanpa ubah `studentIds`/`assistantId`)* | **CRUD penuh** (termasuk distribusi peserta & penugasan asprak) | akses penuh |
+| `sessions/{sid}` | baca jika peserta | **kelola penuh sesi tanggung jawabnya** (buka/tutup/edit jadwal) | baca semua untuk Dashboard & monitoring | akses penuh |
+| `attendance/{uid}` | baca milik sendiri; `create` sekali saat sesi `open` (+ field keterlambatan) | baca semua sesi tanggung jawabnya | baca semua untuk Dashboard | akses penuh *(tidak mengubah status saat bayar)* |
+| `leaveRequests/{uid}` | create/baca milik sendiri; ubah alasan saat `pending` | baca & putuskan (`approved`/`rejected`) sesi tanggung jawabnya | baca untuk Dashboard | akses penuh |
+| `fines/{fineId}` | baca milik sendiri; `create` sekali saat presensi `late` (`status == 'unpaid'`); **dilarang `update`/`delete`** | baca sesi tanggung jawabnya | baca semua (untuk riwayat keuangan Dashboard) | update status `pending`/`success`/`failed` & `paidAt` |
+| `paymentTransactions/{orderId}` | **hanya baca milik sendiri** (`praktikanId == uid`) | — | baca semua (untuk riwayat keuangan Dashboard) | **create & update eksklusif** (via Midtrans API & webhook) |
+
+---
+
+## 8.6 Diagram Alur Utama Sprint 4
+
+### Flow G — Bulk Insert Interaktif oleh Aslab
+```mermaid
+flowchart TD
+    A["Aslab pilih jenis Bulk (Lab / Praktikan / Asprak)"] --> B["Pilih konteks (1 Mata Kuliah atau 1 Lab tujuan)"]
+    B --> C["Unduh Template CSV (opsional)"]
+    C --> D["Upload file CSV dari perangkat"]
+    D --> E["Parser mengubah tiap row menjadi daftar kartu di ScrollView"]
+    E --> F["Aslab review per row: Accept / Deny / Edit isi kosong"]
+    F --> G{"Minimal 1 row Accepted dan valid?"}
+    G -->|Tidak| F
+    G -->|Ya| H["Simpan batch ke Firestore (hanya row Accepted)"]
+    H --> I["Ringkasan hasil simpan + data tersinkronisasi real-time"]
+```
+
+### Flow H — Deteksi Keterlambatan, Aturan Izin & Pembuatan Tagihan Denda
+```mermaid
+flowchart TD
+    A["Sesi berstatus Dibuka (open)"] --> B{"Praktikan punya izin approved?"}
+    B -->|Ya| C["Tercatat Excused Absence (tidak hadir dengan izin)"]
+    C --> D["Bebas denda & presensi dinonaktifkan"]
+    B -->|Tidak| E["Praktikan presensi (Geofence / QR)"]
+    E --> F{"recordedAt <= waktuMulai + gracePeriod?"}
+    F -->|Ya| G["Simpan attendance: status=present, punctuality=on_time"]
+    F -->|Tidak| H["Batch atomik: simpan attendance (punctuality=late) + buat 1 dokumen fines/{sessionId}_{uid}"]
+    H --> I["Kirim push notif: Tagihan Denda Baru (fine_created)"]
+```
+
+### Flow I — Pembayaran Denda Client–Backend–Midtrans Sandbox
+```mermaid
+flowchart LR
+    A["Praktikan tap Bayar di Daftar Tagihan"] --> B["App kirim fineId + Firebase ID Token ke Backend"]
+    B --> C["Backend validasi token & nominal dari Firestore"]
+    C --> D["Backend panggil Midtrans Snap API Sandbox"]
+    D --> E["Backend simpan paymentTransactions (pending) & kirim redirectUrl"]
+    E --> F["App buka halaman Midtrans Sandbox"]
+    F --> G["Praktikan selesaikan pembayaran di Sandbox"]
+    G --> H["Midtrans kirim Webhook ke Backend"]
+    H --> I["Backend verifikasi SHA-512 signature_key"]
+    I --> J["Backend update fines & paymentTransactions (success/failed)"]
+    J --> K["Status kehadiran tetap tidak berubah"]
+    J --> L["Backend kirim push notif ke Praktikan"]
+    J --> M["Riwayat Pembayaran & Dashboard Aslab update real-time"]
+```
+
+---
+
+## 8.7 Edge Cases & Penanganan Error Sprint 4
+
+| Skenario | Perilaku yang Diharapkan |
+| --- | --- |
+| Asprak lama mencoba akses `/aslab` atau menulis ke `laboratorium` | Redirect ke `/asisten` dan ditolak `firestore.rules` (`permission-denied`). |
+| File CSV bulk kosong, rusak, atau header tidak cocok dengan jenis bulk | Tampilkan error validasi yang menyebut kolom yang dibutuhkan; staging tidak menampilkan baris rusak. |
+| Row bulk berisi NIM/email yang belum terdaftar di `users` atau role salah | Row otomatis ditandai status *Perlu Perbaikan* dengan alasan spesifik; tombol Accept diblokir sampai diperbaiki atau di-Deny. |
+| Praktikan presensi tepat di detik terakhir *grace period* | Dianggap **Tepat Waktu** (`recordedAt <= deadlineAt`), tidak terkena denda. |
+| Praktikan sudah punya tagihan denda lalu memicu retry/double tap | ID dokumen deterministik (`${sessionId}_${uid}`) + Rules mencegah tagihan ganda. |
+| Praktikan menutup halaman Midtrans sebelum menyelesaikan bayar | Status tetap `pending` / `unpaid`, **tidak** pernah dianggap `success` oleh sisi client. |
+| Webhook Midtrans terkirim dua kali (duplicate delivery) | Handler webhook bersifat idempoten: status tetap konsisten dan notifikasi tidak dikirim ganda. |
+| Webhook dengan `signature_key` tidak valid / request palsu | Backend menolak dengan `403 Forbidden` dan tidak memodifikasi Firestore. |
+| Praktikan melunasi denda keterlambatan | Status tagihan menjadi `success`, namun catatan presensi tetap `present` + `late` (tidak berubah jadi tepat waktu). |
+| Aplikasi ditutup total setelah pembayaran selesai | Saat dibuka ulang, halaman **Riwayat Pembayaran** tetap memuat seluruh transaksi dari Firestore. |
+
+---
+
+## 8.8 Non-Functional Requirements Tambahan (Sprint 4)
+
+| ID | Requirement | Kriteria Penerimaan |
+| --- | --- | --- |
+| **NFR-18** | Keamanan Payment Gateway | `MIDTRANS_SERVER_KEY` dan Firebase Admin key hanya hidup di backend (`.env` server), tidak pernah dibundel ke aplikasi Expo/React Native. Semua webhook diverifikasi dengan SHA-512 `signature_key`. |
+| **NFR-19** | Integritas Transaksi & Idempotensi | Pembuatan tagihan denda maksimal 1 per `(sessionId, praktikanId)`. Transfer antar lab memakai `writeBatch` atomik. Webhook Midtrans idempoten. |
+| **NFR-20** | Pemisahan Wewenang 3 Peran | Batas akses `praktikan`, `asisten` (Asprak), dan `aslab` (Aslab) ditegakkan berlapis di navigasi (`RoleGuard`) dan `firestore.rules`. |
+| **NFR-21** | Responsivitas & Skalabilitas Staging List | Bulk review `ScrollView` tetap lancar untuk 50–200 baris di layar 360px tanpa horizontal overflow. |
+| **NFR-22** | Konsistensi Antarmuka (`DESIGN.md`) | Seluruh layar baru (Aslab, Tagihan, Pembayaran, Riwayat) memakai token semantik `theme.ts`, mendukung Light & Dark mode, serta area sentuh ≥ 44×44 dp. |
+| **NFR-23** | Kualitas Kode & Type Safety | `npx tsc --noEmit`, `npx expo lint`, dan build/typecheck backend lulus tanpa error sebelum merge ke `main`. |
+
+---
+
+## 8.9 Urutan Integrasi & Strategi Anti-Konflik (3 Programmer)
+
+Agar ketiga programmer dapat berjalan paralel tanpa saling memblokir:
+
+| Fase | Programmer 1 | Programmer 2 | Programmer 3 |
+| --- | --- | --- | --- |
+| **Fase 1 (Hari 1–2): Kontrak & Fondasi** | Merge `FR-S4-P1-01` (tipe `UserRole`, routing `/aslab`, `isAslab()` di Rules) dan `FR-S4-P1-02` (schema `laboratorium` + grace period/denda) lebih dulu ke `main`. | Mulai `FR-S4-P2-01` (refactor & pembatasan UI Asprak) sambil menyiapkan fungsi murni `src/lib/lateness.ts`. | Setup proyek `backend/` Midtrans Sandbox (`create-transaction` + `webhook` + verifikasi signature) memakai kontrak `fines` & `paymentTransactions` pada §8.5.1. |
+| **Fase 2 (Hari 3–5): Fitur Inti Paralel** | Kerjakan `FR-S4-P1-03` (3 bulk insert + template CSV) dan `FR-S4-P1-04` (staging `ScrollView` accept/deny/edit). | Kerjakan `FR-S4-P2-03` (mesin keterlambatan + pembuatan `fines`) dan `FR-S4-P2-04` (*excused absence*). | Kerjakan `FR-S4-P3-02` (layar tagihan & integrasi Midtrans Sandbox di app praktikan) dan `FR-S4-P3-03` (notif denda & pembayaran). |
+| **Fase 3 (Hari 6–7): Integrasi & Finalisasi** | Kerjakan `FR-S4-P1-05` (transfer praktikan & asprak antar lab) + finalisasi Rules `laboratorium` & `practicums`. | Kerjakan `FR-S4-P2-02` (Dashboard Aslab + filter Hari/Minggu/Bulan + agregasi keuangan dari `fines`/`paymentTransactions`). | Kerjakan `FR-S4-P3-04` (Riwayat Pembayaran persisten + audit & finalisasi UI seluruh peran). |
+| **Fase 4 (Hari 8): QA End-to-End** | Uji alur Aslab (bulk 3 jenis, staging edit/deny, transfer, policy). | Uji alur Asprak (sesi only), late grace period, izin bebas denda, Dashboard filter. | Uji pembayaran Midtrans Sandbox (pending/success/failed via webhook), push notif, persistensi riwayat, dan UI light/dark 360px. |
+
+---
+
+## 8.10 Definition of Done Sprint 4
+
+### Fungsional
+- [ ] Peran baru **Aslab (`aslab`)** aktif dan seluruh CRUD laboratorium + distribusi praktikan/asprak telah dipindahkan dari `asisten` ke `aslab`.
+- [ ] Ketiga modul bulk/single insert (Laboratorium per mata kuliah, Praktikan ke lab, Asprak ke lab) terpisah, memiliki downloadable template, dan menampilkan staging review interaktif dalam `ScrollView` (accept/deny, update/isi kolom kosong).
+- [ ] Aslab dapat memindahkan praktikan dan asprak/aslab antar lab tanpa perpindahan jadwal praktikum, serta mengatur cakupan lokasi presensi dan batasan keterlambatan + nominal denda.
+- [ ] Dashboard Aslab menampilkan 6 komponen wajib (jumlah lab & praktikan, status per lab, lokasi & waktu, jadwal berlangsung/mendatang, riwayat kegiatan, riwayat keuangan denda) dengan filter **Hari / Minggu / Bulan** secara real-time.
+- [ ] Peran **Asprak (`asisten`)** fokus khusus pada melihat kelas/jadwal/sesi tanggung jawabnya, buka sesi, pantau & kelola presensi/izin, dan tutup sesi secara real-time tanpa wewenang konfigurasi lab/distribusi peserta.
+- [ ] Sistem menghitung tepat waktu vs terlambat memakai *grace period*, menghasilkan tepat 1 tagihan denda bernominal tetap per kejadian keterlambatan, membebaskan izin disetujui (*excused absence*) dari denda tanpa menjadikannya hadir, dan tidak mengubah status kehadiran saat denda dibayar.
+- [ ] Pembayaran denda terintegrasi dengan **Midtrans Sandbox** melalui backend (tanpa secret key di React Native); status `pending` / `success` / `failed` diverifikasi lewat webhook backend yang valid.
+- [ ] Praktikan menerima push notification saat tagihan denda dibuat, pembayaran berhasil, dan pembayaran gagal, serta dapat melihat halaman **Riwayat Pembayaran** yang tetap tersedia setelah aplikasi ditutup dan dibuka kembali.
+
+### Teknis & Kualitas UI
+- [ ] `firestore.rules` versi 3-peran + proteksi `fines`/`paymentTransactions` sudah di-publish dan diuji.
+- [ ] `npx tsc --noEmit` dan `npx expo lint` lulus dengan 0 error.
+- [ ] Antarmuka final modern, konsisten dengan `DESIGN.md` di Light & Dark mode, responsif di layar 360px, dan nyaman dipakai oleh `praktikan`, `asisten`, dan `aslab`.
