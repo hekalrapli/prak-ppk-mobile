@@ -34,6 +34,26 @@ export interface BulkCommitSummary {
   savedRowIds: string[];
 }
 
+export interface MemberLookupCache {
+  roleKey: string;
+  targetByEmail: Map<string, UserProfile | null>;
+  targetById: Map<string, UserProfile | null>;
+  oppositeByEmail: Map<string, UserProfile | null>;
+  oppositeById: Map<string, UserProfile | null>;
+}
+
+export function createMemberLookupCache(
+  kind: 'praktikan' | 'asprak'
+): MemberLookupCache {
+  return {
+    roleKey: kind,
+    targetByEmail: new Map(),
+    targetById: new Map(),
+    oppositeByEmail: new Map(),
+    oppositeById: new Map(),
+  };
+}
+
 function hasRowErrors<T>(row: BulkRowItem<T>): boolean {
   return Object.values(row.errors).some((msg) => Boolean(msg));
 }
@@ -164,7 +184,8 @@ async function runLimited<T>(
 export async function validateBulkMemberRows(
   kind: 'praktikan' | 'asprak',
   rows: BulkRowItem<BulkMemberRowData>[],
-  targetLab: Laboratory
+  targetLab: Laboratory,
+  lookupCache?: MemberLookupCache
 ): Promise<BulkRowItem<BulkMemberRowData>[]> {
   const targetRole: 'praktikan' | 'asisten' =
     kind === 'praktikan' ? 'praktikan' : 'asisten';
@@ -196,37 +217,45 @@ export async function validateBulkMemberRows(
     if (data.identifier && !errors.identifier) uniqueIdentifiers.add(data.identifier);
   });
 
-  const targetByEmail = new Map<string, UserProfile>();
-  const targetById = new Map<string, UserProfile>();
-  const oppositeByEmail = new Map<string, UserProfile>();
-  const oppositeById = new Map<string, UserProfile>();
+  const cache =
+    lookupCache && lookupCache.roleKey === kind
+      ? lookupCache
+      : createMemberLookupCache(kind);
 
-  try {
-    const emailList = Array.from(uniqueEmails);
-    const idList = Array.from(uniqueIdentifiers);
+  const uncachedEmails = Array.from(uniqueEmails).filter(
+    (email) => !cache.targetByEmail.has(email)
+  );
+  const uncachedIds = Array.from(uniqueIdentifiers).filter(
+    (identifier) => !cache.targetById.has(identifier)
+  );
 
-    await runLimited([
-      ...emailList.map((email) => async () => {
-        const user = await queryUserByField(targetRole, 'email', email);
-        if (user) {
-          targetByEmail.set(email, user);
-        } else {
-          const other = await queryUserByField(oppositeRole, 'email', email);
-          if (other) oppositeByEmail.set(email, other);
-        }
-      }),
-      ...idList.map((identifier) => async () => {
-        const user = await queryUserByField(targetRole, 'identifier', identifier);
-        if (user) {
-          targetById.set(identifier, user);
-        } else {
-          const other = await queryUserByField(oppositeRole, 'identifier', identifier);
-          if (other) oppositeById.set(identifier, other);
-        }
-      }),
-    ]);
-  } catch (error) {
-    throw new Error(getHumanReadableErrorMessage(error));
+  if (uncachedEmails.length > 0 || uncachedIds.length > 0) {
+    try {
+      await runLimited([
+        ...uncachedEmails.map((email) => async () => {
+          const user = await queryUserByField(targetRole, 'email', email);
+          cache.targetByEmail.set(email, user);
+          if (!user) {
+            const other = await queryUserByField(oppositeRole, 'email', email);
+            cache.oppositeByEmail.set(email, other);
+          } else {
+            cache.oppositeByEmail.set(email, null);
+          }
+        }),
+        ...uncachedIds.map((identifier) => async () => {
+          const user = await queryUserByField(targetRole, 'identifier', identifier);
+          cache.targetById.set(identifier, user);
+          if (!user) {
+            const other = await queryUserByField(oppositeRole, 'identifier', identifier);
+            cache.oppositeById.set(identifier, other);
+          } else {
+            cache.oppositeById.set(identifier, null);
+          }
+        }),
+      ]);
+    } catch (error) {
+      throw new Error(getHumanReadableErrorMessage(error));
+    }
   }
 
   const seenUids = new Set<string>();
@@ -236,13 +265,17 @@ export async function validateBulkMemberRows(
     let statusNote: string | undefined;
 
     if (!errors.identifier && !errors.email) {
-      const matchFromId = data.identifier ? targetById.get(data.identifier) : undefined;
-      const matchFromEmail = data.email ? targetByEmail.get(data.email) : undefined;
+      const matchFromId = data.identifier
+        ? (cache.targetById.get(data.identifier) ?? undefined)
+        : undefined;
+      const matchFromEmail = data.email
+        ? (cache.targetByEmail.get(data.email) ?? undefined)
+        : undefined;
       const wrongRoleFromId = data.identifier
-        ? oppositeById.get(data.identifier)
+        ? (cache.oppositeById.get(data.identifier) ?? undefined)
         : undefined;
       const wrongRoleFromEmail = data.email
-        ? oppositeByEmail.get(data.email)
+        ? (cache.oppositeByEmail.get(data.email) ?? undefined)
         : undefined;
 
       if (matchFromId && matchFromEmail && matchFromId.uid !== matchFromEmail.uid) {
@@ -466,12 +499,15 @@ export async function commitBulkMembers(params: {
     const savedRowIds: string[] = [];
     let addedCount = 0;
 
+    const addedUids: string[] = [];
+
     acceptedRows.forEach((row) => {
       const uid = row.matchedUserId;
       if (!uid) return;
       if (!currentSet.has(uid)) {
         currentSet.add(uid);
         currentList.push(uid);
+        addedUids.push(uid);
         addedCount += 1;
       }
       savedRowIds.push(row.rowId);
@@ -493,6 +529,30 @@ export async function commitBulkMembers(params: {
         studentIds: params.kind === 'praktikan' ? currentList : lab.studentIds,
         updated_at: serverTimestamp(),
       });
+
+      if (params.kind === 'praktikan') {
+        try {
+          const linkedPracs = await getDocs(
+            query(collection(db, 'practicums'), where('labId', '==', params.labId))
+          );
+          linkedPracs.forEach((pracDoc) => {
+            const data = pracDoc.data();
+            const existingStudents = Array.isArray(data.studentIds)
+              ? data.studentIds.filter((id: unknown): id is string => typeof id === 'string')
+              : [];
+            const studentSet = new Set(existingStudents);
+            const nextAdditions = addedUids.filter((id) => !studentSet.has(id));
+            if (nextAdditions.length > 0) {
+              batch.update(pracDoc.ref, {
+                studentIds: [...existingStudents, ...nextAdditions],
+              });
+            }
+          });
+        } catch {
+          // Tetap commit anggota lab bila Rules practicums belum di-publish.
+        }
+      }
+
       await batch.commit();
     }
 

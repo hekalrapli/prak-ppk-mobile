@@ -18,6 +18,7 @@ export default function AslabLayout() {
         }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="labs/form" options={{ headerShown: false }} />
+        <Stack.Screen name="labs/transfer" options={{ headerShown: false }} />
         <Stack.Screen name="labs/[labId]" options={{ headerShown: false }} />
         <Stack.Screen name="bulk/labs" options={{ headerShown: false }} />
         <Stack.Screen name="bulk/praktikan" options={{ headerShown: false }} />

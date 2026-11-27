@@ -37,14 +37,6 @@ export default function AsistenLayout() {
           name="session/[sessionId]/recap"
           options={{ headerShown: false }}
         />
-        <Stack.Screen
-          name="labs/index"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="labs/form"
-          options={{ headerShown: false }}
-        />
       </Stack>
     </RoleGuard>
   );

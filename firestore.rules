@@ -81,16 +81,16 @@ service cloud.firestore {
     // ---------- Users ----------
     match /users/{uid} {
       // Pemilik membaca profilnya sendiri; asisten tetap membaca profil peserta;
-      // aslab hanya boleh membaca profil praktikan & asisten (dibatasi limit <= 50 untuk query).
+      // aslab dapat membaca profil praktikan, asisten, dan aslab (dibatasi limit <= 50 untuk query).
       allow get: if signedIn() && (
         request.auth.uid == uid
         || isAsisten()
-        || (isAslab() && resource.data.role in ['praktikan', 'asisten'])
+        || (isAslab() && resource.data.role in ['praktikan', 'asisten', 'aslab'])
       );
       allow list: if signedIn() && (
         isAsisten()
         || (isAslab()
-            && resource.data.role in ['praktikan', 'asisten']
+            && resource.data.role in ['praktikan', 'asisten', 'aslab']
             && request.query.limit <= 50)
       );
 
@@ -175,28 +175,17 @@ service cloud.firestore {
 
     // ---------- Practicums ----------
     match /practicums/{pid} {
-      // Hanya asisten pengampu dan praktikan peserta yang boleh membaca.
-      // Asisten lain tidak dapat menemukan praktikum ini sama sekali.
-      allow read: if (isAsisten() && resource.data.assistantId == request.auth.uid)
+      // Aslab baca semua; asisten pengampu & praktikan peserta baca kelasnya.
+      allow read: if isAslab()
+        || (isAsisten() && resource.data.assistantId == request.auth.uid)
         || (isPraktikan() && request.auth.uid in resource.data.studentIds);
 
-      allow create: if isAsisten()
-        && request.resource.data.assistantId == request.auth.uid
-        && str(request.resource.data.name, 1, 100)
-        && str(request.resource.data.className, 1, 30)
-        && request.resource.data.studentIds is list;
-
-      allow update: if isAsisten() && resource.data.assistantId == request.auth.uid
-        && request.resource.data.assistantId == resource.data.assistantId
-        && str(request.resource.data.name, 1, 100)
-        && str(request.resource.data.className, 1, 30)
-        && request.resource.data.studentIds is list;
-
-      allow delete: if isAsisten() && resource.data.assistantId == request.auth.uid;
+      // FR-S4-P1-02 & FR-S4-P1-05: CRUD praktikum & distribusi peserta/asprak dikelola Aslab.
+      allow create, update, delete: if isAslab();
 
       // ---------- Sessions ----------
       match /sessions/{sid} {
-        allow read: if isPengampu(pid) || isPeserta(pid);
+        allow read: if isAslab() || isPengampu(pid) || isPeserta(pid);
 
         allow create: if isPengampu(pid)
           && request.resource.data.status == 'upcoming'

@@ -245,6 +245,13 @@ export default function AslabLabsScreen() {
                     variant="secondary"
                     onPress={() => router.push('/aslab/bulk/asprak')}
                   />
+                  {labs.length >= 2 ? (
+                    <AppButton
+                      label="Pindah Praktikan & Asprak Antar Lab"
+                      variant="secondary"
+                      onPress={() => router.push('/aslab/labs/transfer')}
+                    />
+                  ) : null}
                 </View>
               </View>
 
