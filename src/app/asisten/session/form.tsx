@@ -361,14 +361,6 @@ export default function SessionFormScreen() {
                   <Text style={[styles.pickerLabel, { color: theme.textPrimary }]}>
                     Lokasi lab geofence (opsional)
                   </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    hitSlop={8}
-                    onPress={() => router.push('/asisten/labs')}>
-                    <Text style={[styles.labManageLink, { color: theme.link }]}>
-                      Kelola lab
-                    </Text>
-                  </Pressable>
                 </View>
 
                 {labsFeed.loading ? (

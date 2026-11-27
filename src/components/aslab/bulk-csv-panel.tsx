@@ -18,9 +18,11 @@ import {
 import {
   commitBulkLabs,
   commitBulkMembers,
+  createMemberLookupCache,
   validateBulkLabRows,
   validateBulkMemberRows,
   type BulkCommitSummary,
+  type MemberLookupCache,
 } from '@/services/bulkInsertService';
 import type {
   BulkInsertKind,
@@ -70,6 +72,7 @@ export function BulkCsvPanel<K extends BulkInsertKind>({
   );
 
   const stagingRowsRef = useRef<BulkRowItem<BulkRowForKind<K>>[]>([]);
+  const memberLookupCacheRef = useRef<MemberLookupCache | null>(null);
   const validationRunRef = useRef(0);
   const manualCounterRef = useRef(1);
   const savingRef = useRef(false);
@@ -98,12 +101,35 @@ export function BulkCsvPanel<K extends BulkInsertKind>({
         return;
       }
 
-      setValidating(true);
+      const memberKind = kind as 'praktikan' | 'asprak';
+      if (
+        !memberLookupCacheRef.current ||
+        memberLookupCacheRef.current.roleKey !== memberKind
+      ) {
+        memberLookupCacheRef.current = createMemberLookupCache(memberKind);
+      }
+
+      const cache = memberLookupCacheRef.current;
+      const needsNetworkLookup = (
+        candidateRows as BulkRowItem<BulkMemberRowData>[]
+      ).some((row) => {
+        const email = row.data.email.trim().toLowerCase();
+        const identifier = row.data.identifier.trim();
+        return (
+          (email.length > 0 && !cache.targetByEmail.has(email)) ||
+          (identifier.length > 0 && !cache.targetById.has(identifier))
+        );
+      });
+
+      if (needsNetworkLookup) {
+        setValidating(true);
+      }
       try {
         const validated = (await validateBulkMemberRows(
-          kind as 'praktikan' | 'asprak',
+          memberKind,
           candidateRows as BulkRowItem<BulkMemberRowData>[],
-          targetLab
+          targetLab,
+          cache
         )) as BulkRowItem<BulkRowForKind<K>>[];
         if (validationRunRef.current === currentRun) {
           stagingRowsRef.current = validated;
@@ -176,6 +202,7 @@ export function BulkCsvPanel<K extends BulkInsertKind>({
         return;
       }
       setCommitSummary(null);
+      memberLookupCacheRef.current = null;
       if (outcome.result.ok) {
         stagingRowsRef.current = outcome.result.rows;
         setStagingRows(outcome.result.rows);
@@ -206,6 +233,7 @@ export function BulkCsvPanel<K extends BulkInsertKind>({
 
   const handleReset = () => {
     validationRunRef.current += 1;
+    memberLookupCacheRef.current = null;
     stagingRowsRef.current = [];
     setStagingRows([]);
     setCommitSummary(null);

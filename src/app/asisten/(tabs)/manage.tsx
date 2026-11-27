@@ -255,29 +255,10 @@ export default function AsistenManageScreen() {
                 </View>
               ) : null}
             </View>
-            {isAsisten ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Tambah lokasi lab"
-                onPress={() => router.push('/asisten/labs/form')}
-                style={({ pressed }) => [
-                  styles.inlineAction,
-                  pressed && { opacity: 0.72 },
-                ]}>
-                <SymbolView
-                  name={{ ios: 'plus', android: 'add', web: 'add' }}
-                  size={16}
-                  tintColor={theme.link}
-                />
-                <Text style={[styles.manageLink, { color: theme.link }]}>
-                  Tambah
-                </Text>
-              </Pressable>
-            ) : null}
           </View>
 
           <Text style={[styles.cardSubtitle, { color: theme.textSecondary }]}>
-            Titik koordinat dan radius geofence untuk peta serta validasi presensi.
+            Daftar referensi lokasi & geofence laboratorium (dikelola oleh Aslab).
           </Text>
 
           {labsLoading ? (
@@ -295,22 +276,12 @@ export default function AsistenManageScreen() {
           ) : (
             <View style={styles.listStack}>
               {previewLabs.map((lab) => (
-                <Pressable
+                <View
                   key={lab.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Ubah lokasi ${lab.nama}`}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/asisten/labs/form',
-                      params: { labId: lab.id },
-                    })
-                  }
-                  style={({ pressed }) => [
+                  style={[
                     styles.itemRow,
                     {
-                      backgroundColor: pressed
-                        ? theme.surfacePressed
-                        : theme.surfaceSubtle,
+                      backgroundColor: theme.surfaceSubtle,
                       borderColor: theme.border,
                     },
                   ]}>
@@ -336,16 +307,7 @@ export default function AsistenManageScreen() {
                       m
                     </Text>
                   </View>
-                  <SymbolView
-                    name={{
-                      ios: 'chevron.right',
-                      android: 'chevron_right',
-                      web: 'chevron_right',
-                    }}
-                    size={16}
-                    tintColor={theme.textSecondary}
-                  />
-                </Pressable>
+                </View>
               ))}
               {labs.length > MAX_PREVIEW_LABS ? (
                 <Text style={[styles.moreHint, { color: theme.textSecondary }]}>
@@ -354,14 +316,6 @@ export default function AsistenManageScreen() {
               ) : null}
             </View>
           )}
-
-          {isAsisten ? (
-            <AppButton
-              label="Kelola lokasi lab"
-              variant="secondary"
-              onPress={() => router.push('/asisten/labs')}
-            />
-          ) : null}
         </View>
       </ScrollView>
     </TabScreen>
@@ -499,13 +453,6 @@ const styles = StyleSheet.create({
   },
   manageLink: {
     ...Typography.label,
-  },
-  inlineAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    minHeight: 44,
-    paddingHorizontal: Spacing.one,
   },
   moreHint: {
     ...Typography.caption,

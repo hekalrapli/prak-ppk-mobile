@@ -106,7 +106,11 @@ function LabActivitySheetContent({
 
   const nextEntry = schedule.next;
 
-  const openSession = (entry: LabScheduleEntry) => {    onClose();
+  const openSession = (entry: LabScheduleEntry) => {
+    onClose();
+    if (role === 'aslab') {
+      return;
+    }
     if (role === 'asisten') {
       router.push({
         pathname: '/asisten/session/[sessionId]',

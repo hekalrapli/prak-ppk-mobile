@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,6 +13,10 @@ import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useLaboratory } from '@/hooks/use-laboratories';
 import { useTheme } from '@/hooks/use-theme';
 import { deleteLaboratory, formatRupiah } from '@/services/labService';
+import { fetchUsersByIds } from '@/services/labTransferService';
+import type { UserProfile } from '@/types/auth';
+
+const EMPTY_PROFILES = new Map<string, UserProfile>();
 
 export default function AslabLabDetailScreen() {
   const router = useRouter();
@@ -24,7 +28,46 @@ export default function AslabLabDetailScreen() {
   const { lab, loading, error, retry } = useLaboratory(labId);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [profilesState, setProfilesState] = useState<{
+    key: string;
+    profiles: Map<string, UserProfile>;
+  } | null>(null);
   const busyRef = useRef(false);
+
+  const memberIdsKey = useMemo(() => {
+    if (!lab) {
+      return '';
+    }
+    const all = [
+      ...lab.assistantIds,
+      ...lab.studentIds,
+      ...(lab.managedByAslabId ? [lab.managedByAslabId] : []),
+    ];
+    return Array.from(new Set(all)).sort().join('|');
+  }, [lab]);
+
+  useEffect(() => {
+    if (!memberIdsKey) {
+      return;
+    }
+
+    const uids = memberIdsKey.split('|');
+    let cancelled = false;
+    void fetchUsersByIds(uids).then((profiles) => {
+      if (!cancelled) {
+        setProfilesState({ key: memberIdsKey, profiles });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [memberIdsKey]);
+
+  const profilesByUid =
+    profilesState?.key === memberIdsKey ? profilesState.profiles : EMPTY_PROFILES;
+  const loadingMembers =
+    Boolean(memberIdsKey) && profilesState?.key !== memberIdsKey;
 
   const renderNotFound = () => (
     <DetailScreen title="Detail Laboratorium">
@@ -90,6 +133,10 @@ export default function AslabLabDetailScreen() {
     }
   };
 
+  const managerProfile = lab.managedByAslabId
+    ? profilesByUid.get(lab.managedByAslabId)
+    : undefined;
+
   return (
     <DetailScreen title="Detail Laboratorium">
       <View
@@ -112,6 +159,18 @@ export default function AslabLabDetailScreen() {
               value={lab.courseName.trim() || 'Belum diatur'}
             />
             <InfoRow label="Gedung / lokasi" value={lab.gedung.trim() || '—'} />
+            <InfoRow
+              label="Penanggung jawab"
+              value={
+                managerProfile
+                  ? managerProfile.name
+                  : lab.managedByAslabId
+                    ? loadingMembers
+                      ? 'Memuat…'
+                      : lab.managedByAslabId
+                    : '—'
+              }
+            />
           </View>
 
           <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
@@ -143,12 +202,89 @@ export default function AslabLabDetailScreen() {
 
           <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-              Keanggotaan Laboratorium
+              Asprak Bertugas ({lab.assistantIds.length})
             </Text>
-            <InfoRow label="Asprak bertugas" value={`${lab.assistantIds.length} orang`} />
-            <InfoRow
-              label="Praktikan terdaftar"
-              value={`${lab.studentIds.length} orang`}
+            {lab.assistantIds.length === 0 ? (
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                Belum ada asprak ditugaskan pada laboratorium ini.
+              </Text>
+            ) : (
+              <View style={styles.memberList}>
+                {lab.assistantIds.map((uid) => {
+                  const user = profilesByUid.get(uid);
+                  return (
+                    <View
+                      key={uid}
+                      style={[
+                        styles.memberRow,
+                        { backgroundColor: theme.surfaceSubtle },
+                      ]}>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.memberName, { color: theme.textPrimary }]}>
+                        {user?.name || (loadingMembers ? 'Memuat profil…' : uid)}
+                      </Text>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.memberMeta, { color: theme.textSecondary }]}>
+                        {user
+                          ? `NIP ${user.identifier} · ${user.email}`
+                          : `UID: ${uid}`}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
+          <View style={[styles.card, Shadow.soft, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
+              Praktikan Terdaftar ({lab.studentIds.length})
+            </Text>
+            {lab.studentIds.length === 0 ? (
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                Belum ada praktikan terdaftar pada laboratorium ini.
+              </Text>
+            ) : (
+              <View style={styles.memberList}>
+                {lab.studentIds.map((uid) => {
+                  const user = profilesByUid.get(uid);
+                  return (
+                    <View
+                      key={uid}
+                      style={[
+                        styles.memberRow,
+                        { backgroundColor: theme.surfaceSubtle },
+                      ]}>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.memberName, { color: theme.textPrimary }]}>
+                        {user?.name || (loadingMembers ? 'Memuat profil…' : uid)}
+                      </Text>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.memberMeta, { color: theme.textSecondary }]}>
+                        {user
+                          ? `NIM ${user.identifier} · ${user.email}`
+                          : `UID: ${uid}`}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            <AppButton
+              label="Pindah praktikan / asprak"
+              variant="secondary"
+              disabled={deleting}
+              onPress={() =>
+                router.push({
+                  pathname: '/aslab/labs/transfer',
+                  params: { sourceLabId: lab.id },
+                })
+              }
             />
           </View>
         </ScrollView>
@@ -248,6 +384,16 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
   },
+  emptyText: { ...Typography.caption },
+  memberList: { gap: Spacing.two },
+  memberRow: {
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    gap: 2,
+  },
+  memberName: { ...Typography.bodyStrong },
+  memberMeta: { ...Typography.caption },
   footer: {
     borderTopWidth: 1,
     padding: Spacing.three,

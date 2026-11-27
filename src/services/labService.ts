@@ -535,6 +535,29 @@ export async function addLabMember(
         field === 'studentIds' ? [...lab.studentIds, trimmedUid] : lab.studentIds,
       updated_at: serverTimestamp(),
     });
+
+    if (kind === 'praktikan') {
+      try {
+        const linkedPracs = await getDocs(
+          query(collection(db, 'practicums'), where('labId', '==', labId))
+        );
+        await Promise.all(
+          linkedPracs.docs.map(async (pracDoc) => {
+            const data = pracDoc.data();
+            const existingStudents = Array.isArray(data.studentIds)
+              ? data.studentIds.filter((id: unknown): id is string => typeof id === 'string')
+              : [];
+            if (!existingStudents.includes(trimmedUid)) {
+              await updateDoc(pracDoc.ref, {
+                studentIds: [...existingStudents, trimmedUid],
+              });
+            }
+          })
+        );
+      } catch {
+        // Abaikan bila belum ada praktikum tertaut atau Rules belum di-publish.
+      }
+    }
   } catch (error) {
     throw new Error(getHumanReadableErrorMessage(error));
   }
