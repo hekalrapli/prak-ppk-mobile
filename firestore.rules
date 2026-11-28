@@ -345,6 +345,32 @@ service cloud.firestore {
       }
     }
 
+    // ---------- Fines (Tagihan Denda Keterlambatan — FR-S4-P2-03 & FR-S4-P3-01) ----------
+    // ID dokumen deterministik: "<sessionId>_<praktikanId>".
+    // Client dilarang update/delete — status pembayaran hanya diperbarui oleh Backend Admin SDK.
+    match /fines/{fineId} {
+      allow read: if isAslab()
+        || isAsisten()
+        || (isPraktikan() && resource.data.praktikanId == request.auth.uid);
+
+      allow create: if isPraktikan()
+        && request.auth.uid == request.resource.data.praktikanId
+        && request.resource.data.status == 'unpaid'
+        && request.resource.data.amount is number
+        && request.resource.data.amount >= 0;
+
+      allow update, delete: if false;
+    }
+
+    // ---------- Payment Transactions (Midtrans Sandbox — FR-S4-P3-01 & FR-S4-P3-04) ----------
+    // Hanya dibuat & diperbarui oleh Backend Admin SDK melalui verifikasi Midtrans.
+    match /paymentTransactions/{orderId} {
+      allow read: if isAslab()
+        || (isPraktikan() && resource.data.praktikanId == request.auth.uid);
+
+      allow write: if false;
+    }
+
     // ---------- Collection group: riwayat & izin pribadi lintas sesi ----------
     // Collection-group query wajib dibatasi where('praktikanId','==',uid);
     // aturan memakai field tersebut agar query dapat dibuktikan aman.

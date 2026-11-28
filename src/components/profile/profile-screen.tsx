@@ -3,11 +3,13 @@ import { useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { PaymentQuickLinksCard } from '@/components/payments/praktikan-payment-card';
 import { AppButton } from '@/components/ui/app-button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { useToast } from '@/components/ui/toast-provider';
 import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { usePracticumFeed } from '@/hooks/use-practicum-feed';
+import { usePraktikanFines } from '@/hooks/use-praktikan-fines';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth-context';
 import type { UserRole } from '@/types/attendance';
@@ -34,6 +36,9 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
   const { profile, logout } = useAuth();
   const { showToast } = useToast();
   const { practicums, loading, error } = usePracticumFeed(role, profile?.uid);
+  const { summary: fineSummary } = usePraktikanFines(
+    role === 'praktikan' ? profile?.uid : undefined
+  );
   const [confirmLogoutVisible, setConfirmLogoutVisible] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [showAllPracticums, setShowAllPracticums] = useState(false);
@@ -226,6 +231,13 @@ export function ProfileScreen({ role }: ProfileScreenProps) {
           </Pressable>
         ) : null}
         </View>
+      ) : null}
+
+      {role === 'praktikan' ? (
+        <PaymentQuickLinksCard
+          actionableCount={fineSummary.actionableCount}
+          totalOutstandingAmount={fineSummary.totalOutstandingAmount}
+        />
       ) : null}
 
       <View style={styles.actions}>

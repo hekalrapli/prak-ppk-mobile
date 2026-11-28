@@ -2,6 +2,7 @@
 import { doc, getDoc } from 'firebase/firestore';
 
 import { db } from './firebase';
+import { formatRupiah } from './labService';
 import {
   DEFAULT_NOTIFICATION_CHANNEL_ID,
   isValidExpoPushToken,
@@ -14,7 +15,10 @@ export const EXPO_PUSH_TIMEOUT_MS = 10_000;
 export type PushEventType =
   | 'session_opened'
   | 'schedule_modified'
-  | 'leave_decision';
+  | 'leave_decision'
+  | 'fine_created'
+  | 'payment_success'
+  | 'payment_failed';
 
 export interface ExpoPushMessage {
   to: string;
@@ -467,6 +471,38 @@ export async function notifyLeaveDecision(params: {
   } catch (error) {
     console.warn(
       '[PushDispatcher] Gagal memproses notifikasi leave_decision:',
+      error instanceof Error ? error.message : error
+    );
+  }
+}
+
+/**
+ * FR-S4-P3-03 Event 4: Tagihan Denda Keterlambatan Baru Dibuat (`fine_created`).
+ * Dipicu saat presensi terlambat menghasilkan dokumen baru pada `fines/{fineId}`.
+ */
+export async function notifyFineCreated(params: {
+  fineId: string;
+  praktikanId: string;
+  practicumName: string;
+  sessionDate: string;
+  amount: number;
+}): Promise<void> {
+  try {
+    const practicumName = params.practicumName.trim() || 'Praktikum';
+    const dateSuffix = params.sessionDate.trim() ? ` (${params.sessionDate.trim()})` : '';
+
+    await dispatchExpoPushNotifications({
+      recipientUids: [params.praktikanId],
+      title: 'Tagihan Denda Keterlambatan',
+      body: `Anda tercatat terlambat pada ${practicumName}${dateSuffix}. Tagihan denda sebesar ${formatRupiah(params.amount)} telah dibuat.`,
+      data: {
+        type: 'fine_created',
+        fineId: params.fineId,
+      },
+    });
+  } catch (error) {
+    console.warn(
+      '[PushDispatcher] Gagal memproses notifikasi fine_created:',
       error instanceof Error ? error.message : error
     );
   }

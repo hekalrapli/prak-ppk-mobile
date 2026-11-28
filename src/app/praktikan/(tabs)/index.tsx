@@ -7,12 +7,14 @@ import { ScheduleFilterBar } from '@/components/attendance/schedule-filter-bar';
 import { ScheduleTimelineItem } from '@/components/attendance/schedule-timeline-item';
 import { SessionDateHeader } from '@/components/attendance/session-date-header';
 import { SessionHighlightCard } from '@/components/attendance/session-highlight-card';
+import { UnpaidFineBanner } from '@/components/payments/praktikan-payment-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/screen-state';
 import { SkeletonCardList } from '@/components/ui/skeleton';
 import { TabScreen } from '@/components/ui/tab-screen';
 import { Spacing } from '@/constants/theme';
 import { usePracticumFeed } from '@/hooks/use-practicum-feed';
+import { usePraktikanFines } from '@/hooks/use-praktikan-fines';
 import { useTheme } from '@/hooks/use-theme';
 import {
   organizeSchedule,
@@ -29,6 +31,7 @@ export default function PraktikanScheduleScreen() {
   const { profile } = useAuth();
   const { practicums, sessions, loading, refreshing, error, retry, refresh } =
     usePracticumFeed('praktikan', profile?.uid);
+  const { summary: fineSummary } = usePraktikanFines(profile?.uid);
 
   const [statusFilter, setStatusFilter] = useState<ScheduleStatusFilter>('active');
   const [selectedPracticumId, setSelectedPracticumId] = useState<string | null>(null);
@@ -209,13 +212,19 @@ export default function PraktikanScheduleScreen() {
           />
         }
         ListHeaderComponent={
-          highlight ? (
+          fineSummary.actionableCount > 0 || highlight ? (
             <View style={styles.highlight}>
-              <SessionHighlightCard
-                onPress={() => openSession(highlight.practicum, highlight.session)}
-                practicum={highlight.practicum}
-                session={highlight.session}
+              <UnpaidFineBanner
+                actionableCount={fineSummary.actionableCount}
+                totalOutstandingAmount={fineSummary.totalOutstandingAmount}
               />
+              {highlight ? (
+                <SessionHighlightCard
+                  onPress={() => openSession(highlight.practicum, highlight.session)}
+                  practicum={highlight.practicum}
+                  session={highlight.session}
+                />
+              ) : null}
             </View>
           ) : undefined
         }

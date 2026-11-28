@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { AttendanceRecordItem } from '@/components/attendance/attendance-record-item';
+import { PaymentQuickLinksCard } from '@/components/payments/praktikan-payment-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/screen-state';
 import { SegmentedControl } from '@/components/ui/segmented-control';
@@ -12,6 +13,7 @@ import { TabScreen } from '@/components/ui/tab-screen';
 import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useAttendanceHistory, useLeaveHistory, type HistorySessionRef } from '@/hooks/use-history';
 import { usePracticumFeed } from '@/hooks/use-practicum-feed';
+import { usePraktikanFines } from '@/hooks/use-praktikan-fines';
 import { useTheme } from '@/hooks/use-theme';
 import { formatTimestampToTime } from '@/services/attendanceService';
 import { useAuth } from '@/store/auth-context';
@@ -52,6 +54,7 @@ export default function PraktikanHistoryScreen() {
   };
 
   const feed = usePracticumFeed('praktikan', profile?.uid);
+  const { summary: fineSummary } = usePraktikanFines(profile?.uid);
   const sessionRefs = useMemo<HistorySessionRef[]>(
     () =>
       feed.sessions.map((session) => ({
@@ -118,6 +121,11 @@ export default function PraktikanHistoryScreen() {
 
   const renderHeader = () => (
     <View style={styles.header}>
+      <PaymentQuickLinksCard
+        actionableCount={fineSummary.actionableCount}
+        compact
+        totalOutstandingAmount={fineSummary.totalOutstandingAmount}
+      />
       <SegmentedControl<'attendance' | 'leave'>
         options={[
           { value: 'attendance', label: 'Kehadiran', count: entries.length },
