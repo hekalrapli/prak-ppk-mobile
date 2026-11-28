@@ -27,7 +27,7 @@ export function SegmentedControl<T extends string>({
       accessibilityRole="tablist"
       style={[
         styles.container,
-        { backgroundColor: theme.surfaceSubtle, borderColor: theme.border },
+        { backgroundColor: theme.surfaceSubtle, borderColor: theme.borderStrong },
       ]}>
       {options.map((option) => {
         const selected = option.value === value;
@@ -42,20 +42,23 @@ export function SegmentedControl<T extends string>({
             accessibilityRole="tab"
             accessibilityState={{ selected }}
             onPress={() => onChange(option.value)}
-            style={[
+            style={({ pressed }) => [
               styles.segment,
               selected && [
                 styles.segmentSelected,
-                { backgroundColor: theme.surface },
+                { backgroundColor: theme.primary },
                 Shadow.soft,
               ],
+              !selected && pressed && { opacity: 0.72 },
             ]}>
             <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
               numberOfLines={1}
               style={[
                 styles.label,
                 {
-                  color: selected ? theme.textPrimary : theme.textSecondary,
+                  color: selected ? theme.onPrimary : theme.textSecondary,
                   fontWeight: selected ? '700' : '600',
                 },
               ]}>
@@ -79,7 +82,7 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    minHeight: 38,
+    minHeight: 40,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.two,

@@ -29,6 +29,10 @@ const lightColors = {
   warningSoft: '#FFF7DF',
   error: '#A63A34',
   errorSoft: '#FDECEC',
+  // Merah tegas khusus tombol aksi destruktif (Keluar akun / Hapus) — rasio kontras 4.8:1 dg putih.
+  destructive: '#DC2626',
+  destructivePressed: '#B91C1C',
+  onDestructive: '#FFFFFF',
   disabledBg: '#F2EAE4',
   disabledText: '#9C8F88',
   focusRing: '#E08A6E',
@@ -63,6 +67,10 @@ const darkColors = {
   warningSoft: '#2A2316',
   error: '#F0918C',
   errorSoft: '#2B1514',
+  // Merah solid tegas di mode gelap agar tombol Keluar/Hapus tidak tampak pink pucat.
+  destructive: '#DC2626',
+  destructivePressed: '#B91C1C',
+  onDestructive: '#FFFFFF',
   disabledBg: '#2A2320',
   disabledText: '#8E8078',
   focusRing: '#FF9F7F',

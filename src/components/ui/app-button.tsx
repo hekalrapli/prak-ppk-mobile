@@ -27,7 +27,7 @@ export const AppButton: React.FC<AppButtonProps> = ({
     : variant === 'secondary'
       ? theme.textPrimary
       : variant === 'destructive'
-        ? theme.background
+        ? theme.onDestructive
         : theme.onPrimary;
 
   return (
@@ -47,8 +47,7 @@ export const AppButton: React.FC<AppButtonProps> = ({
           borderColor: theme.border,
         },
         variant === 'destructive' && {
-          backgroundColor: theme.error,
-          opacity: pressed ? 0.88 : 1,
+          backgroundColor: pressed ? theme.destructivePressed : theme.destructive,
         },
         isDisabled && { backgroundColor: theme.disabledBg, borderWidth: 0 },
       ]}>

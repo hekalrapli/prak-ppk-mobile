@@ -345,7 +345,6 @@ export default function PracticumManageScreen() {
                     practicum={practicum}
                     session={session}
                     assistantName={practicum.assistantName ?? profile?.name}
-                    participantCount={studentIds.length}
                     onPress={() =>
                       router.push({
                         pathname: '/asisten/session/[sessionId]',

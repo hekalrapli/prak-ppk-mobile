@@ -3,12 +3,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusDot, type StatusTone } from '@/components/ui/status-dot';
 import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { formatSessionDateDisplay, getRelativeDateLabel } from '@/lib/session-date';
 import type { Practicum, Session, SessionStatus } from '@/types/attendance';
 
 interface SessionHighlightCardProps {
   practicum: Practicum;
   session: Session;
-  participantCount?: number;
   onPress: () => void;
 }
 
@@ -20,22 +20,23 @@ const STATUS_META: Record<SessionStatus, { label: string; tone: StatusTone }> = 
 
 /**
  * Kartu sorotan koral: sesi yang sedang dibuka, atau sesi berikutnya.
- * Tidak menampilkan foto pengajar; nama asisten hanya teks yang memang
- * tersedia di data.
+ * Tidak menampilkan foto pengajar maupun jumlah peserta.
  */
 export function SessionHighlightCard({
   practicum,
   session,
-  participantCount,
   onPress,
 }: SessionHighlightCardProps) {
   const theme = useTheme();
   const meta = STATUS_META[session.status];
   const eyebrow = session.status === 'open' ? 'Sesi berlangsung' : 'Sesi berikutnya';
+  const displayDate = formatSessionDateDisplay(session.date);
+  const relativeDate = getRelativeDateLabel(session.date);
+  const dateLine = relativeDate ? `${relativeDate} · ${displayDate}` : displayDate;
 
   return (
     <Pressable
-      accessibilityLabel={`${practicum.name}, ${session.date}, ${session.startTime} sampai ${session.endTime}, status ${meta.label}`}
+      accessibilityLabel={`${practicum.name}, ${dateLine}, ${session.startTime} sampai ${session.endTime}, status ${meta.label}`}
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
@@ -56,22 +57,17 @@ export function SessionHighlightCard({
         {practicum.name}
       </Text>
       <Text style={[styles.meta, { color: theme.onAccent }]}>
-        {session.date}
+        {dateLine}
       </Text>
       <Text style={[styles.time, { color: theme.onAccent }]}>
         {session.startTime}–{session.endTime} WIB
       </Text>
 
-      <View style={styles.footerRow}>
-        <Text numberOfLines={1} style={[styles.meta, styles.footerText, { color: theme.onAccent }]}>
-          {practicum.className} · {session.room}
-        </Text>
-        {participantCount && participantCount > 0 ? (
-          <Text style={[styles.meta, { color: theme.onAccent }]}>
-            {participantCount} peserta
-          </Text>
-        ) : null}
-      </View>
+      <Text
+        numberOfLines={1}
+        style={[styles.meta, styles.footerText, { color: theme.onAccent }]}>
+        {practicum.className} · {session.room}
+      </Text>
 
       {practicum.assistantName ? (
         <Text numberOfLines={1} style={[styles.meta, { color: theme.onAccent }]}>
@@ -108,12 +104,5 @@ const styles = StyleSheet.create({
   },
   meta: { ...Typography.caption },
   time: { ...Typography.bodyStrong, marginTop: Spacing.half },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: Spacing.two,
-    marginTop: Spacing.two,
-  },
-  footerText: { flexShrink: 1 },
+  footerText: { marginTop: Spacing.two },
 });

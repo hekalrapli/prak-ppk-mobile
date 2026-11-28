@@ -1,78 +1,130 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { StatusDot, type StatusTone } from '@/components/ui/status-dot';
-import { Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { getPracticumPalette } from '@/constants/pastel';
-import { useThemeMode } from '@/store/theme-context';
+import { formatSessionDateDisplay } from '@/lib/session-date';
 import type { Practicum, Session, SessionStatus } from '@/types/attendance';
 
 interface ScheduleListItemProps {
   session: Session;
   practicum: Practicum;
   assistantName?: string;
-  participantCount?: number;
+  /** Sembunyikan baris jam di dalam kartu saat rentang jam sudah tampil di kolom kiri timeline. */
+  hideTime?: boolean;
+  /** Tampilkan tanggal di kartu (dipakai pada grup lintas tanggal seperti "Sedang dibuka"). */
+  showDate?: boolean;
   onPress: () => void;
 }
 
-const STATUS_META: Record<SessionStatus, { label: string; tone: StatusTone }> = {
-  upcoming: { label: 'Belum dibuka', tone: 'muted' },
-  open: { label: 'Dibuka', tone: 'success' },
-  closed: { label: 'Ditutup', tone: 'neutral' },
+const STATUS_LABEL: Record<SessionStatus, string> = {
+  open: 'Dibuka',
+  upcoming: 'Belum dibuka',
+  closed: 'Ditutup',
 };
 
 /**
- * Kartu sesi pastel. Warna kartu dipetakan stabil dari id praktikum;
- * status tetap ditulis sebagai teks + titik berwarna.
+ * Kartu sesi dengan latar seragam bersih dan badge status semantik berlabel teks:
+ * - `open`: kartu permukaan utama + border hijau tipis + badge hijau "Dibuka".
+ * - `upcoming`: kartu permukaan utama + badge hangat "Belum dibuka".
+ * - `closed`: kartu netral kalem + badge netral berbingkai "Ditutup".
  */
 export function ScheduleListItem({
   session,
   practicum,
   assistantName,
-  participantCount,
+  hideTime = false,
+  showDate = false,
   onPress,
 }: ScheduleListItemProps) {
   const theme = useTheme();
-  const { scheme } = useThemeMode();
-  const palette = getPracticumPalette(practicum.id, scheme);
-  const meta = STATUS_META[session.status];
+  const statusLabel = STATUS_LABEL[session.status];
   const resolvedAssistant = assistantName ?? practicum.assistantName;
+
+  const isOpen = session.status === 'open';
+  const isClosed = session.status === 'closed';
+
+  const cardBackground = isClosed ? theme.surfaceSubtle : theme.surface;
+  const cardBorderColor = isOpen ? theme.success : theme.border;
+  const cardBorderWidth = isOpen ? 1.5 : 1;
+
+  const badgeStyle = isOpen
+    ? {
+        backgroundColor: theme.successSoft,
+        borderColor: 'transparent',
+        dotColor: theme.success,
+        textColor: theme.success,
+      }
+    : isClosed
+      ? {
+          backgroundColor: theme.surface,
+          borderColor: theme.borderStrong,
+          dotColor: theme.textTertiary,
+          textColor: theme.textSecondary,
+        }
+      : {
+          backgroundColor: theme.primarySoft,
+          borderColor: 'transparent',
+          dotColor: theme.link,
+          textColor: theme.link,
+        };
 
   return (
     <Pressable
-      accessibilityLabel={`${practicum.name}, ${session.date}, ${session.startTime} sampai ${session.endTime}, asisten ${resolvedAssistant ?? 'tidak diketahui'}, status ${meta.label}`}
+      accessibilityLabel={`${practicum.name}, ${session.date}, ${session.startTime} sampai ${session.endTime}, asisten ${resolvedAssistant ?? 'tidak diketahui'}, status ${statusLabel}`}
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        { backgroundColor: palette.surface, opacity: pressed ? 0.86 : 1 },
+        !isClosed && Shadow.soft,
+        {
+          backgroundColor: cardBackground,
+          borderColor: cardBorderColor,
+          borderWidth: cardBorderWidth,
+          opacity: pressed ? 0.86 : 1,
+        },
       ]}>
       <View style={styles.topRow}>
         <Text numberOfLines={2} style={[styles.title, { color: theme.textPrimary }]}>
           {practicum.name}
         </Text>
-        <StatusDot
-          label={meta.label}
-          labelColor={palette.accent}
-          tone={meta.tone}
-        />
+
+        <View
+          style={[
+            styles.statusBadge,
+            {
+              backgroundColor: badgeStyle.backgroundColor,
+              borderColor: badgeStyle.borderColor,
+              borderWidth: isClosed ? 1 : 0,
+            },
+          ]}>
+          <View
+            style={[styles.statusDot, { backgroundColor: badgeStyle.dotColor }]}
+          />
+          <Text style={[styles.statusText, { color: badgeStyle.textColor }]}>
+            {statusLabel}
+          </Text>
+        </View>
       </View>
 
-      <Text style={[styles.time, { color: theme.textPrimary }]}>
-        {session.startTime}–{session.endTime} WIB
-      </Text>
-      <Text numberOfLines={1} style={[styles.meta, { color: theme.textSecondary }]}>
-        {practicum.className} · {session.room}
-      </Text>
-      {resolvedAssistant ? (
+      {showDate ? (
         <Text numberOfLines={1} style={[styles.meta, { color: theme.textSecondary }]}>
-          Asisten: {resolvedAssistant}
+          {formatSessionDateDisplay(session.date)}
         </Text>
       ) : null}
 
-      {participantCount && participantCount > 0 ? (
-        <Text style={[styles.members, { color: palette.accent }]}>
-          {participantCount} peserta
+      {!hideTime ? (
+        <Text style={[styles.time, { color: theme.textPrimary }]}>
+          {session.startTime}–{session.endTime} WIB
+        </Text>
+      ) : null}
+
+      <Text numberOfLines={1} style={[styles.meta, { color: theme.textSecondary }]}>
+        {practicum.className} · {session.room}
+      </Text>
+
+      {resolvedAssistant ? (
+        <Text numberOfLines={1} style={[styles.meta, { color: theme.textSecondary }]}>
+          Asisten: {resolvedAssistant}
         </Text>
       ) : null}
     </Pressable>
@@ -96,14 +148,28 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 4,
+    flexShrink: 0,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: Radius.full,
+  },
+  statusText: {
+    ...Typography.caption,
+    fontWeight: '700',
+  },
   time: {
     ...Typography.label,
     marginTop: Spacing.one,
+    fontVariant: ['tabular-nums'],
   },
   meta: { ...Typography.caption },
-  members: {
-    ...Typography.caption,
-    fontWeight: '700',
-    marginTop: Spacing.one,
-  },
 });
