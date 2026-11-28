@@ -107,7 +107,6 @@ export default function AsistenHistoryScreen() {
                   },
                 })
               }
-              participantCount={item.practicum.studentIds?.length}
               practicum={item.practicum}
               session={item.session}
             />

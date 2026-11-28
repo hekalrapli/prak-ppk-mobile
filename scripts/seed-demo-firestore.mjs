@@ -27,18 +27,12 @@ import { resolve } from 'node:path';
 import { cert, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 
-// Data jadwal demo. assistantId diisi dinamis dari akun asisten terdaftar.
+// Data jadwal demo ringkas (4 praktikum, 7 sesi). assistantId diisi dinamis dari akun asisten terdaftar.
 const DUMMY_PRACTICUMS = [
-  { id: 'PRK-1', name: 'Praktikum Pemrograman Mobile', className: 'IF-3A' },
-  { id: 'PRK-2', name: 'Praktikum Basis Data', className: 'IF-3A' },
-  { id: 'PRK-3', name: 'Praktikum Jaringan Komputer', className: 'IF-3A' },
-  { id: 'PRK-4', name: 'Praktikum Struktur Data', className: 'IF-3A' },
-  { id: 'PRK-5', name: 'Praktikum Sistem Operasi', className: 'IF-3A' },
-  { id: 'PRK-6', name: 'Praktikum Kecerdasan Buatan', className: 'IF-3A' },
-  { id: 'PRK-7', name: 'Praktikum Rekayasa Perangkat Lunak', className: 'IF-3A' },
-  { id: 'PRK-8', name: 'Praktikum Keamanan Informasi', className: 'IF-3A' },
-  { id: 'PRK-9', name: 'Praktikum Pemrograman Web', className: 'IF-3A' },
-  { id: 'PRK-10', name: 'Praktikum Analisis dan Perancangan Sistem', className: 'IF-3A' },
+  { id: 'PRK-1', name: 'Praktikum Pemrograman Mobile', className: 'IF-3A', labId: 'lab-mobile' },
+  { id: 'PRK-2', name: 'Praktikum Basis Data', className: 'IF-3A', labId: 'lab-basis-data' },
+  { id: 'PRK-3', name: 'Praktikum Jaringan Komputer', className: 'IF-3A', labId: 'lab-jaringan' },
+  { id: 'PRK-4', name: 'Praktikum Struktur Data', className: 'IF-3A', labId: 'lab-mobile' },
 ];
 
 const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -46,9 +40,8 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Se
 
 /**
  * Tanggal sesi demo dihitung relatif terhadap hari ini agar status
- * "sedang berlangsung" dan "berikutnya" pada peta/bottom sheet bisa diuji kapan
- * pun script ini dijalankan. Formatnya sama dengan yang dipakai aplikasi:
- * "Senin, 26 Okt 2026".
+ * "sedang berlangsung", "mendatang", dan "selesai" selalu relevan kapan pun
+ * script dijalankan. Format: "Senin, 26 Okt 2026".
  */
 function relativeDate(offsetDays) {
   const date = new Date();
@@ -56,52 +49,23 @@ function relativeDate(offsetDays) {
   return `${DAY_NAMES[date.getDay()]}, ${date.getDate()} ${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function minutesToTime(totalMinutes) {
-  const safe = Math.min(23 * 60 + 59, Math.max(0, totalMinutes));
-  return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
-}
-
-/** Jendela waktu yang memuat "sekarang" agar satu sesi tampil Berlangsung. */
-function windowAroundNow() {
-  const now = new Date();
-  const current = now.getHours() * 60 + now.getMinutes();
-  return {
-    startTime: minutesToTime(current - 30),
-    endTime: minutesToTime(current + 30),
-  };
-}
-
-const demoWindow = windowAroundNow();
-
 const DUMMY_SESSIONS = [
-  { id: 'S-01', practicumId: 'PRK-1', date: relativeDate(1), startTime: '08:00', endTime: '09:40', room: 'Lab Mobile 2', labId: 'lab-mobile', status: 'upcoming' },
-  { id: 'S-02', practicumId: 'PRK-2', date: relativeDate(0), startTime: '10:00', endTime: '11:40', room: 'Lab Basis Data 1', labId: 'lab-basis-data', status: 'open' },
-  { id: 'S-03', practicumId: 'PRK-3', date: relativeDate(-1), startTime: '13:00', endTime: '14:40', room: 'Lab Jaringan', labId: 'lab-jaringan', status: 'closed' },
-  { id: 'S-04', practicumId: 'PRK-4', date: relativeDate(0), startTime: demoWindow.startTime, endTime: demoWindow.endTime, room: 'Lab Komputer 3', labId: 'lab-komputer-3', status: 'upcoming' },
-  { id: 'S-05', practicumId: 'PRK-5', date: relativeDate(2), startTime: '08:00', endTime: '09:40', room: 'Lab Sistem Operasi', labId: 'lab-sistem-operasi', status: 'upcoming' },
-  { id: 'S-06', practicumId: 'PRK-6', date: relativeDate(0), startTime: '10:00', endTime: '11:40', room: 'Lab Kecerdasan Buatan', labId: 'lab-kecerdasan-buatan', status: 'open' },
-  { id: 'S-07', practicumId: 'PRK-7', date: relativeDate(3), startTime: '13:00', endTime: '14:40', room: 'Lab RPL', labId: 'lab-rpl', status: 'upcoming' },
-  { id: 'S-08', practicumId: 'PRK-8', date: relativeDate(-2), startTime: '15:00', endTime: '16:40', room: 'Lab Keamanan', labId: 'lab-keamanan', status: 'closed' },
-  { id: 'S-09', practicumId: 'PRK-9', date: relativeDate(0), startTime: '08:00', endTime: '09:40', room: 'Lab Web', labId: 'lab-web', status: 'open' },
-  { id: 'S-10', practicumId: 'PRK-10', date: relativeDate(4), startTime: '10:00', endTime: '11:40', room: 'Lab APSI', labId: 'lab-apsi', status: 'upcoming' },
+  { id: 'S-01', practicumId: 'PRK-1', date: relativeDate(0), startTime: '10:00', endTime: '11:40', room: 'Lab Pemrograman 1', labId: 'lab-mobile', status: 'open' },
+  { id: 'S-02', practicumId: 'PRK-2', date: relativeDate(0), startTime: '13:00', endTime: '14:40', room: 'Lab Pemrograman 2', labId: 'lab-basis-data', status: 'upcoming' },
+  { id: 'S-03', practicumId: 'PRK-3', date: relativeDate(2), startTime: '08:00', endTime: '09:40', room: 'Lab Jaringan', labId: 'lab-jaringan', status: 'upcoming' },
+  { id: 'S-04', practicumId: 'PRK-4', date: relativeDate(2), startTime: '08:00', endTime: '09:40', room: 'Lab Pemrograman 1', labId: 'lab-mobile', status: 'upcoming' },
+  { id: 'S-05', practicumId: 'PRK-2', date: relativeDate(4), startTime: '10:00', endTime: '11:40', room: 'Lab Pemrograman 2', labId: 'lab-basis-data', status: 'upcoming' },
+  { id: 'S-06', practicumId: 'PRK-1', date: relativeDate(-1), startTime: '08:00', endTime: '09:40', room: 'Lab Pemrograman 1', labId: 'lab-mobile', status: 'closed' },
+  { id: 'S-07', practicumId: 'PRK-3', date: relativeDate(-2), startTime: '13:00', endTime: '14:40', room: 'Lab Jaringan', labId: 'lab-jaringan', status: 'closed' },
 ];
 
 /**
- * Titik laboratorium demo (FR-P1-02/FR-P1-03).
- * Koordinat berada di sekitar kampus (Semarang) dengan offset kecil agar tiap
- * pin terlihat terpisah di peta. `radius_meter` 50 m mengikuti kontrak README.
+ * Titik laboratorium demo (FR-P1-02/FR-P1-03 & Sprint 4).
  */
 const DUMMY_LABS = [
-  { id: 'lab-mobile', nama: 'Laboratorium Pemrograman Mobile', gedung: 'Gedung E Lantai 2', latitude: -7.049821, longitude: 110.439123, radius_meter: 50 },
-  { id: 'lab-basis-data', nama: 'Laboratorium Basis Data', gedung: 'Gedung E Lantai 2', latitude: -7.0499, longitude: 110.4393, radius_meter: 50 },
-  { id: 'lab-jaringan', nama: 'Laboratorium Jaringan Komputer', gedung: 'Gedung E Lantai 3', latitude: -7.0501, longitude: 110.439, radius_meter: 50 },
-  { id: 'lab-komputer-3', nama: 'Laboratorium Komputer 3', gedung: 'Gedung D Lantai 1', latitude: -7.0503, longitude: 110.4395, radius_meter: 50 },
-  { id: 'lab-sistem-operasi', nama: 'Laboratorium Sistem Operasi', gedung: 'Gedung D Lantai 2', latitude: -7.0505, longitude: 110.4392, radius_meter: 50 },
-  { id: 'lab-kecerdasan-buatan', nama: 'Laboratorium Kecerdasan Buatan', gedung: 'Gedung E Lantai 4', latitude: -7.0496, longitude: 110.4397, radius_meter: 50 },
-  { id: 'lab-rpl', nama: 'Laboratorium Rekayasa Perangkat Lunak', gedung: 'Gedung E Lantai 3', latitude: -7.0497, longitude: 110.4389, radius_meter: 50 },
-  { id: 'lab-keamanan', nama: 'Laboratorium Keamanan Informasi', gedung: 'Gedung D Lantai 3', latitude: -7.05, longitude: 110.44, radius_meter: 50 },
-  { id: 'lab-web', nama: 'Laboratorium Pemrograman Web', gedung: 'Gedung E Lantai 2', latitude: -7.0494, longitude: 110.4394, radius_meter: 50 },
-  { id: 'lab-apsi', nama: 'Laboratorium Analisis dan Perancangan Sistem', gedung: 'Gedung D Lantai 2', latitude: -7.0508, longitude: 110.4388, radius_meter: 50 },
+  { id: 'lab-mobile', nama: 'Lab Pemrograman 1', gedung: 'Gedung E Lantai 2', courseName: 'Pemrograman Mobile', latitude: -7.049821, longitude: 110.439123, radius_meter: 50, grace_period_minutes: 15, late_fine_amount: 5000 },
+  { id: 'lab-basis-data', nama: 'Lab Pemrograman 2', gedung: 'Gedung E Lantai 2', courseName: 'Basis Data', latitude: -7.0499, longitude: 110.4393, radius_meter: 75, grace_period_minutes: 10, late_fine_amount: 10000 },
+  { id: 'lab-jaringan', nama: 'Lab Jaringan', gedung: 'Gedung E Lantai 3', courseName: 'Jaringan Komputer', latitude: -7.0501, longitude: 110.439, radius_meter: 50, grace_period_minutes: 15, late_fine_amount: 5000 },
 ];
 
 function parseArgs(argv) {
@@ -232,6 +196,8 @@ async function main() {
 
   const batch = db.batch();
 
+  const aslabId = users.find((user) => user.role === 'aslab')?.uid || asistenList[0].uid;
+
   DUMMY_PRACTICUMS.forEach((practicum, index) => {
     const assistant = asistenList[index % asistenList.length];
 
@@ -240,6 +206,7 @@ async function main() {
       {
         name: practicum.name,
         className: practicum.className,
+        labId: practicum.labId,
         assistantId: assistant.uid,
         assistantName: assistant.name,
         studentIds: praktikanIds,
@@ -248,15 +215,22 @@ async function main() {
     );
   });
 
-  DUMMY_LABS.forEach((laboratory) => {
+  DUMMY_LABS.forEach((laboratory, index) => {
+    const assistant = asistenList[index % asistenList.length];
     batch.set(
       db.collection('laboratorium').doc(laboratory.id),
       {
         nama: laboratory.nama,
         gedung: laboratory.gedung,
+        courseName: laboratory.courseName,
         latitude: laboratory.latitude,
         longitude: laboratory.longitude,
         radius_meter: laboratory.radius_meter,
+        grace_period_minutes: laboratory.grace_period_minutes,
+        late_fine_amount: laboratory.late_fine_amount,
+        managedByAslabId: aslabId,
+        assistantIds: [assistant.uid],
+        studentIds: praktikanIds,
         updated_at: FieldValue.serverTimestamp(),
       },
       { merge: true }
@@ -272,6 +246,7 @@ async function main() {
         endTime: session.endTime,
         room: session.room,
         labId: session.labId,
+        lab_id: session.labId,
         status: session.status,
         ...(session.status === 'open' ? { openedAt: session.startTime } : {}),
         ...(session.status === 'closed' ? { openedAt: session.startTime, closedAt: session.endTime } : {}),
