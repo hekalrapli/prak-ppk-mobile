@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function AuthLayout() {
@@ -12,6 +13,7 @@ export default function AuthLayout() {
         headerShadowVisible: false,
         headerTintColor: theme.textPrimary,
         headerTitleStyle: { fontSize: 19, fontWeight: '600' },
+        headerRight: () => <ThemeToggle />,
         contentStyle: { backgroundColor: theme.surfaceWarm },
       }}>
       <Stack.Screen
