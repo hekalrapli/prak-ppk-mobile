@@ -1,7 +1,7 @@
 // src/lib/color.ts
 /**
  * Mengubah `#RRGGBB` menjadi `rgba(...)` agar warna tema bisa dipakai untuk
- * fillColor/strokeColor react-native-maps yang membutuhkan transparansi.
+ * overlay peta dan komponen lain yang membutuhkan transparansi.
  * Nilai non-hex dikembalikan apa adanya.
  */
 export function withAlpha(color: string, alpha: number): string {
