@@ -10,10 +10,10 @@ import type { LabMapViewProps } from './lab-map-view.types';
 /**
  * FR-P1-03 fallback untuk web.
  *
- * react-native-maps tidak mendukung web, sehingga target web menampilkan daftar
- * laboratorium dengan informasi yang setara (nama, gedung, radius, jarak, dan
- * status pilihan). Dengan begitu `expo export --platform web` tetap berhasil
- * dan seluruh alur lain (presensi, status sesi) dapat diuji di browser.
+ * Implementasi mobile memakai OpenStreetMap via WebView, sedangkan target web
+ * menampilkan daftar laboratorium dengan informasi yang setara (nama, gedung,
+ * radius, jarak, dan status pilihan). Dengan begitu `expo export --platform web`
+ * tetap berhasil dan seluruh alur lain (presensi, status sesi) dapat diuji di browser.
  */
 export function LabMapView({
   laboratories,
