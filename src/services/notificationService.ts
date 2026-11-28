@@ -45,7 +45,16 @@ let activeRefreshSubscription: { remove: () => void } | null = null;
 export interface NotificationTargetPayload {
   sessionId?: string;
   practicumId?: string;
-  type?: 'session_opened' | 'schedule_modified' | 'leave_decision' | string;
+  fineId?: string;
+  orderId?: string;
+  type?:
+    | 'session_opened'
+    | 'schedule_modified'
+    | 'leave_decision'
+    | 'fine_created'
+    | 'payment_success'
+    | 'payment_failed'
+    | string;
 }
 
 export interface ForegroundNotificationPayload {
@@ -477,6 +486,18 @@ function parseTargetPayload(raw: unknown): NotificationTargetPayload {
         ? record.practicumId
         : typeof record.practicum_id === 'string'
           ? record.practicum_id
+          : undefined,
+    fineId:
+      typeof record.fineId === 'string'
+        ? record.fineId
+        : typeof record.fine_id === 'string'
+          ? record.fine_id
+          : undefined,
+    orderId:
+      typeof record.orderId === 'string'
+        ? record.orderId
+        : typeof record.order_id === 'string'
+          ? record.order_id
           : undefined,
     type: typeof record.type === 'string' ? record.type : undefined,
   };

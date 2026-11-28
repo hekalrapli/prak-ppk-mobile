@@ -25,6 +25,13 @@ export default function PraktikanLayout() {
           name="presence/[sessionId]"
           options={{ headerShown: false }}
         />
+        <Stack.Screen
+          name="qr-scan/[sessionId]"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen name="fines/index" options={{ headerShown: false }} />
+        <Stack.Screen name="fines/[fineId]" options={{ headerShown: false }} />
+        <Stack.Screen name="payments/index" options={{ headerShown: false }} />
       </Stack>
     </RoleGuard>
   );

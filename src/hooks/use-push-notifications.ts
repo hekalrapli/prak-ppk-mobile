@@ -28,13 +28,25 @@ export type NotificationNavigationTarget =
       params: { tab: 'leave' };
     }
   | {
+      kind: 'fine-detail';
+      pathname: '/praktikan/fines/[fineId]';
+      params: { fineId: string };
+    }
+  | {
+      kind: 'fines-list';
+      pathname: '/praktikan/fines';
+    }
+  | {
+      kind: 'payments-history';
+      pathname: '/praktikan/payments';
+    }
+  | {
       kind: 'home';
       pathname: '/praktikan' | '/asisten' | '/aslab';
     };
 
 /**
- * Pemetaan terpusat tipe event notifikasi -> rute tujuan per peran.
- * Mengubah tujuan navigasi untuk satu tipe event cukup mengubah satu baris di sini.
+ * Pemetaan terpusat tipe event notifikasi sesi -> rute tujuan per peran.
  */
 export const NOTIFICATION_EVENT_ROUTES: Record<
   string,
@@ -71,6 +83,25 @@ export function resolveNotificationNavigation(
   if (role === 'aslab') {
     return { kind: 'home', pathname: '/aslab' };
   }
+
+  // FR-S4-P3-03: Event siklus denda & pembayaran Midtrans untuk praktikan.
+  if (role === 'praktikan') {
+    const fineId = target.fineId?.trim();
+    if (target.type === 'fine_created' || target.type === 'payment_failed') {
+      if (fineId) {
+        return {
+          kind: 'fine-detail',
+          pathname: '/praktikan/fines/[fineId]',
+          params: { fineId },
+        };
+      }
+      return { kind: 'fines-list', pathname: '/praktikan/fines' };
+    }
+    if (target.type === 'payment_success') {
+      return { kind: 'payments-history', pathname: '/praktikan/payments' };
+    }
+  }
+
   const sessionId = target.sessionId?.trim();
   const practicumId = target.practicumId?.trim();
 
@@ -108,9 +139,8 @@ export function resolveNotificationNavigation(
 }
 
 /**
- * FR-P2-01 & FR-P2-02: Mengelola notifikasi masuk saat aplikasi di foreground
- * (menampilkan in-app toast) serta menangani ketukan notifikasi (background &
- * cold start) menuju rute yang tepat.
+ * FR-P2-01, FR-P2-02 & FR-S4-P3-03: Mengelola notifikasi masuk saat foreground
+ * (in-app toast) serta menangani ketukan notifikasi (background & cold start).
  */
 export function useNotificationObserver(): void {
   const router = useRouter();
@@ -126,7 +156,8 @@ export function useNotificationObserver(): void {
       const message = payload.body
         ? `${payload.title} — ${payload.body}`
         : payload.title;
-      showToast(message, 'success');
+      const tone = payload.data.type === 'payment_failed' ? 'error' : 'success';
+      showToast(message, tone);
     });
 
     return () => {
@@ -150,6 +181,16 @@ export function useNotificationObserver(): void {
             pathname: destination.pathname,
             params: destination.params,
           });
+        } else if (destination.kind === 'fine-detail') {
+          router.push({
+            pathname: destination.pathname,
+            params: destination.params,
+          });
+        } else if (
+          destination.kind === 'fines-list' ||
+          destination.kind === 'payments-history'
+        ) {
+          router.push(destination.pathname);
         } else if (destination.kind === 'history') {
           router.replace({
             pathname: destination.pathname,

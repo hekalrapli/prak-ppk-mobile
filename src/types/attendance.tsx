@@ -4,8 +4,11 @@ import type { FieldValue, Timestamp } from 'firebase/firestore';
 export type UserRole = 'praktikan' | 'asisten' | 'aslab';
 export type SessionStatus = 'upcoming' | 'open' | 'closed';
 export type AttendanceStatus = 'present';
+export type PunctualityStatus = 'on_time' | 'late';
 export type AttendanceVerificationMethod = 'geofence' | 'qr';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
+export type FineStatus = 'unpaid' | 'pending' | 'success' | 'failed';
+export type PaymentTransactionStatus = 'pending' | 'success' | 'failed';
 export type FirestoreTimestamp =
   | Timestamp
   | FieldValue
@@ -66,6 +69,10 @@ export interface AttendanceDoc {
   praktikanName: string;
   praktikanNim: string;
   status: AttendanceStatus;
+  /** Status ketepatan waktu (FR-S4-P2-03); tidak pernah diubah oleh pembayaran denda. */
+  punctualityStatus?: PunctualityStatus;
+  /** Jumlah menit keterlambatan (0 bila tepat waktu). */
+  lateMinutes?: number;
   recordedAt: FirestoreTimestamp;
   sessionId?: string;
   practicumId?: string;
@@ -174,3 +181,50 @@ export type BulkParseResult<T> =
       error: string;
       expectedColumns: string[];
     };
+
+/** Tagihan denda keterlambatan (ID deterministik: `<sessionId>_<praktikanId>`). */
+export interface FineDoc {
+  id: string;
+  praktikanId: string;
+  praktikanName: string;
+  praktikanNim: string;
+  practicumId: string;
+  practicumName: string;
+  sessionId: string;
+  sessionDate: string;
+  labId: string;
+  labName: string;
+  attendanceId: string;
+  lateMinutes: number;
+  gracePeriodMinutes: number;
+  amount: number;
+  status: FineStatus;
+  latestOrderId?: string;
+  createdAt: FirestoreTimestamp;
+  paidAt?: FirestoreTimestamp;
+  updatedAt?: FirestoreTimestamp;
+}
+
+/** Catatan transaksi pembayaran Midtrans (ditulis eksklusif oleh Backend Admin SDK). */
+export interface PaymentTransactionDoc {
+  orderId: string;
+  fineId: string;
+  praktikanId: string;
+  praktikanName: string;
+  praktikanNim: string;
+  practicumId: string;
+  practicumName: string;
+  sessionId: string;
+  sessionDate: string;
+  amount: number;
+  status: PaymentTransactionStatus;
+  paymentType?: string;
+  snapToken?: string;
+  redirectUrl?: string;
+  gatewayTransactionId?: string;
+  gatewayStatus?: string;
+  fineCreatedAt: FirestoreTimestamp;
+  createdAt: FirestoreTimestamp;
+  paidAt?: FirestoreTimestamp;
+  updatedAt?: FirestoreTimestamp;
+}
