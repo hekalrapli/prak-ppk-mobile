@@ -14,7 +14,8 @@
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "prak-ppk-7-d45fd",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "prak-ppk-7-d45fd.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "236448103237",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:236448103237:web:382662d61c1849aa8a1c2c"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:236448103237:web:382662d61c1849aa8a1c2c",
+        "EXPO_PUBLIC_PAYMENT_API_URL": "https://prak-ppk-mobile.vercel.app"
       }
     },
     "preview": {
